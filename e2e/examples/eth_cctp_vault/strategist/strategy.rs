@@ -98,8 +98,9 @@ impl ValenceWorker for Strategy {
         info!("{worker_name}: Starting cycle...");
         info!("{worker_name}: Waiting until next minute...");
         wait_until_next_minute().await;
+        let eth_block = self.eth_client.latest_block_height().await?;
         info!(
-            "{worker_name}: worker loop started at second {}",
+            "{worker_name}: worker loop started at second {} at evm block: {eth_block}",
             get_current_second()
         );
 
@@ -286,16 +287,17 @@ impl ValenceWorker for Strategy {
         let fee_bps = scaled_pool_fee.to_string().parse::<u32>().unwrap_or(100);
         info!("[CYCLE] bps_converted: {fee_bps}");
 
-        // all withdraws are subject to a base fee buffer of 1%
-        let fee_buffer = 100u32;
+        // all withdraws are subject to a base fee buffer of 0.01%
+        let fee_buffer = 1u32;
 
-        let total_fee = fee_bps + fee_buffer;
+        // TODO: remove the subtraction for mainnet deployments
+        let total_fee = fee_bps + fee_buffer - fee_bps;
 
         info!(
             "[CYCLE] Updating Ethereum Vault with:
-                    rate: {r}
-                    witdraw_fee_bps: {total_fee}
-                    netting_amount: {netting_amount}"
+                rate: {r}
+                witdraw_fee_bps: {total_fee}
+                netting_amount: {netting_amount}"
         );
 
         let update_result = self

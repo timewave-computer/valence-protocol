@@ -276,6 +276,40 @@ pub fn setup_astroport_cl_pool(
     Ok((pool_addr.to_string(), lp_token.to_string()))
 }
 
+pub fn astroport_cl_swap(
+    test_ctx: &mut TestContext,
+    pool_addr: String,
+    offer_denom: String,
+    offer_amount: u128,
+) -> Result<(), Box<dyn Error>> {
+    let swap_msg = valence_astroport_utils::astroport_native_lp_token::ExecuteMsg::Swap {
+        offer_asset: Asset {
+            info: AssetInfo::NativeToken {
+                denom: offer_denom.to_string(),
+            },
+            amount: offer_amount.into(),
+        },
+        ask_asset_info: None,
+        belief_price: None,
+        max_spread: None,
+        to: None,
+    };
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &pool_addr,
+        DEFAULT_KEY,
+        &serde_json::to_string(&swap_msg).unwrap(),
+        &format!("--amount {offer_amount}{offer_denom} --gas 1000000"),
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    Ok(())
+}
+
 pub fn setup_astroport_lper_lib(
     test_ctx: &mut TestContext,
     input_account: String,

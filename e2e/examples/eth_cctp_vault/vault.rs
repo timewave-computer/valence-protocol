@@ -15,7 +15,7 @@ use localic_utils::{
     NEUTRON_CHAIN_NAME,
 };
 
-use log::info;
+use log::{info, warn};
 
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
@@ -33,7 +33,7 @@ use valence_chain_client_utils::{
 use valence_e2e::{
     async_run,
     utils::{
-        astroport::setup_astroport_cl_pool,
+        astroport::{astroport_cl_swap, setup_astroport_cl_pool},
         authorization::set_up_authorization_and_processor,
         ethereum::{self as ethereum_utils, ANVIL_NAME, DEFAULT_ANVIL_PORT},
         mocks::cctp_relayer_evm_noble::MockCctpRelayerEvmNoble,
@@ -129,6 +129,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     let pool_asset_initial_amount = 50_899_000_000u128;
+    let usdc_admin_buffer = 30_000_000_000u128;
 
     async_run!(rt, {
         let noble_client = NobleClient::new(
@@ -149,7 +150,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .mint_fiat(
                 NOBLE_CHAIN_ADMIN_ADDR,
                 NOBLE_CHAIN_ADMIN_ADDR,
-                &pool_asset_initial_amount.to_string(),
+                &(pool_asset_initial_amount + usdc_admin_buffer).to_string(),
                 UUSDC_DENOM,
             )
             .await
@@ -161,6 +162,22 @@ fn main() -> Result<(), Box<dyn Error>> {
                 NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
                 UUSDC_DENOM.to_string(),
                 pool_asset_initial_amount.to_string(),
+                test_ctx
+                    .get_transfer_channels()
+                    .src(NOBLE_CHAIN_NAME)
+                    .dest(NEUTRON_CHAIN_NAME)
+                    .get(),
+                60,
+                None,
+            )
+            .await
+            .unwrap();
+        noble_client.poll_for_tx(&rx.hash).await.unwrap();
+        let rx = noble_client
+            .ibc_transfer(
+                NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+                UUSDC_DENOM.to_string(),
+                usdc_admin_buffer.to_string(),
                 test_ctx
                     .get_transfer_channels()
                     .src(NOBLE_CHAIN_NAME)
@@ -348,6 +365,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         info!("\n======================== EPOCH 1 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
+
+        match astroport_cl_swap(
+            &mut test_ctx,
+            pool_addr.to_string(),
+            NEUTRON_CHAIN_DENOM.to_string(),
+            10_000_000,
+        ) {
+            Ok(_) => info!("swapped 10_000_000ntrn -> usdc"),
+            Err(_) => warn!("failed to swap 10_000_000ntr -> usdc"),
+        };
 
         info!("User1 depositing {user_1_deposit_amount}USDC tokens to vault...");
         vault::deposit_to_vault(
@@ -544,6 +571,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             10_000,
             false,
         )?;
+
+        match astroport_cl_swap(
+            &mut test_ctx,
+            pool_addr.to_string(),
+            uusdc_on_neutron_denom.to_string(),
+            15_000_000,
+        ) {
+            Ok(_) => info!("swapped 15_000_000usdc -> ntrn"),
+            Err(_) => warn!("failed to swap 15_000_000usdc -> ntrn"),
+        };
     }
 
     {
@@ -577,6 +614,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         async_run!(&rt, wait_until_half_minute().await);
 
+        match astroport_cl_swap(
+            &mut test_ctx,
+            pool_addr.to_string(),
+            uusdc_on_neutron_denom.to_string(),
+            15_000_000,
+        ) {
+            Ok(_) => info!("swapped 15_000_000usdc -> ntrn"),
+            Err(_) => warn!("failed to swap 15_000_000usdc -> ntrn"),
+        };
         i += 1;
 
         if i >= 100_000_000 {

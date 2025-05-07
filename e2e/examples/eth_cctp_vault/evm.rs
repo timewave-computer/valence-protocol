@@ -97,7 +97,7 @@ pub fn setup_eth_libraries(
     let fee_distribution = FeeDistributionConfig {
         strategistAccount: eth_accounts[0], // Strategist fee recipient
         platformAccount: eth_accounts[1],   // Platform fee recipient
-        strategistRatioBps: 10,             // 0.1% to strategist
+        strategistRatioBps: 1,              // 0.01% to strategist
     };
 
     let vault_config = VaultConfig {
