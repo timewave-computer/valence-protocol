@@ -141,8 +141,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build()?;
 
     // setup astroport
-    let (pool_addr, lp_token) =
-        setup_astroport_cl_pool(&mut test_ctx, WBTC_NEUTRON_DENOM.to_string())?;
+    let (pool_addr, lp_token) = setup_astroport_cl_pool(
+        &mut test_ctx,
+        WBTC_NEUTRON_DENOM.to_string(),
+        899_000_000,
+        899_000_000,
+    )?;
 
     // set up the authorization and processor contracts on neutron
     let (authorization_contract_address, neutron_processor_address) =

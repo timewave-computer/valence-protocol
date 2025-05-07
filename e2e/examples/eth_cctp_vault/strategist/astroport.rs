@@ -171,6 +171,8 @@ impl AstroportOps for Strategy {
             .await?;
         self.neutron_client.poll_for_tx(&rx.hash).await?;
 
+        info!("success exiting position");
+
         Ok(())
     }
 
@@ -287,6 +289,8 @@ impl AstroportOps for Strategy {
             .await?;
         self.neutron_client.poll_for_tx(&rx.hash).await?;
 
+        info!("success entering position");
+
         Ok(())
     }
 
@@ -297,19 +301,23 @@ impl AstroportOps for Strategy {
             .query_balance(&self.cfg.neutron.accounts.withdraw, NEUTRON_CHAIN_DENOM)
             .await?;
 
-        if withdraw_account_ntrn_bal == 0 {
+        // prior to swapping we ensure that the withdraw account has sufficient untrn to
+        // cover the subsequent ibc transfer fee for routing the usdc to noble
+        let applicable_balance = if withdraw_account_ntrn_bal <= self.cfg.neutron.min_ibc_fee.u128()
+        {
             warn!("Withdraw account must have NTRN in order to swap into USDC; returning");
             return Ok(());
         } else {
             info!("swapping {withdraw_account_ntrn_bal}NTRN into USDC...");
-        }
+            withdraw_account_ntrn_bal - self.cfg.neutron.min_ibc_fee.u128()
+        };
 
         let astroport_swap_msg = AstroportExecuteMsg::Swap {
             offer_asset: Asset {
                 info: AssetInfo::NativeToken {
                     denom: NEUTRON_CHAIN_DENOM.to_string(),
                 },
-                amount: withdraw_account_ntrn_bal.into(),
+                amount: applicable_balance.into(),
             },
             max_spread: None,
             belief_price: None,
@@ -320,7 +328,7 @@ impl AstroportOps for Strategy {
         let swap_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.cfg.neutron.target_pool.to_string(),
             msg: to_json_binary(&astroport_swap_msg)?,
-            funds: vec![coin(withdraw_account_ntrn_bal, NEUTRON_CHAIN_DENOM)],
+            funds: vec![coin(applicable_balance, NEUTRON_CHAIN_DENOM)],
         });
 
         let base_account_execute_msgs = valence_account_utils::msg::ExecuteMsg::ExecuteMsg {
@@ -338,6 +346,8 @@ impl AstroportOps for Strategy {
             .await?;
 
         self.neutron_client.poll_for_tx(&rx.hash).await?;
+
+        info!("success swapping ntrn into usdc");
 
         Ok(())
     }

@@ -7,6 +7,7 @@ use std::{
 };
 
 use alloy::primitives::{Address, U256};
+use cosmwasm_std::Uint128;
 use evm::{setup_eth_accounts, setup_eth_libraries};
 use localic_utils::{
     types::config::ConfigChain, utils::ethereum::EthClient, ConfigChainBuilder, TestContextBuilder,
@@ -14,7 +15,7 @@ use localic_utils::{
     NEUTRON_CHAIN_NAME,
 };
 
-use log::info;
+use log::{info, warn};
 
 use program::{setup_neutron_accounts, setup_neutron_libraries, upload_neutron_contracts};
 
@@ -32,7 +33,7 @@ use valence_chain_client_utils::{
 use valence_e2e::{
     async_run,
     utils::{
-        astroport::setup_astroport_cl_pool,
+        astroport::{astroport_cl_swap, setup_astroport_cl_pool},
         authorization::set_up_authorization_and_processor,
         ethereum::{self as ethereum_utils, ANVIL_NAME, DEFAULT_ANVIL_PORT},
         mocks::cctp_relayer_evm_noble::MockCctpRelayerEvmNoble,
@@ -48,7 +49,7 @@ use valence_e2e::{
 
 const _PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
 const _WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";
-const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_vault/neutron_contracts/";
+const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_cctp_vault/neutron_contracts/";
 
 mod evm;
 mod neutron;
@@ -127,6 +128,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         &get_chain_field_from_local_ic_log(NEUTRON_CHAIN_ID, "grpc_address")?,
     )?;
 
+    let pool_asset_initial_amount = 50_899_000_000u128;
+    let usdc_admin_buffer = 30_000_000_000u128;
+
     async_run!(rt, {
         let noble_client = NobleClient::new(
             &noble_grpc_url.to_string(),
@@ -146,7 +150,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .mint_fiat(
                 NOBLE_CHAIN_ADMIN_ADDR,
                 NOBLE_CHAIN_ADMIN_ADDR,
-                &999900000.to_string(),
+                &(pool_asset_initial_amount + usdc_admin_buffer).to_string(),
                 UUSDC_DENOM,
             )
             .await
@@ -157,7 +161,23 @@ fn main() -> Result<(), Box<dyn Error>> {
             .ibc_transfer(
                 NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
                 UUSDC_DENOM.to_string(),
-                999000000.to_string(),
+                pool_asset_initial_amount.to_string(),
+                test_ctx
+                    .get_transfer_channels()
+                    .src(NOBLE_CHAIN_NAME)
+                    .dest(NEUTRON_CHAIN_NAME)
+                    .get(),
+                60,
+                None,
+            )
+            .await
+            .unwrap();
+        noble_client.poll_for_tx(&rx.hash).await.unwrap();
+        let rx = noble_client
+            .ibc_transfer(
+                NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
+                UUSDC_DENOM.to_string(),
+                usdc_admin_buffer.to_string(),
                 test_ctx
                     .get_transfer_channels()
                     .src(NOBLE_CHAIN_NAME)
@@ -174,8 +194,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     sleep(Duration::from_secs(3));
 
     // setup astroport
-    let (pool_addr, lp_token) =
-        setup_astroport_cl_pool(&mut test_ctx, uusdc_on_neutron_denom.to_string())?;
+    let (pool_addr, lp_token) = setup_astroport_cl_pool(
+        &mut test_ctx,
+        uusdc_on_neutron_denom.to_string(),
+        pool_asset_initial_amount,
+        pool_asset_initial_amount,
+    )?;
 
     let amount_to_transfer = 1_000_000;
 
@@ -274,6 +298,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
             accounts: neutron_program_accounts,
             libraries: neutron_program_libraries,
+            min_ibc_fee: Uint128::new(2000),
         },
         ethereum: strategy_config::ethereum::EthereumStrategyConfig {
             rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
@@ -286,7 +311,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     };
 
-    let temp_path = Path::new("./e2e/examples/eth_vault/strategist/example_strategy.toml");
+    let temp_path = Path::new("./e2e/examples/eth_cctp_vault/strategist/example_strategy.toml");
     strategy_config.to_file(temp_path)?;
 
     let strategy = async_run!(
@@ -319,11 +344,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let eth_withdraw_address =
         Address::from_str(&ethereum_program_accounts.withdraw.to_string()).unwrap();
 
+    async_run!(&rt, tokio::time::sleep(Duration::from_secs(5)).await);
+
     // epoch 0
     {
         info!("\n======================== EPOCH 0 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         info!("User0 depositing {user_0_deposit_amount}USDC tokens to vault...");
         vault::deposit_to_vault(
@@ -333,15 +359,22 @@ fn main() -> Result<(), Box<dyn Error>> {
             eth_users.users[0],
             user_0_deposit_amount,
         )?;
-
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // epoch 1
     {
         info!("\n======================== EPOCH 1 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
+
+        match astroport_cl_swap(
+            &mut test_ctx,
+            pool_addr.to_string(),
+            NEUTRON_CHAIN_DENOM.to_string(),
+            10_000_000,
+        ) {
+            Ok(_) => info!("swapped 10_000_000ntrn -> usdc"),
+            Err(_) => warn!("failed to swap 10_000_000ntr -> usdc"),
+        };
 
         info!("User1 depositing {user_1_deposit_amount}USDC tokens to vault...");
         vault::deposit_to_vault(
@@ -351,14 +384,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             eth_users.users[1],
             user_1_deposit_amount,
         )?;
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // epoch 2
     {
         info!("\n======================== EPOCH 2 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         let user0_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
 
@@ -404,14 +435,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .unwrap()
         });
         info!("Update withdraw request: {:?}", request);
-
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     {
         info!("\n======================== EPOCH 3 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 1);
         info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
@@ -454,14 +482,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .unwrap()
         });
         info!("User1 update withdraw request: {:?}", request);
-
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     {
         info!("\n======================== EPOCH 4 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         // Get the withdrawal request details before completion
         let withdraw_request = async_run!(&rt, {
@@ -519,14 +544,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("user0 has withdraw request: {user0_withdraw_request}");
         info!("post completion user0 usdc bal: {post_completion_user0_bal}",);
         info!("post completion user0 shares bal: {post_completion_user0_shares}",);
-
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     {
         info!("\n======================== EPOCH 5 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         info!("User0 depositing 2_000_000 to vault");
         vault::deposit_to_vault(
@@ -550,13 +572,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             false,
         )?;
 
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
+        match astroport_cl_swap(
+            &mut test_ctx,
+            pool_addr.to_string(),
+            uusdc_on_neutron_denom.to_string(),
+            15_000_000,
+        ) {
+            Ok(_) => info!("swapped 15_000_000usdc -> ntrn"),
+            Err(_) => warn!("failed to swap 15_000_000usdc -> ntrn"),
+        };
     }
 
     {
         info!("\n======================== EPOCH 6 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
 
         let pre_completion_user2_bal = eth_users.get_user_deposit_token_bal(&rt, &eth_client, 2);
         let pre_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
@@ -576,8 +605,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("user2 has withdraw request: {user2_withdraw_request}");
         info!("post completion user2 usdc bal: {post_completion_user2_bal}",);
         info!("post completion user2 shares bal: {post_completion_user2_shares}",);
-
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     let mut i = 7;
@@ -587,8 +614,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         async_run!(&rt, wait_until_half_minute().await);
 
-        ethereum_utils::mine_blocks(&rt, &eth_client, 5, 3);
-
+        match astroport_cl_swap(
+            &mut test_ctx,
+            pool_addr.to_string(),
+            uusdc_on_neutron_denom.to_string(),
+            15_000_000,
+        ) {
+            Ok(_) => info!("swapped 15_000_000usdc -> ntrn"),
+            Err(_) => warn!("failed to swap 15_000_000usdc -> ntrn"),
+        };
         i += 1;
 
         if i >= 100_000_000 {
