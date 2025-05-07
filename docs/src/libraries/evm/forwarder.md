@@ -40,7 +40,7 @@ The library is configured on deployment using the `ForwarderConfig` type.
      */
     struct ForwardingConfig {
         address tokenAddress;
-        uint128 maxAmount;
+        uint256 maxAmount;
     }
 
     /**

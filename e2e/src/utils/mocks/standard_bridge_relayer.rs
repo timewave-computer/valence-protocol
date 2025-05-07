@@ -2,18 +2,16 @@ use std::{collections::HashSet, error::Error, time::Duration};
 
 use alloy::{
     eips::BlockNumberOrTag,
-    primitives::{Address, FixedBytes, Log, U256},
+    primitives::{Address, Log, U256},
     providers::Provider,
     rpc::types::Filter,
     signers::local::{coins_bip39::English, MnemonicBuilder},
+    sol,
     sol_types::SolEvent,
 };
 use async_trait::async_trait;
 
-use crate::utils::{
-    solidity_contracts::{MockTokenMessenger::DepositForBurn, ERC20},
-    worker::ValenceWorker,
-};
+use crate::utils::{solidity_contracts::ERC20, worker::ValenceWorker};
 use log::{info, warn};
 use valence_chain_client_utils::{
     ethereum::EthereumClient,
@@ -22,7 +20,18 @@ use valence_chain_client_utils::{
 
 const POLLING_PERIOD: Duration = Duration::from_secs(5);
 
-pub struct MockCctpRelayerEvmEvm {
+sol! {
+    event ERC20DepositInitiated(
+        address indexed l1Token,
+        address indexed l2Token,
+        address indexed from,
+        address to,
+        uint256 amount,
+        bytes extraData
+    );
+}
+
+pub struct MockStandardBridgeRelayer {
     pub state: RelayerState,
     pub runtime: RelayerRuntime,
 }
@@ -36,7 +45,7 @@ impl RelayerRuntime {
     async fn new(endpoint_a: String, endpoint_b: String) -> Result<Self, Box<dyn Error>> {
         let signer = MnemonicBuilder::<English>::default()
             .phrase("test test test test test test test test test test test junk")
-            .index(5)? // derive the mnemonic at a different index to avoid nonce issues
+            .index(6)? // derive the mnemonic at a different index to avoid nonce issues
             .build()?;
 
         let evm_client_a = EthereumClient {
@@ -68,9 +77,9 @@ pub struct RelayerState {
 }
 
 #[async_trait]
-impl ValenceWorker for MockCctpRelayerEvmEvm {
+impl ValenceWorker for MockStandardBridgeRelayer {
     fn get_name(&self) -> String {
-        "Mock CCTP Relayer: EVM-EVM".to_string()
+        "Mock Standard Bridge Relayer".to_string()
     }
 
     async fn cycle(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -90,13 +99,13 @@ impl ValenceWorker for MockCctpRelayerEvmEvm {
     }
 }
 
-impl MockCctpRelayerEvmEvm {
+impl MockStandardBridgeRelayer {
     pub async fn new(
         endpoint_a: String,
         endpoint_b: String,
-        messenger_a: Address,
+        standard_bridge_a: Address,
         destination_erc20_a: Address,
-        messenger_b: Address,
+        standard_bridge_b: Address,
         destination_erc20_b: Address,
     ) -> Result<Self, Box<dyn Error>> {
         let runtime = RelayerRuntime::new(endpoint_a, endpoint_b).await?;
@@ -106,11 +115,11 @@ impl MockCctpRelayerEvmEvm {
             state: RelayerState {
                 evm_a_last_block_processed: None,
                 evm_a_processed_events: HashSet::new(),
-                evm_a_filter: Filter::new().address(messenger_a),
+                evm_a_filter: Filter::new().address(standard_bridge_a),
                 evm_a_destination_erc20: destination_erc20_a,
                 evm_b_last_block_processed: None,
                 evm_b_processed_events: HashSet::new(),
-                evm_b_filter: Filter::new().address(messenger_b),
+                evm_b_filter: Filter::new().address(standard_bridge_b),
                 evm_b_destination_erc20: destination_erc20_b,
             },
         })
@@ -152,7 +161,7 @@ impl MockCctpRelayerEvmEvm {
             .expect("failed to query evm B balance");
 
         let delta = post_send_balance._0 - pre_send_balance._0;
-        info!("[CCTP EVM-EVM] successfully sent {delta} tokens to evm B address {recipient}");
+        info!("[Standard Bridge] successfully sent {delta} tokens to evm B address {recipient}");
 
         Ok(())
     }
@@ -193,7 +202,7 @@ impl MockCctpRelayerEvmEvm {
             .expect("failed to query evm A balance");
 
         let delta = post_send_balance._0 - pre_send_balance._0;
-        info!("[CCTP EVM-EVM] successfully sent {delta} tokens to evm A address {recipient}");
+        info!("[Standard Bridge] successfully sent {delta} tokens to evm A address {recipient}");
 
         Ok(())
     }
@@ -206,7 +215,6 @@ impl MockCctpRelayerEvmEvm {
             .await
             .expect("could not get evm A provider");
 
-        // set the block range for the filter
         let current_block = provider.get_block_number().await?;
         let last_block = self
             .state
@@ -216,6 +224,7 @@ impl MockCctpRelayerEvmEvm {
         let filter = filter
             .from_block(BlockNumberOrTag::Number(last_block))
             .to_block(BlockNumberOrTag::Number(current_block));
+
         // fetch the logs
         let logs = provider.get_logs(&filter).await?;
 
@@ -229,12 +238,13 @@ impl MockCctpRelayerEvmEvm {
                     Log::new(log.address(), log.topics().into(), log.data().clone().data)
                         .unwrap_or_default();
 
-                let deposit_for_burn_log = DepositForBurn::decode_log(&alloy_log, false)?;
+                let erc20_deposit_initiated_log =
+                    ERC20DepositInitiated::decode_log(&alloy_log, false)?;
 
                 // send on EVM B when an event is detected on EVM A
                 self.send_on_evm_b(
-                    deposit_for_burn_log.amount,
-                    fixed_bytes_to_address(deposit_for_burn_log.mintRecipient),
+                    erc20_deposit_initiated_log.amount,
+                    erc20_deposit_initiated_log.to,
                 )
                 .await?;
             }
@@ -263,7 +273,6 @@ impl MockCctpRelayerEvmEvm {
         let filter = filter
             .from_block(BlockNumberOrTag::Number(last_block))
             .to_block(BlockNumberOrTag::Number(current_block));
-
         // fetch the logs
         let logs = provider.get_logs(&filter).await?;
 
@@ -277,23 +286,20 @@ impl MockCctpRelayerEvmEvm {
                     Log::new(log.address(), log.topics().into(), log.data().clone().data)
                         .unwrap_or_default();
 
-                let deposit_for_burn_log = DepositForBurn::decode_log(&alloy_log, false)?;
+                let erc20_deposit_initiated_log =
+                    ERC20DepositInitiated::decode_log(&alloy_log, false)?;
 
                 // send on EVM A when an event is detected on EVM B
                 self.send_on_evm_a(
-                    deposit_for_burn_log.amount,
-                    fixed_bytes_to_address(deposit_for_burn_log.mintRecipient),
+                    erc20_deposit_initiated_log.amount,
+                    erc20_deposit_initiated_log.to,
                 )
                 .await?;
             }
         }
-
         // update the last block processed
         self.state.evm_b_last_block_processed = Some(current_block);
+
         Ok(())
     }
-}
-
-fn fixed_bytes_to_address(bytes32: FixedBytes<32>) -> Address {
-    Address::from_slice(&bytes32.0[12..32])
 }
