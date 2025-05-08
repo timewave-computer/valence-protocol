@@ -79,6 +79,8 @@ pub fn deploy_astroport_contracts(
 pub fn setup_astroport_cl_pool(
     test_ctx: &mut TestContext,
     counterparty_denom: String,
+    asset_0_amount: u128,
+    asset_1_amount: u128,
 ) -> Result<(String, String), Box<dyn Error>> {
     let (
         astroport_factory_code_id,
@@ -228,8 +230,8 @@ pub fn setup_astroport_cl_pool(
     let lp_token = query_pool_response["liquidity_token"].as_str().unwrap();
 
     info!("Pool created successfully! Pool address: {pool_addr}, LP token: {lp_token}");
-    let asset_a = coin(899_000_000, NEUTRON_CHAIN_DENOM);
-    let asset_b = coin(899_000_000, counterparty_denom.clone());
+    let asset_a = coin(asset_0_amount, NEUTRON_CHAIN_DENOM);
+    let asset_b = coin(asset_1_amount, counterparty_denom.clone());
     let assets = vec![
         Asset {
             info: AssetInfo::NativeToken {
@@ -272,6 +274,40 @@ pub fn setup_astroport_cl_pool(
     std::thread::sleep(std::time::Duration::from_secs(3));
 
     Ok((pool_addr.to_string(), lp_token.to_string()))
+}
+
+pub fn astroport_cl_swap(
+    test_ctx: &mut TestContext,
+    pool_addr: String,
+    offer_denom: String,
+    offer_amount: u128,
+) -> Result<(), Box<dyn Error>> {
+    let swap_msg = valence_astroport_utils::astroport_native_lp_token::ExecuteMsg::Swap {
+        offer_asset: Asset {
+            info: AssetInfo::NativeToken {
+                denom: offer_denom.to_string(),
+            },
+            amount: offer_amount.into(),
+        },
+        ask_asset_info: None,
+        belief_price: None,
+        max_spread: None,
+        to: None,
+    };
+
+    contract_execute(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(NEUTRON_CHAIN_NAME),
+        &pool_addr,
+        DEFAULT_KEY,
+        &serde_json::to_string(&swap_msg).unwrap(),
+        &format!("--amount {offer_amount}{offer_denom} --gas 1000000"),
+    )
+    .unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    Ok(())
 }
 
 pub fn setup_astroport_lper_lib(

@@ -42,8 +42,8 @@ impl EthereumVaultRouting for Strategy {
             .await
             .unwrap();
 
-        if account_ntrn_balance < 10_000 {
-            let delta = 10_000 - account_ntrn_balance;
+        if account_ntrn_balance < self.cfg.neutron.min_ibc_fee.u128() {
+            let delta = self.cfg.neutron.min_ibc_fee.u128() - account_ntrn_balance;
 
             info!("Funding neutron account with {delta}untrn for ibc tx fees...");
             let transfer_rx = self

@@ -1,4 +1,4 @@
-use std::{error::Error, path::Path, str::FromStr};
+use std::{cmp::max, error::Error, path::Path, str::FromStr};
 
 use alloy::{
     primitives::{Address, U256},
@@ -6,11 +6,13 @@ use alloy::{
     signers::local::{coins_bip39::English, MnemonicBuilder},
 };
 use async_trait::async_trait;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std_old::Uint256;
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 use log::{info, warn};
 
 use valence_chain_client_utils::{
+    cosmos::{base_client::BaseClient, wasm_client::WasmClient},
     ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     neutron::NeutronClient,
@@ -23,9 +25,7 @@ use valence_e2e::utils::{
     NOBLE_CHAIN_DENOM,
 };
 
-use crate::strategist::{
-    astroport::AstroportOps, routing::EthereumVaultRouting, vault::EthereumVault,
-};
+use crate::strategist::{astroport::AstroportOps, routing::EthereumVaultRouting};
 
 use super::strategy_config::StrategyConfig;
 
@@ -98,166 +98,269 @@ impl ValenceWorker for Strategy {
         info!("{worker_name}: Starting cycle...");
         info!("{worker_name}: Waiting until next minute...");
         wait_until_next_minute().await;
+        let eth_block = self.eth_client.latest_block_height().await?;
         info!(
-            "{worker_name}: worker loop started at second {}",
+            "{worker_name}: worker loop started at second {} at evm block: {eth_block}",
             get_current_second()
         );
 
-        let eth_rp = self.eth_client.get_request_provider().await?;
-        let valence_vault = ValenceVault::new(
-            Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?,
-            &eth_rp,
-        );
-        let eth_usdc_erc20 = MockERC20::new(
-            Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20)?,
-            &eth_rp,
-        );
+        let eth_vault_address = Address::from_str(&self.cfg.ethereum.libraries.valence_vault)?;
+        let eth_usdc_address = Address::from_str(&self.cfg.ethereum.denoms.usdc_erc20)?;
+        let eth_deposit_acc_address = Address::from_str(&self.cfg.ethereum.accounts.deposit)?;
 
-        // 1. calculate the amount of usdc needed to fulfill
-        // the active withdraw obligations
-        let pending_obligations = self
+        let eth_rp = self.eth_client.get_request_provider().await?;
+        let valence_vault = ValenceVault::new(eth_vault_address, &eth_rp);
+        let eth_usdc_erc20 = MockERC20::new(eth_usdc_address, &eth_rp);
+
+        // ================ query epoch start vault state  ====================
+        // 1. query the eth vault to for total obligations and the issued shares
+        let assets_to_withdraw_response = self
             .eth_client
             .query(valence_vault.totalAssetsToWithdrawNextUpdate())
-            .await?
-            ._0;
-
-        info!("pending obligations: {pending_obligations}");
-
-        // 2. query ethereum program accounts for their usdc balances
-        let eth_deposit_acc_usdc_bal = self
+            .await?;
+        let vault_issued_shares_response =
+            self.eth_client.query(valence_vault.totalSupply()).await?;
+        let vault_current_rate = self
             .eth_client
-            .query(
-                eth_usdc_erc20.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.deposit)?),
-            )
+            .query(valence_vault.redemptionRate())
             .await?
             ._0;
+        let vault_config = self.eth_client.query(valence_vault.config()).await?;
 
-        info!(
-            "eth deposit account balance: {:?}",
-            eth_deposit_acc_usdc_bal
-        );
+        // 2. query the eth deposit account to get the deposited tokens amount
+        let deposit_acc_usdc_bal_response = self
+            .eth_client
+            .query(eth_usdc_erc20.balanceOf(eth_deposit_acc_address))
+            .await?;
 
-        // 3. see if pending obligations can be netted and update the pending
-        // obligations accordingly
-        let netting_amount = pending_obligations.min(eth_deposit_acc_usdc_bal);
-        info!("netting amount: {netting_amount}");
+        // 3. query the neutron position account to get the currently held amount of shares
+        let neutron_position_acc_shares = self
+            .neutron_client
+            .query_balance(
+                &self.cfg.neutron.accounts.position,
+                &self.cfg.neutron.denoms.lp_token,
+            )
+            .await?;
 
-        let pending_obligations = pending_obligations
-            .checked_sub(netting_amount)
-            .unwrap_or_default();
-        info!("updated pending obligations: {pending_obligations}");
+        // // 4. query the target pool configuration
+        let cl_pool_cfg: valence_astroport_utils::astroport_native_lp_token::ConfigResponse = self
+            .neutron_client
+            .query_contract_state(
+                &self.cfg.neutron.target_pool,
+                valence_astroport_utils::astroport_native_lp_token::PoolQueryMsg::Config {},
+            )
+            .await
+            .unwrap();
+        let cl_pool_params = cl_pool_cfg.try_get_cl_params().unwrap();
 
-        // 4. lp shares to be liquidated will yield untrn+uusdc. to figure out
-        // the amount of ntrn needed to get 1/2 of the obligations, we half the
-        // usdc amount
-        let missing_usdc_amount: u128 = pending_obligations
-            .try_into()
-            .map_err(|_| "Pending obligations U256 Value too large for u128")?;
-        info!("total to withdraw: {missing_usdc_amount}USDC");
+        let pending_obligations_uint256 =
+            Uint256::from_be_bytes(assets_to_withdraw_response._0.to_be_bytes());
+        let eth_deposit_acc_usdc_bal =
+            Uint256::from_be_bytes(deposit_acc_usdc_bal_response._0.to_be_bytes());
 
-        let halved_usdc_obligation_amt = Uint128::new(missing_usdc_amount / 2);
-        info!("halved usdc obligation amount: {halved_usdc_obligation_amt}");
+        let eth_deposit_acc_usdc_bal_u128 =
+            Uint128::from_str(&eth_deposit_acc_usdc_bal.to_string())?;
+        let vault_issued_shares =
+            Uint256::from_be_bytes(vault_issued_shares_response._0.to_be_bytes());
+        let vault_issued_shares_u128 = Uint128::from_str(&vault_issued_shares.to_string())?;
 
-        // 5. simulate how many untrn we need to obtain half of the
-        // missing usdc obligation amount
+        info!("[CYCLE] vault issued shares Uint256: {vault_issued_shares}");
+        info!("[CYCLE] vault issued shares Uint128: {vault_issued_shares_u128}");
+        info!("[CYCLE] vault current rate: {vault_current_rate}");
+        info!("[CYCLE] vault cfg: {:?}", vault_config);
+        info!("[CYCLE] vault pending obligations: {pending_obligations_uint256}");
+        info!("[CYCLE] eth deposit acc usdc Uint256: {eth_deposit_acc_usdc_bal}");
+        info!("[CYCLE] eth deposit acc usdc Uint128: {eth_deposit_acc_usdc_bal_u128}");
+        info!("[CYCLE] neutron position acc shares: {neutron_position_acc_shares}");
+        info!("[CYCLE] target astroport pool params: {:?}", cl_pool_params);
+
+        // ========================== netting =================================
+        // 1. find the netting amount
+        let netting_amount = pending_obligations_uint256.min(eth_deposit_acc_usdc_bal);
+        let netting_amount_u128 = Uint128::from_str(&netting_amount.to_string())?;
+
+        // 2. update the pending obligations to take netting into account
+        let effective_pending_obligations =
+            pending_obligations_uint256.checked_sub(netting_amount)?;
+
+        info!("[CYCLE] netting amount Uint256: {netting_amount}");
+        info!("[CYCLE] netting amount Uint128: {netting_amount_u128}");
+        info!("[CYCLE] effective pending obligations: {effective_pending_obligations}");
+
+        // =================== calculate withdraw amt =========================
+        // 1. half the pending obligations to estimate the amount of neutron needed
+        // to obtain it
+        let halved_pending_obligations = effective_pending_obligations / Uint256::from_u128(2);
+        let halved_pending_obligations_u128 =
+            Uint128::from_str(&halved_pending_obligations.to_string())?;
+
+        // 2. simulate the swap from untrn into the halved amount of usdc
         let expected_untrn_amount = self
             .reverse_simulate_swap(
                 &self.cfg.neutron.target_pool.to_string(),
                 NEUTRON_CHAIN_DENOM,
                 &self.cfg.neutron.denoms.usdc,
-                halved_usdc_obligation_amt,
+                halved_pending_obligations_u128,
             )
             .await
             .unwrap();
-        info!("reverse swap simulation response: {expected_untrn_amount}untrn => {halved_usdc_obligation_amt}usdc");
 
-        // 6. simulate liquidity provision with the 1/2 usdc amount and the equivalent untrn amount.
+        // 3. simulate liquidity provision with the 1/2 usdc amount and the equivalent untrn amount.
         // this will give us the amount of shares that are equivalent to those tokens.
-        // TODO: think if this simulation makes sense here as the order is reversed.
         let shares_to_liquidate = self
             .simulate_provide_liquidity(
                 &self.cfg.neutron.target_pool,
                 &self.cfg.neutron.denoms.usdc,
-                halved_usdc_obligation_amt,
+                halved_pending_obligations_u128,
                 NEUTRON_CHAIN_DENOM,
                 expected_untrn_amount,
             )
             .await
             .unwrap();
-        info!("shares to liquidate: {:?}", shares_to_liquidate);
 
-        // 7. forward the shares to be liquidated from the position account to the withdraw account
-        self.forward_shares_for_liquidation(shares_to_liquidate)
-            .await;
+        info!("[CYCLE] shares to liquidate: {shares_to_liquidate}");
 
-        // 8. liquidate the forwarded shares to get USDC+NTRN
-        match self.exit_position().await {
-            Ok(_) => info!("success exiting position"),
-            Err(e) => warn!("error exiting position: {:?}", e),
-        };
+        // =================== calculate total assets =========================
+        // 1. subtract the shares to be liquidated in order to fulfill the withdraw
+        // obligations from the neutron position account shares balance to get the
+        // effective shares balance
+        let effective_position_shares =
+            Uint128::from(neutron_position_acc_shares).checked_sub(shares_to_liquidate)?;
 
-        // 9. swap NTRN into USDC to obtain the full obligation amount
-        match self.swap_ntrn_into_usdc().await {
-            Ok(_) => info!("success swapping ntrn into usdc"),
-            Err(e) => warn!("error swapping ntrn into usdc: {:?}", e),
-        };
+        info!("[CYCLE] effective position shares: {effective_position_shares}");
 
-        // 10. update the vault to conclude the previous epoch. we already derived
-        // the netting amount in step #3, so we need to find the redemption rate and
-        // total fee.
-        let netting_amount_u128 = Uint128::from_str(&netting_amount.to_string()).unwrap();
-        let redemption_rate = self
-            .calculate_redemption_rate(netting_amount_u128.u128())
+        // 2. simulate the effective shares liquidation to get the equivalent
+        // untrn + usdc balances
+        let (position_usdc_amount, position_ntrn_amount) = self
+            .simulate_liquidation(
+                &self.cfg.neutron.target_pool,
+                effective_position_shares.u128(),
+                &self.cfg.neutron.denoms.usdc,
+                NEUTRON_CHAIN_DENOM,
+            )
             .await
             .unwrap();
-        let total_fee = self.calculate_total_fee().await.unwrap();
-        let r = U256::from(redemption_rate.atomics().u128());
 
-        let clamped_withdraw_fee = total_fee.clamp(1, 10_000);
+        // 3. simulate the resulting liquidation untrn -> usdc swap
+        let ntrn_to_usdc_swap_simulation_output = self
+            .simulate_swap(
+                &self.cfg.neutron.target_pool,
+                NEUTRON_CHAIN_DENOM,
+                position_ntrn_amount,
+                &self.cfg.neutron.denoms.usdc,
+            )
+            .await
+            .unwrap();
+
+        // 4. get the total position usdc value
+        let total_active_position_usdc = position_usdc_amount + ntrn_to_usdc_swap_simulation_output;
+
+        info!("[CYCLE] total active position usdc: {total_active_position_usdc}");
+
+        // 5. total effective vault assets is equal to the position account value plus
+        // the pending deposits minus the amount to be netted
+        let total_effective_assets =
+            total_active_position_usdc + eth_deposit_acc_usdc_bal_u128 - netting_amount_u128;
+
+        info!("[CYCLE] total effective assets: {total_effective_assets}");
+
+        // =============== calculate the redemption rate ======================
+        // rate =  effective_total_assets / (effective_vault_shares * scaling_factor)
+        let redemption_rate = Decimal::from_ratio(
+            total_effective_assets,
+            // multiplying the denominator by the scaling factor
+            vault_issued_shares_u128.checked_mul(1_000_000_000_000u128.into())?,
+        );
+
+        info!("[CYCLE] redemption rate  {total_effective_assets}usdc / {vault_issued_shares_u128}shares = {redemption_rate}");
+
+        let r = U256::from(redemption_rate.atomics().u128());
+        info!("[CYCLE] r = {r}");
+
+        // ====================== update the vault ============================
+
+        // for simplicity taking the max between the two fees for now
+        let pool_fee_decimal = max(cl_pool_params.mid_fee, cl_pool_params.out_fee);
+
+        let scaled_pool_fee = pool_fee_decimal * Decimal::from_ratio(10_000u128, 1u128);
+
+        let fee_bps = scaled_pool_fee.to_string().parse::<u32>().unwrap_or(100);
+        info!("[CYCLE] bps_converted: {fee_bps}");
+
+        // all withdraws are subject to a base fee buffer of 0.01%
+        let fee_buffer = 1u32;
+
+        // TODO: remove the subtraction for mainnet deployments
+        let total_fee = fee_bps + fee_buffer - fee_bps;
 
         info!(
-            "Updating Ethereum Vault with:
-            rate: {r}
-            witdraw_fee_bps: {clamped_withdraw_fee}
-            netting_amount: {netting_amount}"
+            "[CYCLE] Updating Ethereum Vault with:
+                rate: {r}
+                witdraw_fee_bps: {total_fee}
+                netting_amount: {netting_amount}"
         );
 
         let update_result = self
             .eth_client
             .execute_tx(
                 valence_vault
-                    .update(r, clamped_withdraw_fee, netting_amount)
+                    .update(
+                        r,
+                        total_fee,
+                        U256::from_be_bytes(netting_amount.to_be_bytes()),
+                    )
                     .into_transaction_request(),
             )
             .await?;
-
-        if eth_rp
+        eth_rp
             .get_transaction_receipt(update_result.transaction_hash)
-            .await
-            .map_err(|e| warn!("Error: {:?}", e))
-            .unwrap()
-            .is_none()
-        {
-            warn!("Failed to get update_vault tx receipt")
-        };
+            .await?;
 
-        // 11. pull the funds due for deposit from origin to position domain
+        // ====================================================================
+
+        // ================== route the funds eth->ntrn =======================
         //   1. cctp transfer eth deposit acc -> noble inbound ica
-        //   2. ica ibc transfer noble inbound ica -> neutron deposit acc
         self.route_eth_to_noble().await;
-        self.route_noble_to_neutron().await;
 
-        // 12. enter the position with funds available in neutron deposit acc
+        //   2. ica ibc transfer noble inbound ica -> neutron deposit acc
+        self.route_noble_to_neutron().await;
+        // ====================================================================
+
+        // ======================= enter the position =========================
+        // funds should already be in the deposit account so we are ready to
+        // provide them into the LP
         match self.enter_position().await {
-            Ok(_) => info!("success entering position"),
+            Ok(_) => (),
             Err(e) => warn!("error entering position: {:?}", e),
         };
+        // ====================================================================
 
-        // 13. pull the funds due for withdrawal from position to origin domain
+        // ======================= exit the position ==========================
+        // 1. forward the shares to be liquidated from the position account to the withdraw account
+        self.forward_shares_for_liquidation(shares_to_liquidate)
+            .await;
+
+        // 2. liquidate the forwarded shares to get USDC+NTRN
+        match self.exit_position().await {
+            Ok(_) => (),
+            Err(e) => warn!("error exiting position: {:?}", e),
+        };
+
+        // 3. swap NTRN into USDC to obtain the full obligation amount
+        match self.swap_ntrn_into_usdc().await {
+            Ok(_) => (),
+            Err(e) => warn!("error swapping ntrn into usdc: {:?}", e),
+        };
+
+        // ====================================================================
+
+        // ================== route the funds ntrn->eth =======================
         //   1. ibc transfer neutron withdraw acc -> noble outbound ica
-        //   2. cctp transfer noble outbound ica -> eth withdraw acc
         self.route_neutron_to_noble().await;
+
+        //   2. cctp transfer noble outbound ica -> eth withdraw acc
         self.route_noble_to_eth().await;
+        // ====================================================================
 
         info!(
             "strategist loop completed at second {}",
