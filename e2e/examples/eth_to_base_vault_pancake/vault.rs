@@ -7,7 +7,7 @@ use log::info;
 use strategist::{
     strategy::Strategy,
     strategy_config::{
-        base::{BaseDenoms, BaseStrategyConfig},
+        base::{BaseContracts, BaseDenoms, BaseParameters, BaseStrategyConfig},
         ethereum::{EthereumContracts, EthereumDenoms, EthereumParameters, EthereumStrategyConfig},
         StrategyConfig,
     },
@@ -31,7 +31,8 @@ use valence_e2e::utils::{
 
 const ETH_FORK_URL: &str = "https://eth-mainnet.public.blastapi.io";
 const ETH_ANVIL_PORT: &str = "1337";
-const BASE_FORK_URL: &str = "https://base-mainnet.public.blastapi.io";
+//const BASE_FORK_URL: &str = "https://base-mainnet.public.blastapi.io";
+const BASE_FORK_URL: &str = "https://mainnet.base.org";
 const BASE_ANVIL_PORT: &str = "1338";
 const TEST_MNEMONIC: &str = "test test test test test test test test test test test junk";
 pub const WETH_ADDRESS_ON_ETHEREUM: &str = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
@@ -42,10 +43,16 @@ pub const CAKE_ADDRESS_ON_BASE: &str = "0x3055913c90Fcc1A6CE9a358911721eEb942013
 pub const CCTP_TOKEN_MESSENGER_ON_ETHEREUM: &str = "0xBd3fa81B58Ba92a82136038B25aDec7066af3155";
 pub const CCTP_TOKEN_MESSENGER_ON_BASE: &str = "0x1682Ae6375C4E4A97e4B583BC394c861A46D8962";
 pub const AAVE_POOL_ADDRESS: &str = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2";
+pub const AAVE_ORACLE_ADDRESS: &str = "0x54586bE62E3c3580375aE3723C145253060Ca0C2";
 pub const L1_STANDARD_BRIDGE_ADDRESS: &str = "0x3154Cf16ccdb4C6d922629664174b904d80F2C35";
 pub const L2_STANDARD_BRIDGE_ADDRESS: &str = "0x4200000000000000000000000000000000000010";
 pub const PANCAKE_POSITION_MANAGER_ON_BASE: &str = "0x46A15B0b27311cedF172AB29E4f4766fbE7F4364";
 pub const PANCAKE_MASTERCHEF_ON_BASE: &str = "0xC6A2Db661D5a5690172d8eB0a7DEA2d3008665A3";
+pub const PANCAKE_POOL_ADDRESS: &str = "0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38";
+pub const PANCAKE_POOL_FEE: u32 = 100; // 0.01%
+pub const PANCAKE_POSITION_MANAGER_SLIPPAGE: u16 = 1000; // 10%
+pub const PANCAKE_POSITION_MANAGER_TICK_PRICE_RANGE_PERCENT: f64 = 1.0; // 1%
+pub const AAVE_MIN_HEALTH_FACTOR: &str = "1.2"; // 1 is when it starts liquidating
 
 mod base;
 mod ethereum;
@@ -206,10 +213,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             accounts: ethereum_accounts.clone(),
             libraries: ethereum_libraries.clone(),
             parameters: EthereumParameters {
-                min_aave_health_factor: "12".to_string(), // Represents 1.2
+                min_aave_health_factor: AAVE_MIN_HEALTH_FACTOR.to_string(),
             },
             contracts: EthereumContracts {
                 aave_pool: AAVE_POOL_ADDRESS.to_string(),
+                aave_oracle: AAVE_ORACLE_ADDRESS.to_string(),
             },
         },
         base: BaseStrategyConfig {
@@ -222,6 +230,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             },
             accounts: base_accounts.clone(),
             libraries: base_libraries.clone(),
+            parameters: BaseParameters {
+                tick_price_range_percent: PANCAKE_POSITION_MANAGER_TICK_PRICE_RANGE_PERCENT
+                    .to_string(),
+            },
+            contracts: BaseContracts {
+                pancake_pool: PANCAKE_POOL_ADDRESS.to_string(),
+            },
         },
     };
 
@@ -302,8 +317,80 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     strategy.start();
 
-    // Sleep for 2 minutes
-    tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
+    // Sleep for 45 seconds to let the strategy run at least once
+    tokio::time::sleep(tokio::time::Duration::from_secs(45)).await;
+
+    {
+        info!("\n======================== EPOCH 1 ========================\n");
+        info!("User 1 will withdraw all his shares ...");
+        let shares = valence_vault.balanceOf(ethereum_users[0]).call().await?._0;
+        let withdraw = valence_vault
+            .redeem_0(shares, ethereum_users[0], ethereum_users[0], 10000, false)
+            .into_transaction_request();
+        eth_client
+            .execute_tx_as(&ethereum_users[0].to_string(), withdraw)
+            .await?;
+        let balance_shares_user1 = valence_vault.balanceOf(ethereum_users[0]).call().await?._0;
+        info!(
+            "User 1 balance in vault after withdrawing: {:?} shares",
+            balance_shares_user1
+        );
+    }
+
+    // Sleep enough to let the strategy run again and update the vault
+    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+
+    {
+        info!("\n======================== EPOCH 2 ========================\n");
+        info!("User 1 will check his withdraw request ...");
+        let withdraw_request = eth_client
+            .query(valence_vault.userWithdrawRequest(ethereum_users[0]))
+            .await?;
+        info!("User1 Withdraw request details: {:?}", withdraw_request);
+
+        // Get the update info of that withdraw request
+        let update_info = eth_client
+            .query(valence_vault.updateInfos(withdraw_request.updateId as u64))
+            .await?;
+        info!("Update info for request: {:?}", update_info);
+
+        // If there has been an update, we will try to complete the withdraw and check that user got balance
+        if update_info.timestamp > 0 {
+            info!("User 1 will complete his withdraw request ...");
+            let complete_withdraw = valence_vault
+                .completeWithdraw(ethereum_users[0])
+                .into_transaction_request();
+
+            info!(
+                "User 1 WETH balance before completing withdraw: {:?}",
+                weth_on_eth.balanceOf(ethereum_users[0]).call().await?._0
+            );
+
+            eth_client
+                .execute_tx_as(&ethereum_users[0].to_string(), complete_withdraw)
+                .await?;
+
+            info!(
+                "User 1 WETH balance after completing withdraw: {:?}",
+                weth_on_eth.balanceOf(ethereum_users[0]).call().await?._0
+            );
+        }
+    }
+
+    let mut i = 3;
+    loop {
+        info!("\n======================== EPOCH {i} ========================\n");
+
+        // We will just loop endlessly to let the strategy run
+        // and the relayers to process the transactions
+        tokio::time::sleep(tokio::time::Duration::from_secs(150)).await;
+
+        i += 1;
+
+        if i >= 100_000_000 {
+            break;
+        }
+    }
 
     Ok(())
 }
