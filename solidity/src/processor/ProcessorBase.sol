@@ -293,12 +293,37 @@ abstract contract ProcessorBase is Ownable {
         emit ProcessorEvents.CallbackSent(callback.executionId, callback.executionResult, callback.executedCount);
     }
 
+    /**
+     * @notice Adds an address to the list of authorized addresses
+     * @dev Only callable by the contract owner
+     * @param _address The address to be authorized
+     */
     function addAuthorizedAddress(address _address) public onlyOwner {
+        // Check that address is not the zero address
+        if (_address == address(0)) {
+            revert ProcessorErrors.InvalidAddress();
+        }
+
+        // Check that address is not already authorized
+        if (authorizedAddresses[_address]) {
+            revert ProcessorErrors.AddressAlreadyAuthorized();
+        }
+
         authorizedAddresses[_address] = true;
         emit ProcessorEvents.AuthorizedAddressAdded(_address);
     }
 
+    /**
+     * @notice Removes an address from the list of authorized addresses
+     * @dev Only callable by the contract owner
+     * @param _address The address to be removed from the authorized list
+     */
     function removeAuthorizedAddress(address _address) public onlyOwner {
+        // Check that address is currently authorized
+        if (!authorizedAddresses[_address]) {
+            revert ProcessorErrors.AddressNotAuthorized();
+        }
+
         delete authorizedAddresses[_address];
         emit ProcessorEvents.AuthorizedAddressRemoved(_address);
     }

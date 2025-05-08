@@ -271,11 +271,11 @@ contract Authorization is Ownable, ICallback {
             message = abi.encode(decodedMessage);
         }
 
-        // Increment the execution ID for the next message
-        executionId++;
-
         // Forward the validated and modified message to the processor
         processor.execute(message);
+
+        // Increment the execution ID for the next message
+        executionId++;
     }
 
     /**

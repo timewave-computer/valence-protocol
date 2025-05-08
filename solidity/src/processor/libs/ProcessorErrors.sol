@@ -7,4 +7,7 @@ library ProcessorErrors {
     error ProcessorPaused();
     error UnsupportedOperation();
     error InvalidOriginDomain();
+    error InvalidAddress();
+    error AddressAlreadyAuthorized();
+    error AddressNotAuthorized();
 }
