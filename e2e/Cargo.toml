@@ -83,3 +83,4 @@ toml                                 = "0.8.19"
 async-trait                          = "0.1.77"
 serde                                = "1.0.219"
 chrono                               = { version = "0.4", features = ["serde", "alloc"] }
+uniswap_v3_math                      = "0.6.0"

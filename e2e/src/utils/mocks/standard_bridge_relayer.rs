@@ -29,6 +29,15 @@ sol! {
         uint256 amount,
         bytes extraData
     );
+
+    event WithdrawalInitiated(
+        address indexed l1Token,
+        address indexed l2Token,
+        address indexed from,
+        address to,
+        uint256 amount,
+        bytes extraData
+    );
 }
 
 pub struct MockStandardBridgeRelayer {
@@ -238,15 +247,24 @@ impl MockStandardBridgeRelayer {
                     Log::new(log.address(), log.topics().into(), log.data().clone().data)
                         .unwrap_or_default();
 
-                let erc20_deposit_initiated_log =
-                    ERC20DepositInitiated::decode_log(&alloy_log, false)?;
+                // Depending if it's L1 or L2, the event will be different
+                let (amount, to) = {
+                    match ERC20DepositInitiated::decode_log(&alloy_log, false) {
+                        Ok(erc20_deposit_initiated_log) => (
+                            erc20_deposit_initiated_log.amount,
+                            erc20_deposit_initiated_log.to,
+                        ),
+                        Err(_) => {
+                            // If it's not an ERC20DepositInitiated event, it might be a WithdrawalInitiated event
+                            let withdrawal_initiated_log =
+                                WithdrawalInitiated::decode_log(&alloy_log, false)?;
+                            (withdrawal_initiated_log.amount, withdrawal_initiated_log.to)
+                        }
+                    }
+                };
 
                 // send on EVM B when an event is detected on EVM A
-                self.send_on_evm_b(
-                    erc20_deposit_initiated_log.amount,
-                    erc20_deposit_initiated_log.to,
-                )
-                .await?;
+                self.send_on_evm_b(amount, to).await?;
             }
         }
 
@@ -286,15 +304,24 @@ impl MockStandardBridgeRelayer {
                     Log::new(log.address(), log.topics().into(), log.data().clone().data)
                         .unwrap_or_default();
 
-                let erc20_deposit_initiated_log =
-                    ERC20DepositInitiated::decode_log(&alloy_log, false)?;
+                // Depending if it's L1 or L2, the event will be different
+                let (amount, to) = {
+                    match ERC20DepositInitiated::decode_log(&alloy_log, false) {
+                        Ok(erc20_deposit_initiated_log) => (
+                            erc20_deposit_initiated_log.amount,
+                            erc20_deposit_initiated_log.to,
+                        ),
+                        Err(_) => {
+                            // If it's not an ERC20DepositInitiated event, it might be a WithdrawalInitiated event
+                            let withdrawal_initiated_log =
+                                WithdrawalInitiated::decode_log(&alloy_log, false)?;
+                            (withdrawal_initiated_log.amount, withdrawal_initiated_log.to)
+                        }
+                    }
+                };
 
                 // send on EVM A when an event is detected on EVM B
-                self.send_on_evm_a(
-                    erc20_deposit_initiated_log.amount,
-                    erc20_deposit_initiated_log.to,
-                )
-                .await?;
+                self.send_on_evm_a(amount, to).await?;
             }
         }
         // update the last block processed
