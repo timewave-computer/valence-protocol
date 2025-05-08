@@ -27,18 +27,15 @@ contract Authorization is Ownable, ICallback {
     bool public storeCallbacks;
 
     /**
-        * @notice Event emitted when a callback is received from the processor
-        * @dev This event is emitted when the processor sends a callback after executing a message
-        * @param executionId The ID of the executed message
-        * @param executionResult The result of the execution (success or failure)
-        * @param executedCount The number of successfully executed functions
-        * @param data Additional data related to the callback execution
+     * @notice Event emitted when a callback is received from the processor
+     * @dev This event is emitted when the processor sends a callback after executing a message
+     * @param executionId The ID of the executed message
+     * @param executionResult The result of the execution (success or failure)
+     * @param executedCount The number of successfully executed functions
+     * @param data Additional data related to the callback execution
      */
     event CallbackReceived(
-        uint64 indexed executionId,
-        IProcessor.ExecutionResult executionResult,
-        uint64 executedCount,
-        bytes data
+        uint64 indexed executionId, IProcessor.ExecutionResult executionResult, uint64 executedCount, bytes data
     );
 
     /**
@@ -78,6 +75,7 @@ contract Authorization is Ownable, ICallback {
     /**
      * @notice Multi-dimensional mapping for granular authorization control
      * @dev Maps from user address -> contract address -> function signature hash -> boolean
+     * If address(0) is used as the user address, it indicates permissionless access
      * Represents the operations a specific address can execute on a specific contract
      */
     mapping(address => mapping(address => mapping(bytes32 => bool))) public authorizations;
@@ -150,7 +148,7 @@ contract Authorization is Ownable, ICallback {
     /**
      * @notice Grants authorization for a user to call a specific function on a specific contract
      * @dev Can only be called by the owner
-     * @param _user Address of the user being granted authorization
+     * @param _user Address of the user being granted authorization, if address(0) is used, then it's permissionless
      * @param _contract Address of the contract the user is authorized to interact with
      * @param _call Function call data (used to generate a hash for authorization checking)
      */
@@ -294,7 +292,14 @@ contract Authorization is Ownable, ICallback {
         returns (bool)
     {
         // Check if the user is authorized to call the contract with the given call
-        return authorizations[_user][_contract][keccak256(_call)];
+        if (authorizations[_user][_contract][keccak256(_call)]) {
+            return true;
+        } else if (authorizations[address(0)][_contract][keccak256(_call)]) {
+            // If address(0) is used, it indicates permissionless access
+            return true;
+        } else {
+            return false;
+        }
     }
 
     function handleCallback(bytes memory callbackData) external override {
@@ -314,6 +319,8 @@ contract Authorization is Ownable, ICallback {
             });
         }
 
-        emit CallbackReceived(callback.executionId, callback.executionResult, uint64(callback.executedCount), callback.data);
+        emit CallbackReceived(
+            callback.executionId, callback.executionResult, uint64(callback.executedCount), callback.data
+        );
     }
 }
