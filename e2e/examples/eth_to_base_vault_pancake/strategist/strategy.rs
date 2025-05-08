@@ -427,6 +427,9 @@ impl ValenceWorker for Strategy {
             info!("Total WETH balance: {total_weth_balance}");
 
             // Now we are going to calculate how much WETH is my USDC balance equivalent to using the AAVE price
+            // We can do this because this USDC has been borrowed from AAVE and the amount of WETH it's equivalent to
+            // can be withdrawn from AAVE once the USDC is repaid. If we would need to swap this for WETH on an exchange
+            // we would be affected by a fee and slippage, therefore we would need to simulate the swap to see how much WETH we would get
             let total_usdc_balance_in_weth = total_usdc_balance // USDC with 6 decimals
                 .checked_mul(aave_usdc_price) // Convert to USD (8 decimals)
                 .unwrap_or_default()
