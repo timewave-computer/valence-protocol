@@ -220,6 +220,23 @@ contract AuthorizationZKTest is Test {
 
     // ======================= ZK MESSAGE EXECUTION TESTS =======================
 
+    function test_RevertWhen_VerificationGatewayNotSet() public {
+        vm.startPrank(owner);
+
+        // Deploy a new authorization contract without a verification gateway
+        Authorization authWithoutGateway = new Authorization(owner, address(processor), address(0), true);
+
+        // Create a ZK message
+        bytes memory zkMessage = createDummyZKMessage(registryId1);
+        bytes memory dummyProof = hex"deadbeef"; // Dummy proof data
+
+        // Should fail because verification gateway is not set
+        vm.expectRevert("Verification gateway not set");
+        authWithoutGateway.executeZKMessage(zkMessage, dummyProof);
+
+        vm.stopPrank();
+    }
+
     /**
      * @notice Test unauthorized address verification for ZK message execution
      */

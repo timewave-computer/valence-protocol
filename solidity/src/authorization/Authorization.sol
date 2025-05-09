@@ -47,6 +47,38 @@ contract Authorization is Ownable, ICallback {
     event CallbackReceived(
         uint64 indexed executionId, IProcessor.ExecutionResult executionResult, uint64 executedCount, bytes data
     );
+    /**
+     * @notice Event emitted when an admin address is added
+     * @dev This event is emitted when a new admin address is added to the list of authorized addresses
+     * @dev Only used for Standard authorizations
+     * @param admin The address that was added as an admin
+     */
+    event AdminAddressAdded(address indexed admin);
+    /**
+     * @notice Event emitted when an admin address is removed
+     * @dev This event is emitted when an admin address is removed from the list of authorized addresses
+     * @dev Only used for Standard authorizations
+     * @param admin The address that was removed from the admin list
+     */
+    event AdminAddressRemoved(address indexed admin);
+    /**
+     * @notice Event emitted when an authorization is added
+     * @dev This event is emitted when a new authorization is granted to a user for a specific contract and function
+     * @dev Only used for Standard authorizations
+     * @param user The address of the user that was granted authorization. If address(0) is used, then it's permissionless
+     * @param contractAddress The address of the contract the user is authorized to interact with
+     * @param callHash The hash of the function call that the user is authorized to execute
+     */
+    event AuthorizationAdded(address indexed user, address indexed contractAddress, bytes32 indexed callHash);
+    /**
+     * @notice Event emitted when an authorization is removed
+     * @dev This event is emitted when an authorization is revoked from a user for a specific contract and function
+     * @dev Only used for Standard authorizations
+     * @param user The address of the user that had authorization revoked. If address(0) is used, then it's permissionless
+     * @param contractAddress The address of the contract the user had authorization for
+     * @param callHash The hash of the function call that the user had authorization to execute
+     */
+    event AuthorizationRemoved(address indexed user, address indexed contractAddress, bytes32 indexed callHash);
 
     /**
      * @notice Callback data structure for processor callbacks
@@ -63,7 +95,7 @@ contract Authorization is Ownable, ICallback {
 
     /**
      * @notice Mapping of execution IDs to callback data
-     *     @dev This mapping stores the callback data for each execution ID
+     * @dev This mapping stores the callback data for each execution ID
      *     Key: execution ID, Value: Callback information
      */
     mapping(uint64 => ProcessorCallback) public callbacks;
@@ -121,11 +153,11 @@ contract Authorization is Ownable, ICallback {
     mapping(uint64 => address[]) public zkAuthorizations;
 
     /**
-     * @notice Mapping of the last block a message was executed for a specific registry ID
-     * @dev This mapping is used to prevent replay attacks by ensuring that proofs that are older than the last executed block cannot be used
-     * @dev This is important to ensure that the same or a previous proof cannot be reused in a different context
+     * @notice Mapping of the last block a proof was executed for
+     * @dev This mapping is used to prevent replay attacks by ensuring that proofs that are older or the same than the last executed one cannot be used
+     * @dev This is important to ensure that the same or a previous proof cannot be used
      * @dev The mapping is structured as follows:
-     *     registry ID -> last block number it was executed
+     *     registry ID -> last block number of the proof executed
      */
     mapping(uint64 => uint64) public zkAuthorizationLastExecutionBlock;
 
@@ -181,6 +213,7 @@ contract Authorization is Ownable, ICallback {
      */
     function addAdminAddress(address _admin) external onlyOwner {
         adminAddresses[_admin] = true;
+        emit AdminAddressAdded(_admin);
     }
 
     /**
@@ -190,6 +223,7 @@ contract Authorization is Ownable, ICallback {
      */
     function removeAdminAddress(address _admin) external onlyOwner {
         delete adminAddresses[_admin];
+        emit AdminAddressRemoved(_admin);
     }
 
     /**
@@ -206,7 +240,9 @@ contract Authorization is Ownable, ICallback {
         require(_users.length == _contracts.length && _contracts.length == _calls.length, "Array lengths must match");
 
         for (uint256 i = 0; i < _users.length; i++) {
-            authorizations[_users[i]][_contracts[i]][keccak256(_calls[i])] = true;
+            bytes32 callHash = keccak256(_calls[i]);
+            authorizations[_users[i]][_contracts[i]][callHash] = true;
+            emit AuthorizationAdded(_users[i], _contracts[i], callHash);
         }
     }
 
@@ -224,7 +260,9 @@ contract Authorization is Ownable, ICallback {
         require(_users.length == _contracts.length && _contracts.length == _calls.length, "Array lengths must match");
 
         for (uint256 i = 0; i < _users.length; i++) {
-            delete authorizations[_users[i]][_contracts[i]][keccak256(_calls[i])];
+            bytes32 callHash = keccak256(_calls[i]);
+            delete authorizations[_users[i]][_contracts[i]][callHash];
+            emit AuthorizationRemoved(_users[i], _contracts[i], callHash);
         }
     }
 
@@ -419,6 +457,11 @@ contract Authorization is Ownable, ICallback {
      * @param _proof Proof associated with the ZK message
      */
     function executeZKMessage(bytes calldata _message, bytes calldata _proof) external {
+        // Check that the verification gateway is set
+        if (address(verificationGateway) == address(0)) {
+            revert("Verification gateway not set");
+        }
+
         // Decode the message to check authorization and apply modifications
         ZKMessage memory decodedZKMessage = abi.decode(_message, (ZKMessage));
 
@@ -438,7 +481,7 @@ contract Authorization is Ownable, ICallback {
 
         // Check that the block number is higher than the last execution block
         if (decodedZKMessage.blockNumber <= zkAuthorizationLastExecutionBlock[decodedZKMessage.registry]) {
-            revert("Proof not longer valid");
+            revert("Proof no longer valid");
         }
 
         // Verify the proof using the verification gateway
@@ -469,7 +512,7 @@ contract Authorization is Ownable, ICallback {
         executionId++;
 
         // Update the last execution block for the registry
-        zkAuthorizationLastExecutionBlock[decodedZKMessage.registry] = uint64(block.number);
+        zkAuthorizationLastExecutionBlock[decodedZKMessage.registry] = decodedZKMessage.blockNumber;
     }
 
     // ========================= Processor Callbacks =========================
