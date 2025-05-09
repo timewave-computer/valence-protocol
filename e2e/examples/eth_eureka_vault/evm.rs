@@ -156,13 +156,9 @@ pub fn setup_eureka_forwarder(
         .await
     )
     .unwrap();
+    let relative_timeout_secs = skip_api_response.timeout / 1_000_000_000;
 
     info!("skip api evm route query response: {:?}", skip_api_response);
-    let expiration_seconds =
-        chrono::DateTime::parse_from_rfc3339(&skip_api_response.smart_relay_fee_quote.expiration)
-            .unwrap()
-            .with_timezone(&chrono::Utc)
-            .timestamp() as u64;
 
     let cfg = IBCEurekaTransferConfig {
         amount: U256::ZERO,
@@ -172,7 +168,7 @@ pub fn setup_eureka_forwarder(
         inputAccount: alloy_primitives_encoder::Address::from_str(input_acc.to_string().as_str())?,
         recipient,
         sourceClient: skip_api_response.source_client,
-        timeout: expiration_seconds,
+        timeout: relative_timeout_secs,
         eurekaHandler: alloy_primitives_encoder::Address::from_str(
             &skip_api_response.entry_contract_address,
         )?,

@@ -136,20 +136,20 @@ impl EurekaVaultRouting for Strategy {
 
     async fn route_eth_to_neutron(&self) {
         info!("Eureka forwarding WBTC from Ethereum to Neutron...");
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let erc20 = MockERC20::new(
-            Address::from_str(&self.cfg.ethereum.denoms.wbtc).unwrap(),
-            &eth_rp,
-        );
+        let wbtc_contract_address = Address::from_str(&self.cfg.ethereum.denoms.wbtc).unwrap();
+        let eth_deposit_account_address =
+            Address::from_str(&self.cfg.ethereum.accounts.deposit).unwrap();
+        let eureka_transfer_address =
+            Address::from_str(&self.cfg.ethereum.libraries.eureka_transfer).unwrap();
 
-        let eureka_transfer_lib = IBCEurekaTransfer::new(
-            Address::from_str(&self.cfg.ethereum.libraries.eureka_transfer).unwrap(),
-            &eth_rp,
-        );
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+
+        let erc20 = MockERC20::new(wbtc_contract_address, &eth_rp);
+        let eureka_transfer_lib = IBCEurekaTransfer::new(eureka_transfer_address, &eth_rp);
 
         let eth_deposit_acc_wbtc_bal = self
             .eth_client
-            .query(erc20.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.deposit).unwrap()))
+            .query(erc20.balanceOf(eth_deposit_account_address))
             .await
             .unwrap()
             ._0;
@@ -184,7 +184,10 @@ impl EurekaVaultRouting for Strategy {
         )
         .await
         .unwrap();
+        let relative_timeout_secs = skip_response.timeout / 1_000_000_000;
 
+        let rly_fee_recipient_address =
+            Address::from_str(&skip_response.smart_relay_fee_quote.fee_payment_address).unwrap();
         info!(
             "[routing] Eureka Route Skip API response: {:?}",
             skip_response
@@ -193,15 +196,11 @@ impl EurekaVaultRouting for Strategy {
         let expiration_seconds =
             chrono::DateTime::parse_from_rfc3339(&skip_response.smart_relay_fee_quote.expiration)
                 .unwrap()
-                .with_timezone(&chrono::Utc)
                 .timestamp() as u64;
 
         let eureka_fees_cfg = IEurekaHandler::Fees {
             relayFee: U256::from_str(&skip_response.smart_relay_fee_quote.fee_amount).unwrap(),
-            relayFeeRecipient: Address::from_str(
-                &skip_response.smart_relay_fee_quote.fee_payment_address,
-            )
-            .unwrap(),
+            relayFeeRecipient: rly_fee_recipient_address,
             quoteExpiry: expiration_seconds,
         };
 
@@ -225,7 +224,7 @@ impl EurekaVaultRouting for Strategy {
                             }
                         },
                         "exact_out":false,
-                        "timeout_timestamp": skip_response.timeout.to_string()
+                        "timeout_timestamp": relative_timeout_secs.to_string()
                     }
                 }
             }
