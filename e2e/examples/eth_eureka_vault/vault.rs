@@ -263,7 +263,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .base_denom(WBTC_NEUTRON_DENOM.to_string())
                 .src(NEUTRON_CHAIN_NAME)
                 .dest(GAIA_CHAIN_NAME)
-                .get()
+                .get(),
+            WBTC_WHALE,
+            ethereum_program_accounts.withdraw.clone()
         )
         .await
     )?;

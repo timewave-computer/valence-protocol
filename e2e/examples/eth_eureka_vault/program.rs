@@ -166,14 +166,15 @@ pub fn setup_neutron_libraries(
     let neutron_ibc_transfer_lib = setup_neutron_ibc_transfer_lib(
         test_ctx,
         neutron_program_accounts.withdraw.to_string(), // input acc
-        eth_withdraw_acc,                              // output acc
+        GAIA_CHAIN_ADMIN_ADDR.to_string(),             // should be eth_withdraw_acc
         wbtc_on_neutron,                               // denom
         authorizations.to_string(),
         processor.to_string(),
         GAIA_CHAIN_NAME, // dest chain name
         Some(EurekaConfig {
             // mainnet hub callback contract
-            callback_contract: skip_api_response.callback_adapter_contract_address,
+            // callback_contract: skip_api_response.callback_adapter_contract_address,
+            callback_contract: GAIA_CHAIN_ADMIN_ADDR.to_string(),
             // mainnet hub action contract
             action_contract: skip_api_response.entry_contract_address,
             // hardcoded for now, in the future this should be updated to a program-owned ICA

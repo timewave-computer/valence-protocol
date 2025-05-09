@@ -400,10 +400,7 @@ pub fn setup_neutron_ibc_transfer_lib(
         .get(NEUTRON_IBC_TRANSFER_NAME)
         .unwrap();
 
-    info!(
-        "neutron ibc transfer code id: {:?}",
-        neutron_ibc_transfer_code_id
-    );
+    info!("neutron ibc transfer code id: {neutron_ibc_transfer_code_id}");
 
     let remote_chain_info = valence_generic_ibc_transfer_library::msg::RemoteChainInfo {
         channel_id: test_ctx

@@ -308,7 +308,6 @@ impl EurekaVaultRouting for Strategy {
         let expiration_seconds =
             chrono::DateTime::parse_from_rfc3339(&skip_response.smart_relay_fee_quote.expiration)
                 .unwrap()
-                .with_timezone(&chrono::Utc)
                 .timestamp() as u64;
 
         let eureka_fee = EurekaFee {
@@ -329,7 +328,7 @@ impl EurekaVaultRouting for Strategy {
             .await
             .unwrap_or_default();
 
-        info!("pre-ibc_transfer neutron withdraw account wbtc balance: {pre_transfer_withdraw_acc_bals}");
+        info!("pre-ibc_transfer neutron withdraw account {} wbtc balance: {pre_transfer_withdraw_acc_bals}", self.cfg.neutron.accounts.withdraw);
 
         info!("Initiating neutron ibc transfer");
         let neutron_ibc_transfer_msg =
@@ -338,7 +337,7 @@ impl EurekaVaultRouting for Strategy {
                     eureka_fee,
                 },
             );
-        let rx = self
+        match self
             .neutron_client
             .execute_wasm(
                 &self.cfg.neutron.libraries.neutron_ibc_transfer,
@@ -347,8 +346,16 @@ impl EurekaVaultRouting for Strategy {
                 None,
             )
             .await
-            .unwrap();
-        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+        {
+            Ok(rx) => {
+                info!("rx hash: {}", rx.hash);
+                let tx_response = self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+                info!("routing tx response: {:?}", tx_response);
+            }
+            Err(e) => {
+                warn!("failed to initiate neutron ibc transfer: {:?}", e)
+            }
+        };
 
         let post_transfer_withdraw_acc_bals = self
             .neutron_client

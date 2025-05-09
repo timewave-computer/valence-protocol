@@ -2,13 +2,13 @@ use std::{collections::HashSet, error::Error, str::FromStr, time::Duration};
 
 use crate::utils::{
     parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
-    solidity_contracts::IBCEurekaTransfer::EurekaTransfer,
+    solidity_contracts::{IBCEurekaTransfer::EurekaTransfer, MockERC20},
     worker::ValenceWorker,
     ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT,
 };
 use alloy::{
     hex::ToHexExt,
-    primitives::{Address, Log},
+    primitives::{Address, Log, U256},
     providers::Provider,
     rpc::types::Filter,
     signers::local::{coins_bip39::English, MnemonicBuilder},
@@ -24,8 +24,10 @@ use localic_utils::{
 };
 use log::{info, warn};
 use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient, ethereum::EthereumClient,
-    evm::request_provider_client::RequestProviderClient, gaia::CosmosHubClient,
+    cosmos::base_client::BaseClient,
+    ethereum::EthereumClient,
+    evm::{anvil::AnvilImpersonationClient, request_provider_client::RequestProviderClient},
+    gaia::CosmosHubClient,
     neutron::NeutronClient,
 };
 
@@ -57,6 +59,10 @@ pub struct RelayerState {
     eth_destination_erc20: Address,
     // eureka transfer valence lib address
     eth_eureka_transfer_addr: Address,
+    // eth minter address
+    eth_minter_address: String,
+    // eth withdraw account
+    eth_withdraw_account: Address,
 }
 
 #[async_trait]
@@ -136,6 +142,8 @@ impl MockEurekaRelayerEvmNeutron {
         token_erc20: &Address,
         dest_chain_subdenom: String,
         dest_chain_denom_on_hub: String,
+        eth_minter_addr: &str,
+        eth_withdraw_acc: String,
     ) -> Result<Self, Box<dyn Error>> {
         let runtime = RelayerRuntime::default().await?;
 
@@ -148,6 +156,8 @@ impl MockEurekaRelayerEvmNeutron {
                 eth_eureka_transfer_addr: eureka_transfer_lib,
                 destination_chain_subdenom: dest_chain_subdenom,
                 destination_chain_denom_on_hub: dest_chain_denom_on_hub,
+                eth_minter_address: eth_minter_addr.to_string(),
+                eth_withdraw_account: Address::from_str(&eth_withdraw_acc).unwrap(),
             },
             runtime,
         })
@@ -272,20 +282,26 @@ impl MockEurekaRelayerEvmNeutron {
             .await
             .expect("failed to get eth request provider");
 
+        let wbtc_contract = MockERC20::new(self.state.eth_destination_erc20, eth_rp);
+
+        let evm_amount = U256::from(amount);
+        match self
+            .runtime
+            .eth_client
+            .execute_tx_as(
+                &self.state.eth_minter_address,
+                wbtc_contract
+                    .transfer(self.state.eth_withdraw_account, evm_amount)
+                    .into_transaction_request(),
+            )
+            .await
+        {
+            Ok(_) => info!("[MOCK EUREKA RLY] minted {evm_amount}wbtc to withdraw account"),
+            Err(e) => warn!(
+                "[MOCK EUREKA RLY] failed to mint wbtc to withdraw account: {:?}",
+                e
+            ),
+        };
         Ok(())
     }
-}
-
-fn decode_mint_recipient_to_address(mint_recipient_hex: &str) -> Result<String, Box<dyn Error>> {
-    let (hrp, _) = bech32::decode(NEUTRON_CHAIN_ADMIN_ADDR)?;
-
-    let stripped_hex = mint_recipient_hex
-        .strip_prefix("0x")
-        .unwrap_or(mint_recipient_hex);
-
-    let bytes = Vec::from_hex(stripped_hex)?;
-
-    let neutron_address = encode::<Bech32>(hrp, &bytes)?;
-
-    Ok(neutron_address)
 }

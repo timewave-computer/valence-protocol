@@ -3,26 +3,26 @@ grpc_url = "http://0.0.0.0"
 grpc_port = "37655"
 chain_id = "localneutron-1"
 mnemonic = "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
-target_pool = "neutron19wut8ssulwasjquxpspfeq097kwj2n86fk3vq0g9c8eml2rqtprqj9qg2d"
+target_pool = "neutron1k6kp7kjxnqz3pnky9ga24f5l6q24vz6tft24x2enl6060nl2r40qvw74w4"
 
 [neutron.denoms]
-lp_token = "factory/neutron19wut8ssulwasjquxpspfeq097kwj2n86fk3vq0g9c8eml2rqtprqj9qg2d/astroport/share"
+lp_token = "factory/neutron1k6kp7kjxnqz3pnky9ga24f5l6q24vz6tft24x2enl6060nl2r40qvw74w4/astroport/share"
 wbtc = "factory/neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky/WBTC"
 ntrn = "untrn"
 
 [neutron.accounts]
-deposit = "neutron1ell22k43hs2jtx8x50jz96agaqju5jwn87ued0mzcfglzlw6um0ssqx6x5"
-position = "neutron1yzrwpjdlvc7mjgd7gqyg94uy8lzh3m4snuexlspy0cxhjc9phhkscax8yc"
-withdraw = "neutron1pzyr2w7vw5watdn9n6mqz95dk0mr23h28eyw5jqu4l8d6wg7mvjsw66klp"
-liquidation = "neutron15nd2dzmyu0dzy4fq0ddjqac57ajl0ept0r6td5keteuu5ayenj7s88rnu6"
+deposit = "neutron1uaaqrdwytdgfrer50tval5ta6wum7037sh04u9sxj9hj7csvh4lqcglryv"
+position = "neutron1phv7qla9932htz0z46a0x5rlmwrrgqeqml3d09mxu7u0t8rhaa2sj4efva"
+withdraw = "neutron1e3ay0wzxe77zj0sn5j02j8umh63qj5t8kkf5p94zesc0t2z460xqu2nkq0"
+liquidation = "neutron19kqh7eguq0wzdrpxsx0e4ltdm67srjpppqgpka63e47s6sd8ldesm6363l"
 
 [neutron.libraries]
-neutron_ibc_transfer = "neutron14wyesxwny7hu67vk93ea4gsmdeajt894lz7fycn6qn2a4nt8qk3s653qjl"
-astroport_lper = "neutron18nwjauhgpmfsjf8c4yea0mfj74n6dhy0wkqzydtvvhkmr7gqzxtsw73ffy"
-astroport_lwer = "neutron1w6s58pxy7aks33yz8dcqphh8xu6w75mpqn05kdjd7s4789m4q38qhynzvt"
-liquidation_forwarder = "neutron1zmgfjea6e4p94n07j6982yhmhhg5yev33u3v8vwdjkkaa0748ljqpczrx8"
-authorizations = "neutron1jf94suhyq3um4ypwa5du2q75ax8mt2vdvzsk7uytdtmd2yk8y3zs99qjnu"
-processor = "neutron1juque0va5ya8tcvrxu2kq3s4gdfrzw2yv6k7glr7z0uu563qze4s2knnt4"
+neutron_ibc_transfer = "neutron10r30jxfmmugmcqy40vt04k0yh942jxqvlavjrtugn84wsvame2mqc33054"
+astroport_lper = "neutron132k995g5smm2qf543l3w5az0y7m0aduamw3e0kgmqqt4qj4zph9slj7wl8"
+astroport_lwer = "neutron1ea2kr2w8cj7u33ssuy78lanlffmz0fpl4xasl793plvnwrme0ckqfxsaxe"
+liquidation_forwarder = "neutron1map0j9l8ljytezvj2ts9fxnwcn4zws227uu98tqml64r3vdu8fzspmq67y"
+authorizations = "neutron1ddqgp6lsykm376g88dpcmj6dyd8mfd0gwuu9nzhxtnclt5309fpqd2fl9k"
+processor = "neutron1nqzzugslsntwf4gu90xnw67wvq4lpeg7377dtumpst0tpl224lfqf7jww4"
 
 [ethereum]
 rpc_url = "http://localhost:8545"
@@ -32,10 +32,10 @@ mnemonic = "test test test test test test test test test test test junk"
 wbtc = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"
 
 [ethereum.accounts]
-deposit = "0x10d16E2A026C4b5264A2aAC51cA65749cDf2037E"
-withdraw = "0xAf7868a9BB72E16B930D50636519038d7F057470"
+deposit = "0x4B7099FD879435a087C364aD2f9E7B3f94d20bBe"
+withdraw = "0x99aA73dA6309b8eC484eF2C95e96C131C1BBF7a0"
 
 [ethereum.libraries]
-valence_vault = "0x4a680B00eEacbcCA480eB9aB57161A7B08A8F0Ba"
-eureka_transfer = "0xfDD930c22708c7572278cf74D64f3721Eedc18Ad"
-lite_processor = "0xb69FC79100eDd058f9c96c0a13C80124aC1a7D77"
+valence_vault = "0x37e2156B0d78098F06F8075a18d7E3a09483048e"
+eureka_transfer = "0x7930AC7ddD1e35fD4b25230121A9C45923894e67"
+lite_processor = "0x757Fd23a0fDF9F9d2786f62f96f02Db4D096d10A"
