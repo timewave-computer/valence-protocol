@@ -43,11 +43,7 @@ contract IBCEurekaTransfer is Library {
      * @param _processor Address of the designated processor that can execute functions.
      * @param _config Encoded configuration parameters for the IBC Eureka transfer.
      */
-    constructor(
-        address _owner,
-        address _processor,
-        bytes memory _config
-    ) Library(_owner, _processor, _config) {}
+    constructor(address _owner, address _processor, bytes memory _config) Library(_owner, _processor, _config) {}
 
     /**
      * @dev Validates configuration by decoding the provided bytes and ensuring no critical addresses are zero.
@@ -55,14 +51,9 @@ contract IBCEurekaTransfer is Library {
      * @param _config Raw configuration bytes.
      * @return Decoded and validated IBCEurekaTransferConfig struct.
      */
-    function validateConfig(
-        bytes memory _config
-    ) internal pure returns (IBCEurekaTransferConfig memory) {
+    function validateConfig(bytes memory _config) internal pure returns (IBCEurekaTransferConfig memory) {
         // Decode the configuration bytes into the IBCEurekaTransferConfig struct.
-        IBCEurekaTransferConfig memory decodedConfig = abi.decode(
-            _config,
-            (IBCEurekaTransferConfig)
-        );
+        IBCEurekaTransferConfig memory decodedConfig = abi.decode(_config, (IBCEurekaTransferConfig));
 
         // Ensure the Eureka Handler is a valid (non-zero) address.
         if (decodedConfig.eurekaHandler == IEurekaHandler(address(0))) {
@@ -121,17 +112,12 @@ contract IBCEurekaTransfer is Library {
      * - The caller must be the designated processor.
      * - The input account must hold enough tokens.
      */
-    function transfer(
-        IEurekaHandler.Fees calldata fees,
-        string calldata memo
-    ) external onlyProcessor {
+    function transfer(IEurekaHandler.Fees calldata fees, string calldata memo) external onlyProcessor {
         // Retrieve the current configuration into a local variable.
         IBCEurekaTransferConfig memory _config = config;
 
         // Check the token balance of the input account.
-        uint256 balance = IERC20(_config.transferToken).balanceOf(
-            address(_config.inputAccount)
-        );
+        uint256 balance = IERC20(_config.transferToken).balanceOf(address(_config.inputAccount));
         if (balance == 0) {
             revert("Nothing to transfer");
         }
@@ -151,40 +137,26 @@ contract IBCEurekaTransfer is Library {
         uint256 amountToTransfer = amount - fees.relayFee;
 
         // Encode the approval call: this allows the Eureka Handler to spend the tokens.
-        bytes memory encodedApproveCall = abi.encodeCall(
-            IERC20.approve,
-            (address(_config.eurekaHandler), amount)
-        );
+        bytes memory encodedApproveCall = abi.encodeCall(IERC20.approve, (address(_config.eurekaHandler), amount));
 
         // Build the TransferParams struct for the transfer.
-        IEurekaHandler.TransferParams memory transferParams = IEurekaHandler
-            .TransferParams({
-                token: _config.transferToken,
-                recipient: _config.recipient,
-                sourceClient: _config.sourceClient,
-                destPort: "transfer",
-                timeoutTimestamp: uint64(block.timestamp) + _config.timeout,
-                memo: memo
-            });
+        IEurekaHandler.TransferParams memory transferParams = IEurekaHandler.TransferParams({
+            token: _config.transferToken,
+            recipient: _config.recipient,
+            sourceClient: _config.sourceClient,
+            destPort: "transfer",
+            timeoutTimestamp: uint64(block.timestamp) + _config.timeout,
+            memo: memo
+        });
 
         // Encode the transfer call
-        bytes memory encodedTransferCall = abi.encodeCall(
-            IEurekaHandler.transfer,
-            (amountToTransfer, transferParams, fees)
-        );
+        bytes memory encodedTransferCall =
+            abi.encodeCall(IEurekaHandler.transfer, (amountToTransfer, transferParams, fees));
 
         // Execute the approval call on the input account.
-        _config.inputAccount.execute(
-            _config.transferToken,
-            0,
-            encodedApproveCall
-        );
+        _config.inputAccount.execute(_config.transferToken, 0, encodedApproveCall);
         // Execute the token transfer call via the Eureka Handler.
-        _config.inputAccount.execute(
-            address(_config.eurekaHandler),
-            0,
-            encodedTransferCall
-        );
+        _config.inputAccount.execute(address(_config.eurekaHandler), 0, encodedTransferCall);
 
         emit EurekaTransfer(_config.recipient, amountToTransfer);
     }
