@@ -2,8 +2,9 @@ use std::{error::Error, str::FromStr};
 
 use crate::{
     approve_library, strategist::strategy_config, CCTP_TOKEN_MESSENGER_ON_BASE,
-    L2_STANDARD_BRIDGE_ADDRESS, PANCAKE_MASTERCHEF_ON_BASE, PANCAKE_POSITION_MANAGER_ON_BASE,
-    USDC_ADDRESS_ON_BASE, WETH_ADDRESS_ON_BASE, WETH_ADDRESS_ON_ETHEREUM,
+    L2_STANDARD_BRIDGE_ADDRESS, PANCAKE_MASTERCHEF_ON_BASE, PANCAKE_POOL_FEE,
+    PANCAKE_POSITION_MANAGER_ON_BASE, PANCAKE_POSITION_MANAGER_SLIPPAGE, USDC_ADDRESS_ON_BASE,
+    WETH_ADDRESS_ON_BASE, WETH_ADDRESS_ON_ETHEREUM,
 };
 use alloy::{
     hex::FromHex,
@@ -84,7 +85,7 @@ pub async fn set_up_base_libraries(
 
     let cctp_transfer = set_up_cctp_transfer(
         base_client,
-        Address::from_str(&base_program_accounts.pancake_input)?,
+        Address::from_str(&base_program_accounts.cctp_input)?,
         Address::from_str(&eth_program_accounts.aave_input)?,
         base_admin_addr,
         processor,
@@ -94,7 +95,7 @@ pub async fn set_up_base_libraries(
     let standard_bridge_transfer = set_up_standard_bridge_transfer(
         base_client,
         Address::from_str(&base_program_accounts.standard_bridge_input)?,
-        Address::from_str(&eth_program_accounts.aave_input)?,
+        Address::from_str(&eth_program_accounts.vault_withdraw)?,
         base_admin_addr,
         processor,
     )
@@ -163,8 +164,8 @@ async fn set_up_pancake_position_manager(
         masterChef: alloy_primitives_encoder::Address::from_str(PANCAKE_MASTERCHEF_ON_BASE)?,
         token0: alloy_primitives_encoder::Address::from_str(WETH_ADDRESS_ON_BASE)?,
         token1: alloy_primitives_encoder::Address::from_str(USDC_ADDRESS_ON_BASE)?,
-        poolFee: 100,
-        slippageBps: 1000,       // 10% slippage
+        poolFee: PANCAKE_POOL_FEE,
+        slippageBps: PANCAKE_POSITION_MANAGER_SLIPPAGE,
         timeout: U256::from(60), // 10 seconds
     };
 
@@ -301,11 +302,11 @@ async fn set_up_forwarder_pancake_output_to_input(
         forwardingConfigs: vec![
             ForwardingConfig {
                 tokenAddress: alloy_primitives_encoder::Address::from_str(WETH_ADDRESS_ON_BASE)?,
-                maxAmount: U256::ZERO,
+                maxAmount: U256::MAX,
             },
             ForwardingConfig {
                 tokenAddress: alloy_primitives_encoder::Address::from_str(USDC_ADDRESS_ON_BASE)?,
-                maxAmount: U256::ZERO,
+                maxAmount: U256::MAX,
             },
         ],
         intervalType: IntervalType::TIME,

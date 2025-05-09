@@ -104,7 +104,7 @@ pub fn upload_neutron_contracts(test_ctx: &mut TestContext) -> Result<(), Box<dy
     uploader
         .with_chain_name(NEUTRON_CHAIN_NAME)
         .send_with_local_cache(
-            "e2e/examples/eth_vault/neutron_contracts/",
+            "e2e/examples/eth_cctp_vault/neutron_contracts/",
             LOCAL_CODE_ID_CACHE_PATH_NEUTRON,
         )?;
 

@@ -646,6 +646,8 @@ pub fn hyperlane_plumbing(
 }
 
 pub mod vault_users {
+    use std::collections::BTreeMap;
+
     use alloy::primitives::{Address, U256};
     use log::info;
     use valence_chain_client_utils::{
@@ -663,6 +665,7 @@ pub mod vault_users {
     #[derive(Clone, Debug)]
     pub struct EthereumUsers {
         pub users: Vec<Address>,
+        pub starting_balances: BTreeMap<Address, U256>,
         pub erc20: Address,
         pub vault: Address,
     }
@@ -671,6 +674,7 @@ pub mod vault_users {
         pub fn new(erc20: Address, vault: Address) -> Self {
             Self {
                 users: vec![],
+                starting_balances: BTreeMap::new(),
                 erc20,
                 vault,
             }
@@ -689,12 +693,13 @@ pub mod vault_users {
         }
 
         pub fn fund_user(
-            &self,
+            &mut self,
             rt: &tokio::runtime::Runtime,
             eth_client: &EthereumClient,
             user: usize,
             amount: U256,
         ) {
+            self.starting_balances.insert(self.users[user], amount);
             mock_erc20::mint(rt, eth_client, self.erc20, self.users[user], amount);
         }
 
@@ -729,7 +734,7 @@ pub mod vault_users {
             let usdc_token = MockERC20::new(*vault_deposit_token, &eth_rp);
             let valence_vault = ValenceVault::new(*vault_addr, &eth_rp);
 
-            info!("\nETHEREUM ACCOUNTS LOG");
+            let mut balances = vec![];
             for (i, user) in self.users.iter().enumerate() {
                 let usdc_bal = eth_client
                     .query(usdc_token.balanceOf(*user))
@@ -741,9 +746,20 @@ pub mod vault_users {
                     .await
                     .unwrap()
                     ._0;
-                let deposit_entry = format!("{usdc_bal}UDEPOSIT");
-                let vault_entry = format!("{vault_bal}VAULT");
-                info!("\tUSER_{i}: {deposit_entry} {vault_entry}");
+                let starting_balance = self.starting_balances.get(user).unwrap();
+
+                let user_balances_entry = format!(
+                    "USER_{i}:
+                    starting_usdc: {starting_balance},
+                    current_usdc: {usdc_bal},
+                    shares: {vault_bal}"
+                );
+                balances.push(user_balances_entry);
+            }
+
+            info!("\nETHEREUM ACCOUNTS LOG");
+            for balance_entry in balances {
+                info!("{balance_entry}");
             }
         }
     }
