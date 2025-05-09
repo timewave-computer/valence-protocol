@@ -120,6 +120,7 @@ pub fn setup_eth_libraries(
         eth_program_accounts.withdraw,
         usdc_token_addr,
         vault_config,
+        1e6,
     )?;
 
     let libraries = strategy_config::ethereum::EthereumLibraries {

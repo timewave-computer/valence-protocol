@@ -129,6 +129,11 @@ impl ValenceWorker for Strategy {
             .unwrap_or_default();
         info!("updated pending obligations: {pending_obligations}");
 
+        // 3.1. scale down the obligations
+        let pending_obligations = pending_obligations
+            .checked_div(U256::from(1e3))
+            .unwrap_or_default();
+
         // 4. lp shares to be liquidated will yield untrn+wbtc. to figure out
         // the amount of ntrn needed to get 1/2 of the obligations, we half the
         // usdc amount
