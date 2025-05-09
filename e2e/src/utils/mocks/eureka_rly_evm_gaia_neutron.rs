@@ -7,7 +7,6 @@ use crate::utils::{
     ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT,
 };
 use alloy::{
-    hex::ToHexExt,
     primitives::{Address, Log, U256},
     providers::Provider,
     rpc::types::Filter,
@@ -15,13 +14,8 @@ use alloy::{
     sol_types::SolEvent,
 };
 use async_trait::async_trait;
-use bech32::{encode, Bech32};
 use cosmwasm_std::Uint128;
-use hex::FromHex;
-use localic_utils::{
-    GAIA_CHAIN_ADMIN_ADDR, GAIA_CHAIN_DENOM, GAIA_CHAIN_ID, NEUTRON_CHAIN_ADMIN_ADDR,
-    NEUTRON_CHAIN_ID,
-};
+use localic_utils::{GAIA_CHAIN_ADMIN_ADDR, GAIA_CHAIN_DENOM, GAIA_CHAIN_ID, NEUTRON_CHAIN_ID};
 use log::{info, warn};
 use valence_chain_client_utils::{
     cosmos::base_client::BaseClient,
@@ -57,8 +51,6 @@ pub struct RelayerState {
     eth_filter: Filter,
     // ethereum destination erc20 address
     eth_destination_erc20: Address,
-    // eureka transfer valence lib address
-    eth_eureka_transfer_addr: Address,
     // eth minter address
     eth_minter_address: String,
     // eth withdraw account
@@ -153,7 +145,6 @@ impl MockEurekaRelayerEvmNeutron {
                 eth_processed_events: HashSet::new(),
                 eth_filter: Filter::new().address(eureka_transfer_lib),
                 eth_destination_erc20: *token_erc20,
-                eth_eureka_transfer_addr: eureka_transfer_lib,
                 destination_chain_subdenom: dest_chain_subdenom,
                 destination_chain_denom_on_hub: dest_chain_denom_on_hub,
                 eth_minter_address: eth_minter_addr.to_string(),

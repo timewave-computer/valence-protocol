@@ -97,7 +97,7 @@ pub fn setup_neutron_libraries(
     authorizations: &str,
     processor: &str,
     wbtc_on_neutron: &str,
-    eth_withdraw_acc: String,
+    _eth_withdraw_acc: String,
     lp_token_denom: &str,
 ) -> Result<strategy_config::neutron::NeutronLibraries, Box<dyn Error>> {
     let astro_cl_pool_asset_data = AssetData {

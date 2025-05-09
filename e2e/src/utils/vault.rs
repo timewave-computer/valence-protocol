@@ -471,6 +471,7 @@ pub fn setup_neutron_ibc_transfer_lib(
 
 /// sets up a Valence Vault on Ethereum with a proxy.
 /// approves deposit & withdraw accounts.
+#[allow(clippy::too_many_arguments)]
 pub fn setup_valence_vault(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,

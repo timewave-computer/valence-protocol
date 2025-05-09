@@ -188,10 +188,6 @@ impl EurekaVaultRouting for Strategy {
 
         let rly_fee_recipient_address =
             Address::from_str(&skip_response.smart_relay_fee_quote.fee_payment_address).unwrap();
-        info!(
-            "[routing] Eureka Route Skip API response: {:?}",
-            skip_response
-        );
 
         let expiration_seconds =
             chrono::DateTime::parse_from_rfc3339(&skip_response.smart_relay_fee_quote.expiration)
@@ -295,7 +291,8 @@ impl EurekaVaultRouting for Strategy {
             "1",
             "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
             "100000",
-            // withdraw_account_wbtc_bal.to_string(), this is much too small
+            // withdraw_account_wbtc_bal.to_string(), this can be too small for eureka
+            // api so hardcoding the value for now
         )
         .await
         .unwrap();
@@ -349,8 +346,7 @@ impl EurekaVaultRouting for Strategy {
         {
             Ok(rx) => {
                 info!("rx hash: {}", rx.hash);
-                let tx_response = self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
-                info!("routing tx response: {:?}", tx_response);
+                self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
             }
             Err(e) => {
                 warn!("failed to initiate neutron ibc transfer: {:?}", e)
@@ -429,11 +425,6 @@ pub(crate) async fn query_skip_eureka_route(
         ]
     });
 
-    info!(
-        "querying skip eureka route with payload: {:?}",
-        skip_request_body
-    );
-
     let client = reqwest::Client::new();
     let resp = client
         .post(skip_api_url)
@@ -445,8 +436,6 @@ pub(crate) async fn query_skip_eureka_route(
         .json::<serde_json::Value>()
         .await
         .unwrap();
-
-    info!("Skip api response: {:?}", resp);
 
     let op = &resp["operations"]
         .get(0)
