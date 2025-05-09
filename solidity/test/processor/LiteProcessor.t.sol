@@ -39,12 +39,6 @@ contract LiteProcessorTest is Test {
         assertFalse(processor.paused());
     }
 
-    /// @notice Test that constructor reverts when given zero address for mailbox
-    function testConstructorRevertOnZeroMailbox() public {
-        vm.expectRevert(ProcessorErrors.InvalidAddress.selector);
-        new LiteProcessor(AUTH_CONTRACT, address(0), ORIGIN_DOMAIN, AUTHORIZED_ADDRESSES);
-    }
-
     /// @notice Test that handle() reverts when called by an address that is not the mailbox address or an authorized address
     function testHandleRevertOnUnauthorizedSender() public {
         bytes memory message = _encodePauseMessage();

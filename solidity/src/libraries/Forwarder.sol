@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Library} from "./Library.sol";
-import {Account} from "../accounts/Account.sol";
+import {BaseAccount} from "../accounts/BaseAccount.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 
 /**
@@ -37,8 +37,8 @@ contract Forwarder is Library {
      * @param minInterval Minimum interval between forwards
      */
     struct ForwarderConfig {
-        Account inputAccount;
-        Account outputAccount;
+        BaseAccount inputAccount;
+        BaseAccount outputAccount;
         ForwardingConfig[] forwardingConfigs;
         IntervalType intervalType;
         uint64 minInterval;
@@ -109,8 +109,8 @@ contract Forwarder is Library {
     function forward() external onlyProcessor {
         _checkInterval();
         _updateLastExecution();
-        Account input = config.inputAccount;
-        Account output = config.outputAccount;
+        BaseAccount input = config.inputAccount;
+        BaseAccount output = config.outputAccount;
 
         for (uint8 i = 0; i < config.forwardingConfigs.length; i++) {
             ForwardingConfig memory fConfig = config.forwardingConfigs[i];
@@ -142,7 +142,7 @@ contract Forwarder is Library {
      * @param input Source account
      * @param output Destination account
      */
-    function _forwardToken(ForwardingConfig memory fConfig, Account input, Account output) private {
+    function _forwardToken(ForwardingConfig memory fConfig, BaseAccount input, BaseAccount output) private {
         // Check if what we are trying to forward is the native coin or ERC20
         bool isNativeCoin = _isNativeCoin(fConfig.tokenAddress);
 
