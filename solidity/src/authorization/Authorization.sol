@@ -7,6 +7,7 @@ import {IProcessorMessageTypes} from "../processor/interfaces/IProcessorMessageT
 import {ProcessorMessageDecoder} from "../processor/libs/ProcessorMessageDecoder.sol";
 import {ICallback} from "../processor/interfaces/ICallback.sol";
 import {IProcessor} from "../processor/interfaces/IProcessor.sol";
+import {VerificationGateway} from "../verification/VerificationGateway.sol";
 
 /**
  * @title Authorization
@@ -15,10 +16,19 @@ import {IProcessor} from "../processor/interfaces/IProcessor.sol";
  * @notice The Authorization contract acts as a middleware for managing access control
  * to the Processor contract. It controls which addresses can call specific functions
  * on specific contracts through the processor.
+ * It will receive callbacks from the processor after executing messages and can either store
+ * the callback data in its state or just emit events for them.
  */
 contract Authorization is Ownable, ICallback {
     // Address of the processor that we will forward batches to
     ProcessorBase public processor;
+
+    modifier onlyProcessor() {
+        if (msg.sender != address(processor)) {
+            revert("Only processor can call this function");
+        }
+        _;
+    }
 
     /**
      * @notice Boolean indicating whether to store callbacks or just emit events for them
@@ -83,25 +93,60 @@ contract Authorization is Ownable, ICallback {
     // ========================= ZK authorizations =========================
 
     /**
-     * @notice Address of the verifier contract used for zero-knowledge proof verification
+     * @notice Address of the verification gateway contract used for zero-knowledge proof verification
      * @dev If zero-knowledge proofs are not being used, this can be set to address(0)
      */
-    address public verifier;
+    VerificationGateway public verificationGateway;
+
+    /**
+     * @notice Structure representing a ZK message that we'll get a proof for
+     * @dev This structure contains all the information to know if the sender is authorized to provide this message and to prevent replay attacks
+     * @param registry An ID to identify this message, similar to the label on CosmWasm authorizations
+     * @param blockNumber The block number when the message was created
+     * @param processorMessage The actual message to be processed and that was proven
+     */
+    struct ZKMessage {
+        uint64 registry;
+        uint64 blockNumber;
+        IProcessorMessageTypes.ProcessorMessage processorMessage;
+    }
+
+    /**
+     * @notice Mapping of what addresses are authorized to send messages for a specific registry ID
+     * @dev This mapping is used to check if a user is authorized to send a message for a specific registry ID
+     * @dev The mapping is structured as follows:
+     *     registry ID -> user addresses
+     *     If address(0) is used as the user address, it indicates permissionless access
+     */
+    mapping(uint64 => address[]) public zkAuthorizations;
+
+    /**
+     * @notice Mapping of the last block a message was executed for a specific registry ID
+     * @dev This mapping is used to prevent replay attacks by ensuring that proofs that are older than the last executed block cannot be used
+     * @dev This is important to ensure that the same or a previous proof cannot be reused in a different context
+     * @dev The mapping is structured as follows:
+     *     registry ID -> last block number it was executed
+     */
+    mapping(uint64 => uint64) public zkAuthorizationLastExecutionBlock;
+
+    // ========================= Implementation =========================
 
     /**
      * @notice Sets up the Authorization contract with initial configuration
      * @dev Initializes the contract with owner, processor, and optional verifier
      * @param _owner Address that will be set as the owner of this contract
      * @param _processor Address of the processor contract that will execute messages
-     * @param _verifier Address of the ZK verifier contract (can be address(0) if not using ZK proofs)
+     * @param _verificationGateway Address of the ZK verification gateway contract (can be address(0) if not using ZK proofs)
      * @param _storeCallbacks Boolean indicating whether to store callbacks or just emitting events
      */
-    constructor(address _owner, address _processor, address _verifier, bool _storeCallbacks) Ownable(_owner) {
+    constructor(address _owner, address _processor, address _verificationGateway, bool _storeCallbacks)
+        Ownable(_owner)
+    {
         if (_processor == address(0)) {
             revert("Processor cannot be zero address");
         }
         processor = ProcessorBase(_processor);
-        verifier = _verifier;
+        verificationGateway = VerificationGateway(_verificationGateway);
         executionId = 0;
         storeCallbacks = _storeCallbacks;
     }
@@ -119,13 +164,15 @@ contract Authorization is Ownable, ICallback {
     }
 
     /**
-     * @notice Updates the ZK verifier contract address
+     * @notice Updates the ZK verification gateway contract address
      * @dev Can only be called by the owner
-     * @param _verifier New verifier contract address
+     * @param _verificationGateway New verificationGateway contract address
      */
-    function updateVerifier(address _verifier) external onlyOwner {
-        verifier = _verifier;
+    function updateVerificationGateway(address _verificationGateway) external onlyOwner {
+        verificationGateway = VerificationGateway(_verificationGateway);
     }
+
+    // ========================= Standard Authorizations =========================
 
     /**
      * @notice Adds an address to the list of admin addresses
@@ -146,25 +193,39 @@ contract Authorization is Ownable, ICallback {
     }
 
     /**
-     * @notice Grants authorization for a user to call a specific function on a specific contract
+     * @notice Grants authorization for multiple users to call specific functions on specific contracts
      * @dev Can only be called by the owner
-     * @param _user Address of the user being granted authorization, if address(0) is used, then it's permissionless
-     * @param _contract Address of the contract the user is authorized to interact with
-     * @param _call Function call data (used to generate a hash for authorization checking)
+     * @param _users Array of addresses being granted authorization, if address(0) is used, then it's permissionless
+     * @param _contracts Array of contract addresses the users are authorized to interact with
+     * @param _calls Array of function call data (used to generate hashes for authorization checking)
      */
-    function addStandardAuthorization(address _user, address _contract, bytes memory _call) external onlyOwner {
-        authorizations[_user][_contract][keccak256(_call)] = true;
+    function addStandardAuthorizations(address[] memory _users, address[] memory _contracts, bytes[] memory _calls)
+        external
+        onlyOwner
+    {
+        require(_users.length == _contracts.length && _contracts.length == _calls.length, "Array lengths must match");
+
+        for (uint256 i = 0; i < _users.length; i++) {
+            authorizations[_users[i]][_contracts[i]][keccak256(_calls[i])] = true;
+        }
     }
 
     /**
-     * @notice Revokes authorization for a user to call a specific function on a specific contract
+     * @notice Revokes authorization for multiple users to call specific functions on specific contracts
      * @dev Can only be called by the owner
-     * @param _user Address of the user having authorization revoked
-     * @param _contract Address of the contract the authorization applies to
-     * @param call Function call data (used to generate the hash for lookup)
+     * @param _users Array of addresses having authorization revoked
+     * @param _contracts Array of contract addresses the authorizations apply to
+     * @param _calls Array of function call data (used to generate the hashes for lookup)
      */
-    function removeStandardAuthorization(address _user, address _contract, bytes memory call) external onlyOwner {
-        delete authorizations[_user][_contract][keccak256(call)];
+    function removeStandardAuthorizations(address[] memory _users, address[] memory _contracts, bytes[] memory _calls)
+        external
+        onlyOwner
+    {
+        require(_users.length == _contracts.length && _contracts.length == _calls.length, "Array lengths must match");
+
+        for (uint256 i = 0; i < _users.length; i++) {
+            delete authorizations[_users[i]][_contracts[i]][keccak256(_calls[i])];
+        }
     }
 
     /**
@@ -302,11 +363,123 @@ contract Authorization is Ownable, ICallback {
         }
     }
 
-    function handleCallback(bytes memory callbackData) external override {
-        // Check that the sender is the processor
-        if (msg.sender != address(processor)) {
-            revert("Only processor can send callbacks");
+    // ========================= ZK authorizations =========================
+
+    /**
+     * @notice Adds a new registry with its associated users and verification keys
+     * @dev This function allows the owner to add multiple registries and their associated users and verification keys
+     * @param registries Array of registry IDs to be added
+     * @param users Array of arrays of user addresses associated with each registry
+     * @param vks Array of verification keys associated with each registry
+     */
+    function addRegistries(uint64[] memory registries, address[][] memory users, bytes32[] calldata vks)
+        external
+        onlyOwner
+    {
+        require(users.length == registries.length && users.length == vks.length, "Array lengths must match");
+
+        for (uint256 i = 0; i < registries.length; i++) {
+            // Add the registry to the verification gateway
+            verificationGateway.addRegistry(registries[i], vks[i]);
+            zkAuthorizations[registries[i]] = users[i];
         }
+    }
+
+    /**
+     * @notice Removes a registry and its associated users
+     * @dev This function allows the owner to remove a registry and its associated users
+     * @param registries Array of registry IDs to be removed
+     */
+    function removeRegistries(uint64[] memory registries) external onlyOwner {
+        for (uint256 i = 0; i < registries.length; i++) {
+            // Remove the registry from the verification gateway
+            verificationGateway.removeRegistry(registries[i]);
+            delete zkAuthorizations[registries[i]];
+            // Delete the last execution block for the registry
+            delete zkAuthorizationLastExecutionBlock[registries[i]];
+        }
+    }
+
+    /**
+     * @notice Get all authorized addresses for a specific registry ID
+     * @param registryId The registry ID to check
+     * @return An array of all authorized addresses for the given registry ID
+     * @dev This function returns all addresses that are authorized to send messages for the given registry ID
+     * @dev It's useful for checking which addresses have permission to send messages in one go
+     */
+    function getZkAuthorizationsList(uint64 registryId) public view returns (address[] memory) {
+        return zkAuthorizations[registryId];
+    }
+
+    /**
+     * @notice Executes a ZK message with proof verification
+     * @dev This function verifies the proof and executes the message if authorized
+     * @dev The proof is verified using the verification gateway before executing the message
+     * @param _message Encoded ZK message to be executed
+     * @param _proof Proof associated with the ZK message
+     */
+    function executeZKMessage(bytes calldata _message, bytes calldata _proof) external {
+        // Decode the message to check authorization and apply modifications
+        ZKMessage memory decodedZKMessage = abi.decode(_message, (ZKMessage));
+
+        // Check that sender is authorized to send this message
+        address[] memory authorizedAddresses = zkAuthorizations[decodedZKMessage.registry];
+        bool isAuthorized = false;
+        for (uint256 i = 0; i < authorizedAddresses.length; i++) {
+            if (authorizedAddresses[i] == msg.sender || authorizedAddresses[i] == address(0)) {
+                isAuthorized = true;
+                break;
+            }
+        }
+
+        if (!isAuthorized) {
+            revert("Unauthorized address for this registry");
+        }
+
+        // Check that the block number is higher than the last execution block
+        if (decodedZKMessage.blockNumber <= zkAuthorizationLastExecutionBlock[decodedZKMessage.registry]) {
+            revert("Proof not longer valid");
+        }
+
+        // Verify the proof using the verification gateway
+        if (!verificationGateway.verify(decodedZKMessage.registry, _proof, _message)) {
+            revert("Proof verification failed");
+        }
+
+        // Get the message and update the execution ID if it's a SendMsgs or InsertMsgs message, according to the
+        // current execution ID of the contract
+        if (decodedZKMessage.processorMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.SendMsgs) {
+            IProcessorMessageTypes.SendMsgs memory sendMsgs =
+                abi.decode(decodedZKMessage.processorMessage.message, (IProcessorMessageTypes.SendMsgs));
+            sendMsgs.executionId = executionId;
+            decodedZKMessage.processorMessage.message = abi.encode(sendMsgs);
+        } else if (
+            decodedZKMessage.processorMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.InsertMsgs
+        ) {
+            IProcessorMessageTypes.InsertMsgs memory insertMsgs =
+                abi.decode(decodedZKMessage.processorMessage.message, (IProcessorMessageTypes.InsertMsgs));
+            insertMsgs.executionId = executionId;
+            decodedZKMessage.processorMessage.message = abi.encode(insertMsgs);
+        }
+
+        // Execute the message using the processor
+        processor.execute(abi.encode(decodedZKMessage.processorMessage));
+
+        // Increment the execution ID for the next message
+        executionId++;
+
+        // Update the last execution block for the registry
+        zkAuthorizationLastExecutionBlock[decodedZKMessage.registry] = uint64(block.number);
+    }
+
+    // ========================= Processor Callbacks =========================
+
+    /**
+     * @notice Handles callbacks from the processor after executing messages
+     * @dev This function is called by the processor to notify the contract of execution results
+     * @param callbackData Encoded callback data containing execution result and other information
+     */
+    function handleCallback(bytes memory callbackData) external override onlyProcessor {
         // Decode the callback data
         IProcessor.Callback memory callback = abi.decode(callbackData, (IProcessor.Callback));
 

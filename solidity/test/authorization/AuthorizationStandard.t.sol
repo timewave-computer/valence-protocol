@@ -11,11 +11,11 @@ import {IProcessorMessageTypes} from "../../src/processor/interfaces/IProcessorM
 import {IProcessor} from "../../src/processor/interfaces/IProcessor.sol";
 
 /**
- * @title AuthorizationTest
+ * @title AuthorizationStandardTest
  * @notice Test suite for the Authorization contract, verifying access control,
  *         processor message handling, and configuration management
  */
-contract AuthorizationTest is Test {
+contract AuthorizationStandardTest is Test {
     Authorization auth;
     LiteProcessor processor;
     Forwarder forwarder;
@@ -26,6 +26,9 @@ contract AuthorizationTest is Test {
     address owner = address(0x1);
     address admin = address(0x2);
     address user = address(0x3);
+    address[] users = new address[](1);
+    address[] contracts = new address[](1);
+    bytes[] calls = new bytes[](1);
     address unauthorized = address(0x4);
     address mockERC20 = address(0x5);
 
@@ -61,6 +64,11 @@ contract AuthorizationTest is Test {
 
         // Cache common test data
         updateConfigCall = abi.encodeWithSelector(Forwarder.updateConfig.selector, newForwarderConfig);
+
+        // Create arrays for the batch function
+        users[0] = user;
+        contracts[0] = address(forwarder);
+        calls[0] = updateConfigCall;
 
         vm.stopPrank();
     }
@@ -151,14 +159,14 @@ contract AuthorizationTest is Test {
     }
 
     /**
-     * @notice Test updating the verifier address
+     * @notice Test updating the verification gateway address
      */
-    function testUpdateVerifier() public {
+    function testUpdateVerificationGateway() public {
         vm.startPrank(owner);
 
-        address newVerifier = address(0x9);
-        auth.updateVerifier(newVerifier);
-        assertEq(auth.verifier(), newVerifier, "Verifier should be updated");
+        address newVerificationGateway = address(0x9);
+        auth.updateVerificationGateway(newVerificationGateway);
+        assertEq(address(auth.verificationGateway()), newVerificationGateway, "Verification Gateway should be updated");
 
         vm.stopPrank();
     }
@@ -176,7 +184,7 @@ contract AuthorizationTest is Test {
         bytes memory callbackData = abi.encode(callback);
 
         // Should fail because only processor can call
-        vm.expectRevert("Only processor can send callbacks");
+        vm.expectRevert("Only processor can call this function");
         auth.handleCallback(callbackData);
 
         vm.stopPrank();
@@ -226,7 +234,7 @@ contract AuthorizationTest is Test {
      */
     function testAddStandardAuthorization() public {
         vm.prank(owner);
-        auth.addStandardAuthorization(user, address(forwarder), updateConfigCall);
+        auth.addStandardAuthorizations(users, contracts, calls);
 
         assertTrue(
             auth.authorizations(user, address(forwarder), keccak256(updateConfigCall)),
@@ -238,13 +246,25 @@ contract AuthorizationTest is Test {
      * @notice Test adding a permissionless authorization (zero address)
      */
     function testAddPermissionlessAuthorization() public {
+        users[0] = address(0);
         vm.prank(owner);
-        auth.addStandardAuthorization(address(0), address(forwarder), updateConfigCall);
+        auth.addStandardAuthorizations(users, contracts, calls);
 
         assertTrue(
             auth.authorizations(address(0), address(forwarder), keccak256(updateConfigCall)),
             "Permissionless authorization should be granted"
         );
+    }
+
+    function test_RevertWhen_AddingInvalidAuthorization() public {
+        // Create arrays for the batch function
+        address[] memory invalidUsers = new address[](2);
+        invalidUsers[0] = user;
+        invalidUsers[1] = address(0);
+
+        vm.prank(owner);
+        vm.expectRevert("Array lengths must match");
+        auth.addStandardAuthorizations(invalidUsers, contracts, calls);
     }
 
     /**
@@ -254,10 +274,10 @@ contract AuthorizationTest is Test {
         vm.startPrank(owner);
 
         // Add authorization
-        auth.addStandardAuthorization(user, address(forwarder), updateConfigCall);
+        auth.addStandardAuthorizations(users, contracts, calls);
 
         // Remove authorization and verify
-        auth.removeStandardAuthorization(user, address(forwarder), updateConfigCall);
+        auth.removeStandardAuthorizations(users, contracts, calls);
         assertFalse(
             auth.authorizations(user, address(forwarder), keccak256(updateConfigCall)),
             "Authorization should be removed"
@@ -271,7 +291,7 @@ contract AuthorizationTest is Test {
     function testSendProcessorMessageAuthorized() public {
         // Authorize user
         vm.prank(owner);
-        auth.addStandardAuthorization(user, address(forwarder), updateConfigCall);
+        auth.addStandardAuthorizations(users, contracts, calls);
 
         vm.startPrank(user);
 
@@ -298,7 +318,8 @@ contract AuthorizationTest is Test {
     function testSendProcessorMessagePermissionless() public {
         // Add permissionless authorization
         vm.prank(owner);
-        auth.addStandardAuthorization(address(0), address(forwarder), updateConfigCall);
+        users[0] = address(0);
+        auth.addStandardAuthorizations(users, contracts, calls);
 
         vm.startPrank(unauthorized);
 

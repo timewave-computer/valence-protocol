@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity ^0.8.28;
+
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+/**
+ * @title VerificationGateway
+ * @dev Abstract contract that serves as a base for verification gateways.
+ * This contract provides the foundation for verifying proofs against registered verification keys.
+ */
+abstract contract VerificationGateway is Ownable {
+    /// @notice Root hash of the ZK coprocessor
+    bytes32 public coprocessorRoot;
+
+    /// @notice Generic verifier address that will be specialized in derived contracts
+    address public verifier;
+
+    /**
+     * @notice Mapping of program verification keys by user address and registry ID
+     * @dev Maps: user address => registry ID => verification key
+     */
+    mapping(address => mapping(uint64 => bytes32)) public programVKs;
+
+    /**
+     * @notice Initializes the verification gateway with a coprocessor root and verifier address
+     * @param _coprocessorRoot The root hash of the coprocessor
+     * @param _verifier Address of the verification contract
+     */
+    constructor(bytes32 _coprocessorRoot, address _verifier) Ownable(msg.sender) {
+        coprocessorRoot = _coprocessorRoot;
+        verifier = _verifier;
+    }
+
+    /**
+     * @notice Updates the verifier address
+     * @dev Only the owner can update the verifier address
+     * @param _verifier The new verifier address
+     */
+    function updateVerifier(address _verifier) external onlyOwner {
+        verifier = _verifier;
+    }
+
+    /**
+     * @notice Adds a verification key for a specific registry ID
+     * @dev Only the sender can add a VK for their own address
+     * @param registry The registry ID to associate with the verification key
+     * @param vk The verification key to register
+     */
+    function addRegistry(uint64 registry, bytes32 vk) external {
+        programVKs[msg.sender][registry] = vk;
+    }
+
+    /**
+     * @notice Removes a verification key for a specific registry ID
+     * @dev Only the sender can remove a VK for their own address
+     * @param registry The registry ID to remove
+     */
+    function removeRegistry(uint64 registry) external {
+        delete programVKs[msg.sender][registry];
+    }
+
+    /**
+     * @notice Abstract verification function to be implemented by derived contracts
+     * @dev Different verification gateways will implement their own verification logic
+     * @param registry The registry data used in verification
+     * @param proof The proof to verify
+     * @param message The message associated with the proof
+     * @return True if the proof is valid, false or revert otherwise
+     */
+    function verify(uint64 registry, bytes calldata proof, bytes calldata message) external virtual returns (bool);
+}
