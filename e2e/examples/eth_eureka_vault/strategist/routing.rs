@@ -237,12 +237,19 @@ impl EurekaVaultRouting for Strategy {
 
         info!("eureka fees cfg: {:?}", eureka_fees_cfg);
 
+        let eureka_fee_u128 = Uint128::from_str(&eureka_fees_cfg.relayFee.to_string())
+            .unwrap()
+            .u128();
+
         let eureka_transfer_msg = eureka_transfer_lib
             .transfer(eureka_fees_cfg, hub_to_neutron_pfm.to_string())
             .into_transaction_request();
 
         match self.eth_client.execute_tx(eureka_transfer_msg).await {
-            Ok(resp) => info!("success executing eureka transfer: {:?}", resp),
+            Ok(resp) => info!(
+                "success executing eureka transfer: {:?}",
+                resp.transaction_hash
+            ),
             Err(e) => warn!("failed to execute eureka transfer: {:?}", e),
         };
 
@@ -251,7 +258,8 @@ impl EurekaVaultRouting for Strategy {
             .poll_until_expected_balance(
                 &self.cfg.neutron.accounts.deposit,
                 &self.cfg.neutron.denoms.wbtc,
-                pre_eureka_neutron_deposit_acc_wbtc_bal + eth_deposit_acc_wbtc_u128.u128(),
+                pre_eureka_neutron_deposit_acc_wbtc_bal + eth_deposit_acc_wbtc_u128.u128()
+                    - eureka_fee_u128,
                 3,
                 10,
             )

@@ -58,7 +58,7 @@ mod strategist;
 
 const WBTC_ERC20: &str = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599";
 const WBTC_WHALE: &str = "0x70FBb965302D50D1783a2337Cb115B30Ae9C4638";
-const WBTC_NEUTRON_SUBDENOM: &str = "WBTC";
+pub const WBTC_NEUTRON_SUBDENOM: &str = "WBTC";
 const VAULT_NEUTRON_CACHE_PATH: &str = "e2e/examples/eth_eureka_vault/neutron_contracts/";
 const WBTC_NEUTRON_DENOM: &str = "factory/neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky/WBTC";
 const ETH_MAINNET_FORK_URL: &str = "https://eth-mainnet.public.blastapi.io";
@@ -257,10 +257,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         MockEurekaRelayerEvmNeutron::new(
             Address::from_str(&ethereum_program_libraries.eureka_transfer).unwrap(),
             wbtc_contract.address(),
+            WBTC_NEUTRON_SUBDENOM.to_string(),
             test_ctx
-                .get_transfer_channels()
-                .src(GAIA_CHAIN_NAME)
-                .dest(NEUTRON_CHAIN_NAME)
+                .get_ibc_denom()
+                .base_denom(WBTC_NEUTRON_DENOM.to_string())
+                .src(NEUTRON_CHAIN_NAME)
+                .dest(GAIA_CHAIN_NAME)
                 .get()
         )
         .await
