@@ -294,7 +294,8 @@ impl EurekaVaultRouting for Strategy {
             "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462",
             "1",
             "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-            withdraw_account_wbtc_bal.to_string(),
+            "100000",
+            // withdraw_account_wbtc_bal.to_string(), this is much too small
         )
         .await
         .unwrap();
@@ -319,6 +320,17 @@ impl EurekaVaultRouting for Strategy {
             timeout_timestamp: expiration_seconds,
         };
 
+        let pre_transfer_withdraw_acc_bals = self
+            .neutron_client
+            .query_balance(
+                &self.cfg.neutron.accounts.withdraw,
+                &self.cfg.neutron.denoms.wbtc,
+            )
+            .await
+            .unwrap_or_default();
+
+        info!("pre-ibc_transfer neutron withdraw account wbtc balance: {pre_transfer_withdraw_acc_bals}");
+
         info!("Initiating neutron ibc transfer");
         let neutron_ibc_transfer_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -337,6 +349,17 @@ impl EurekaVaultRouting for Strategy {
             .await
             .unwrap();
         self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+
+        let post_transfer_withdraw_acc_bals = self
+            .neutron_client
+            .query_balance(
+                &self.cfg.neutron.accounts.withdraw,
+                &self.cfg.neutron.denoms.wbtc,
+            )
+            .await
+            .unwrap_or_default();
+
+        info!("post-ibc_transfer neutron withdraw account wbtc balance: {post_transfer_withdraw_acc_bals}");
 
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let erc20 = MockERC20::new(
@@ -399,6 +422,11 @@ pub(crate) async fn query_skip_eureka_route(
         ]
     });
 
+    info!(
+        "querying skip eureka route with payload: {:?}",
+        skip_request_body
+    );
+
     let client = reqwest::Client::new();
     let resp = client
         .post(skip_api_url)
@@ -410,6 +438,8 @@ pub(crate) async fn query_skip_eureka_route(
         .json::<serde_json::Value>()
         .await
         .unwrap();
+
+    info!("Skip api response: {:?}", resp);
 
     let op = &resp["operations"]
         .get(0)

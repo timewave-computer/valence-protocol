@@ -208,7 +208,11 @@ impl MockEurekaRelayerEvmNeutron {
             .await?;
 
         if balance > 0 {
-            info!("found gaia account balance: {balance}{GAIA_CHAIN_DENOM}");
+            info!(
+                "[MOCK EUREKA RLY] gaia polling address {} balance: {balance}",
+                self.state.destination_chain_denom_on_hub
+            );
+
             // 1. transfer the funds out from the account into another one to avoid
             // double counting
             let burner_addr = "cosmos1p0var04vhr03r2j8zwv4jfrz73rxgjt5v29x49".to_string();
@@ -237,7 +241,6 @@ impl MockEurekaRelayerEvmNeutron {
     /// on successful finding of `EurekaTransfer` event, we mint the funds straight
     /// into the destination address decoded from the log. This bypasses gaia entirely.
     async fn mint_neutron_side(&self, val: Log<EurekaTransfer>) -> Result<(), Box<dyn Error>> {
-        // let destination_addr = decode_mint_recipient_to_address(&val.recipient.encode_hex())?;
         let mint_amount = val.amount.to_string();
 
         let tf_mint_rx = self
