@@ -499,8 +499,11 @@ contract Authorization is Ownable, ICallback {
             revert("Unauthorized address for this registry");
         }
 
+        // Cache the validate block condition
+        bool validateBlockNumberExecCondition = validateBlockNumberExecution[decodedZKMessage.registry];
+
         // If we need to validate the last block execution, check that the block number is greater than the last one
-        if (validateBlockNumberExecution[decodedZKMessage.registry]) {
+        if (validateBlockNumberExecCondition) {
             if (decodedZKMessage.blockNumber <= zkAuthorizationLastExecutionBlock[decodedZKMessage.registry]) {
                 revert("Proof no longer valid");
             }
@@ -530,8 +533,10 @@ contract Authorization is Ownable, ICallback {
         // Increment the execution ID for the next message
         executionId++;
 
-        // Update the last execution block for the registry
-        zkAuthorizationLastExecutionBlock[decodedZKMessage.registry] = decodedZKMessage.blockNumber;
+        // Update the last execution block for the registry (only if we need to validate the last block execution)
+        if (validateBlockNumberExecCondition) {
+            zkAuthorizationLastExecutionBlock[decodedZKMessage.registry] = decodedZKMessage.blockNumber;
+        }
 
         // Execute the message using the processor
         processor.execute(abi.encode(decodedZKMessage.processorMessage));
