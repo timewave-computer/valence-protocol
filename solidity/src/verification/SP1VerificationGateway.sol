@@ -17,12 +17,19 @@ contract SP1VerificationGateway is VerificationGateway {
         return ISP1Verifier(verifier);
     }
 
+    constructor() VerificationGateway() {}
+
     /**
-     * @notice Initializes the SP1 verification gateway
-     * @param _coprocessorRoot The root hash of the coprocessor
-     * @param _verifier Address of the SP1 verifier contract
+     * @dev Function that should revert when `msg.sender` is not authorized to upgrade the contract. Called by
+     * {upgradeTo} and {upgradeToAndCall}.
+     *
+     * Normally, this function will use an xref:access.adoc[access control] modifier such as {Ownable-onlyOwner}.
+     *
+     * @param newImplementation address of the new implementation
      */
-    constructor(bytes32 _coprocessorRoot, address _verifier) VerificationGateway(_coprocessorRoot, _verifier) {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
+        // Upgrade logic comes here
+    }
 
     /**
      * @notice Verifies a proof using the SP1 verifier

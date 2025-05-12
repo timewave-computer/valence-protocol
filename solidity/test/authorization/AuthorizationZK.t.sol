@@ -7,6 +7,7 @@ import {SP1VerificationGateway} from "../../src/verification/SP1VerificationGate
 import {ProcessorBase} from "../../src/processor/ProcessorBase.sol";
 import {LiteProcessor} from "../../src/processor/LiteProcessor.sol";
 import {IProcessorMessageTypes} from "../../src/processor/interfaces/IProcessorMessageTypes.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /**
  * @title AuthorizationZKTest
@@ -40,7 +41,14 @@ contract AuthorizationZKTest is Test {
         processor = new LiteProcessor(bytes32(0), address(0), 0, new address[](0));
 
         // Deploy verification gateway
-        verificationGateway = new SP1VerificationGateway(coprocessorRoot, verifier);
+        verificationGateway = new SP1VerificationGateway();
+
+        bytes memory initializeData =
+            abi.encodeWithSelector(verificationGateway.initialize.selector, coprocessorRoot, verifier);
+
+        // Deploy the proxy and initialize it
+        ERC1967Proxy proxy = new ERC1967Proxy(address(verificationGateway), initializeData);
+        verificationGateway = SP1VerificationGateway(address(proxy));
 
         // Deploy authorization contract with verification gateway
         auth = new Authorization(owner, address(processor), address(verificationGateway), true);

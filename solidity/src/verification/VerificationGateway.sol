@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.28;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OwnableUpgradeable} from "@openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @title VerificationGateway
  * @dev Abstract contract that serves as a base for verification gateways.
  * This contract provides the foundation for verifying proofs against registered verification keys.
  */
-abstract contract VerificationGateway is Ownable {
+abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     /// @notice Root hash of the ZK coprocessor
     bytes32 public coprocessorRoot;
 
@@ -21,12 +23,22 @@ abstract contract VerificationGateway is Ownable {
      */
     mapping(address => mapping(uint64 => bytes32)) public programVKs;
 
+    // Storage gap - reserves slots for future versions
+    uint256[50] private __gap;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
-     * @notice Initializes the verification gateway with a coprocessor root and verifier address
+     * @notice Initializes the verification gateway replcaing the constructor with a coprocessor root and verifier address
      * @param _coprocessorRoot The root hash of the coprocessor
      * @param _verifier Address of the verification contract
      */
-    constructor(bytes32 _coprocessorRoot, address _verifier) Ownable(msg.sender) {
+    function initialize(bytes32 _coprocessorRoot, address _verifier) external initializer {
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
         coprocessorRoot = _coprocessorRoot;
         verifier = _verifier;
     }
