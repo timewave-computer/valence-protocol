@@ -43,6 +43,7 @@
     - [Drop Liquid Unstaker](./libraries/cosmwasm/drop_liquid_unstaker.md)
     - [ICA CCTP Transfer](./libraries/cosmwasm/ica_cctp_transfer.md)
     - [ICA IBC Transfer](./libraries/cosmwasm/ica_ibc_transfer.md)
+    - [Union Transfer](./libraries/cosmwasm/union_transfer.md)
   - [EVM](./libraries/evm/_overview.md)
     - [Forwarder](./libraries/evm/forwarder.md)
     - [CCTP Transfer](./libraries/evm/cctp_transfer.md)
