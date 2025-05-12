@@ -40,6 +40,7 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         coprocessorRoot = _coprocessorRoot;
+        require(_verifier != address(0), "Verifier cannot be zero address");
         verifier = _verifier;
     }
 
@@ -49,6 +50,7 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
      * @param _verifier The new verifier address
      */
     function updateVerifier(address _verifier) external onlyOwner {
+        require(_verifier != address(0), "Verifier cannot be zero address");
         verifier = _verifier;
     }
 

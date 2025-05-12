@@ -527,14 +527,14 @@ contract Authorization is Ownable, ICallback {
             decodedZKMessage.processorMessage.message = abi.encode(insertMsgs);
         }
 
-        // Execute the message using the processor
-        processor.execute(abi.encode(decodedZKMessage.processorMessage));
-
         // Increment the execution ID for the next message
         executionId++;
 
         // Update the last execution block for the registry
         zkAuthorizationLastExecutionBlock[decodedZKMessage.registry] = decodedZKMessage.blockNumber;
+
+        // Execute the message using the processor
+        processor.execute(abi.encode(decodedZKMessage.processorMessage));
     }
 
     // ========================= Processor Callbacks =========================
