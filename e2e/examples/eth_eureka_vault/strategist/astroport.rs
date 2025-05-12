@@ -8,7 +8,7 @@ use valence_astroport_utils::astroport_native_lp_token::{
     Asset, AssetInfo, ExecuteMsg as AstroportExecuteMsg, PoolQueryMsg, ReverseSimulationResponse,
     SimulationResponse,
 };
-use valence_chain_client_utils::cosmos::{base_client::BaseClient, wasm_client::WasmClient};
+use valence_domain_clients::cosmos::{base_client::BaseClient, wasm_client::WasmClient};
 
 use super::strategy::Strategy;
 

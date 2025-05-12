@@ -8,15 +8,14 @@ use alloy::{
     primitives::{Address, Signed, U256},
     providers::Provider,
     rpc::types::TransactionRequest,
-    signers::local::{coins_bip39::English, MnemonicBuilder},
     sol,
     sol_types::SolCall,
 };
 use alloy_sol_types_encoder::SolValue;
 use async_trait::async_trait;
 use log::{info, warn};
-use valence_chain_client_utils::{
-    ethereum::EthereumClient,
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_e2e::utils::{
@@ -87,21 +86,10 @@ pub struct Strategy {
 impl Strategy {
     // async constructor which initializes the clients baesd on the StrategyConfig
     pub async fn new(cfg: StrategyConfig) -> Result<Self, Box<dyn Error>> {
-        let eth_client = EthereumClient {
-            rpc_url: cfg.ethereum.rpc_url.to_string(),
-            signer: MnemonicBuilder::<English>::default()
-                .phrase(cfg.ethereum.mnemonic.clone())
-                .index(7)? // derive the mnemonic at a different index to avoid nonce issues
-                .build()?,
-        };
+        // TODO: used to be derived at index 7
+        let eth_client = EthereumClient::new(&cfg.ethereum.rpc_url, &cfg.ethereum.mnemonic)?;
 
-        let base_client = EthereumClient {
-            rpc_url: cfg.base.rpc_url.to_string(),
-            signer: MnemonicBuilder::<English>::default()
-                .phrase(cfg.base.mnemonic.clone())
-                .index(7)? // derive the mnemonic at a different index to avoid nonce issues
-                .build()?,
-        };
+        let base_client = EthereumClient::new(&cfg.base.rpc_url, &cfg.base.mnemonic)?;
 
         Ok(Strategy {
             cfg,

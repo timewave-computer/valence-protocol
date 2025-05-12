@@ -6,8 +6,8 @@ use alloy::{
     rpc::types::TransactionRequest,
     sol_types::SolCall,
 };
-use valence_chain_client_utils::{
-    ethereum::EthereumClient,
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_e2e::utils::solidity_contracts::AavePositionManager;

@@ -24,10 +24,10 @@ use strategist::{
     strategy_config::{self, StrategyConfig},
 };
 
-use valence_chain_client_utils::{
+use valence_domain_clients::{
+    clients::{ethereum::EthereumClient, noble::NobleClient},
     cosmos::base_client::BaseClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
-    noble::NobleClient,
 };
 
 use valence_e2e::{
@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
 
-    let eth_client = valence_chain_client_utils::ethereum::EthereumClient::new(
+    let eth_client = EthereumClient::new(
         DEFAULT_ANVIL_RPC_ENDPOINT,
         "test test test test test test test test test test test junk",
     )
