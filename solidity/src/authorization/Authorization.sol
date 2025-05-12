@@ -153,6 +153,13 @@ contract Authorization is Ownable, ICallback {
     mapping(uint64 => address[]) public zkAuthorizations;
 
     /**
+     * @notice Mapping of registry ID to boolean indicating if we need to validate the last block execution
+     * @dev This mapping is used to check if we need to validate the last block execution for a specific registry ID
+     * @dev The mapping is structured as follows:
+     *     registry ID -> boolean indicating if we need to validate the last block execution
+     */
+    mapping(uint64 => bool) public validateBlockNumberExecution;
+    /**
      * @notice Mapping of the last block a proof was executed for
      * @dev This mapping is used to prevent replay attacks by ensuring that proofs that are older or the same than the last executed one cannot be used
      * @dev This is important to ensure that the same or a previous proof cannot be used
@@ -409,17 +416,28 @@ contract Authorization is Ownable, ICallback {
      * @param registries Array of registry IDs to be added
      * @param users Array of arrays of user addresses associated with each registry
      * @param vks Array of verification keys associated with each registry
+     * @param validateBlockNumber Array of booleans indicating if we need to validate the last block execution for each registry
      */
-    function addRegistries(uint64[] memory registries, address[][] memory users, bytes32[] calldata vks)
-        external
-        onlyOwner
-    {
-        require(users.length == registries.length && users.length == vks.length, "Array lengths must match");
+    function addRegistries(
+        uint64[] memory registries,
+        address[][] memory users,
+        bytes32[] calldata vks,
+        bool[] memory validateBlockNumber
+    ) external onlyOwner {
+        require(
+            users.length == registries.length && users.length == vks.length
+                && users.length == validateBlockNumber.length,
+            "Array lengths must match"
+        );
 
         for (uint256 i = 0; i < registries.length; i++) {
             // Add the registry to the verification gateway
             verificationGateway.addRegistry(registries[i], vks[i]);
             zkAuthorizations[registries[i]] = users[i];
+            // Only store if true because default is false
+            if (validateBlockNumber[i]) {
+                validateBlockNumberExecution[registries[i]] = true;
+            }
         }
     }
 
@@ -435,6 +453,8 @@ contract Authorization is Ownable, ICallback {
             delete zkAuthorizations[registries[i]];
             // Delete the last execution block for the registry
             delete zkAuthorizationLastExecutionBlock[registries[i]];
+            // Delete the validation flag for the registry
+            delete validateBlockNumberExecution[registries[i]];
         }
     }
 
@@ -479,9 +499,11 @@ contract Authorization is Ownable, ICallback {
             revert("Unauthorized address for this registry");
         }
 
-        // Check that the block number is higher than the last execution block
-        if (decodedZKMessage.blockNumber <= zkAuthorizationLastExecutionBlock[decodedZKMessage.registry]) {
-            revert("Proof no longer valid");
+        // If we need to validate the last block execution, check that the block number is greater than the last one
+        if (validateBlockNumberExecution[decodedZKMessage.registry]) {
+            if (decodedZKMessage.blockNumber <= zkAuthorizationLastExecutionBlock[decodedZKMessage.registry]) {
+                revert("Proof no longer valid");
+            }
         }
 
         // Verify the proof using the verification gateway

@@ -30,6 +30,8 @@ contract AuthorizationZKTest is Test {
     uint64 registryId2 = 102;
     bytes32 vk1 = bytes32(uint256(0x123456));
     bytes32 vk2 = bytes32(uint256(0x789abc));
+    bool validateBlockNumber1 = false;
+    bool validateBlockNumber2 = true;
 
     function setUp() public {
         vm.startPrank(owner);
@@ -79,8 +81,13 @@ contract AuthorizationZKTest is Test {
         vks[0] = vk1;
         vks[1] = vk2;
 
+        // Set block number validation flags
+        bool[] memory validateBlockNumbers = new bool[](2);
+        validateBlockNumbers[0] = validateBlockNumber1;
+        validateBlockNumbers[1] = validateBlockNumber2;
+
         // Add registries
-        auth.addRegistries(registries, users, vks);
+        auth.addRegistries(registries, users, vks, validateBlockNumbers);
 
         // Verify registry 1
         bytes32 storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
@@ -125,7 +132,11 @@ contract AuthorizationZKTest is Test {
         vks[0] = vk1;
         vks[1] = vk2;
 
-        auth.addRegistries(registriesToAdd, users, vks);
+        bool[] memory validateBlockNumbers = new bool[](2);
+        validateBlockNumbers[0] = validateBlockNumber1;
+        validateBlockNumbers[1] = validateBlockNumber2;
+
+        auth.addRegistries(registriesToAdd, users, vks, validateBlockNumbers);
 
         // Verify registries were added
         bytes32 storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
@@ -172,8 +183,12 @@ contract AuthorizationZKTest is Test {
         bytes32[] memory vks = new bytes32[](1);
         vks[0] = vk1;
 
+        bool[] memory validateBlockNumbers = new bool[](2);
+        validateBlockNumbers[0] = validateBlockNumber1;
+        validateBlockNumbers[1] = validateBlockNumber2;
+
         vm.expectRevert();
-        auth.addRegistries(registries, users, vks);
+        auth.addRegistries(registries, users, vks, validateBlockNumbers);
 
         vm.stopPrank();
     }
@@ -212,8 +227,12 @@ contract AuthorizationZKTest is Test {
         vks[0] = vk1;
         vks[1] = vk2;
 
+        bool[] memory validateBlockNumbers = new bool[](2);
+        validateBlockNumbers[0] = validateBlockNumber1;
+        validateBlockNumbers[1] = validateBlockNumber2;
+
         vm.expectRevert("Array lengths must match");
-        auth.addRegistries(registries, users, vks);
+        auth.addRegistries(registries, users, vks, validateBlockNumbers);
 
         vm.stopPrank();
     }
@@ -254,7 +273,10 @@ contract AuthorizationZKTest is Test {
         bytes32[] memory vks = new bytes32[](1);
         vks[0] = vk1;
 
-        auth.addRegistries(registries, users, vks);
+        bool[] memory validateBlockNumbers = new bool[](1);
+        validateBlockNumbers[0] = validateBlockNumber1;
+
+        auth.addRegistries(registries, users, vks, validateBlockNumbers);
 
         vm.stopPrank();
 
