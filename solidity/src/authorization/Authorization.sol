@@ -532,7 +532,8 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         }
 
         // Decode the message to check authorization and apply modifications
-        ZKMessage memory decodedZKMessage = abi.decode(_message, (ZKMessage));
+        // We need to skip the first 32 bytes because this will be the coprocessor root which we don't need to decode
+        ZKMessage memory decodedZKMessage = abi.decode(_message[32:], (ZKMessage));
 
         // Check that sender is authorized to send this message
         address[] memory authorizedAddresses = zkAuthorizations[decodedZKMessage.registry];

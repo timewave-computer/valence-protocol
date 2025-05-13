@@ -321,7 +321,7 @@ contract AuthorizationZKTest is Test {
      */
     function createDummyZKMessageWithBlockNumber(uint64 _registryId, uint64 _blockNumber)
         internal
-        pure
+        view
         returns (bytes memory)
     {
         // Create a simple processor message (Pause message)
@@ -337,6 +337,7 @@ contract AuthorizationZKTest is Test {
             processorMessage: processorMessage
         });
 
-        return abi.encode(zkMessage);
+        bytes memory rootBytes = abi.encodePacked(coprocessorRoot);
+        return bytes.concat(rootBytes, abi.encode(zkMessage));
     }
 }
