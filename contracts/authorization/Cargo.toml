@@ -12,21 +12,22 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-std                = { workspace = true }
-cw-storage-plus             = { workspace = true }
-cosmwasm-schema             = { workspace = true }
-thiserror                   = { workspace = true }
-cw2                         = { workspace = true }
-cw-ownable                  = { workspace = true }
-valence-authorization-utils = { workspace = true }
-valence-processor-utils     = { workspace = true }
-valence-gmp-utils           = { workspace = true }
-valence-encoder-broker      = { workspace = true }
-valence-encoder-utils       = { workspace = true }
-cw-utils                    = { workspace = true }
-serde_json                  = { workspace = true }
-neutron-sdk                 = { workspace = true }
-cosmos-sdk-proto            = { workspace = true }
+cosmwasm-std                 = { workspace = true }
+cw-storage-plus              = { workspace = true }
+cosmwasm-schema              = { workspace = true }
+thiserror                    = { workspace = true }
+cw2                          = { workspace = true }
+cw-ownable                   = { workspace = true }
+valence-authorization-utils  = { workspace = true }
+valence-processor-utils      = { workspace = true }
+valence-gmp-utils            = { workspace = true }
+valence-encoder-broker       = { workspace = true }
+valence-encoder-utils        = { workspace = true }
+valence-verification-gateway = { workspace = true }
+cw-utils                     = { workspace = true }
+serde_json                   = { workspace = true }
+neutron-sdk                  = { workspace = true }
+cosmos-sdk-proto             = { workspace = true }
 
 [dev-dependencies]
 neutron-test-tube     = { workspace = true }

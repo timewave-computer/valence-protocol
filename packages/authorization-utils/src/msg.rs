@@ -14,6 +14,7 @@ use crate::{
         CosmwasmBridge, Domain, Encoder, EvmBridge, ExecutionEnvironment, ExternalDomain,
         HyperlaneConnector, PolytoneConnectors, PolytoneNote, PolytoneProxyState,
     },
+    zk_authorization::ZkAuthorization,
 };
 
 #[cw_serde]
@@ -189,6 +190,11 @@ pub enum PermissionedMsg {
         max_concurrent_executions: Option<u64>,
         priority: Option<Priority>,
     },
+    ModifyZkAuthorization {
+        label: String,
+        max_concurrent_executions: Option<u64>,
+        validate_last_block_execution: Option<bool>,
+    },
     DisableAuthorization {
         label: String,
     },
@@ -227,6 +233,10 @@ pub enum PermissionedMsg {
     ResumeProcessor {
         domain: Domain,
     },
+    // Set a verification gateway contract for ZK authorizations
+    SetVerificationGateway {
+        verification_gateway: String,
+    },
 }
 
 #[cw_serde]
@@ -251,6 +261,12 @@ pub enum PermissionlessMsg {
     },
     RetryBridgeCreation {
         domain_name: String,
+    },
+    // Execute ZK authorization
+    ExecuteZkAuthorization {
+        label: String,
+        message: Binary,
+        proof: Binary,
     },
 }
 
@@ -344,6 +360,13 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    #[returns(Vec<ZkAuthorization>)]
+    ZkAuthorizations {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    #[returns(Addr)]
+    VerificationGateway {},
     #[returns(Vec<ProcessorCallbackInfo>)]
     ProcessorCallbacks {
         start_after: Option<u64>,

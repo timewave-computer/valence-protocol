@@ -24,6 +24,9 @@ pub enum ContractError {
     #[error("Message error: {0}")]
     Message(#[from] MessageErrorReason),
 
+    #[error("Authorization error: {0}")]
+    ZK(#[from] ZKErrorReason),
+
     #[error("External domain already exists")]
     ExternalDomainAlreadyExists(String),
 
@@ -131,4 +134,13 @@ pub enum MessageErrorReason {
 
     #[error("Messages are not retriable")]
     NotRetriable {},
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum ZKErrorReason {
+    #[error("Verification gateway not set")]
+    VerificationGatewayNotSet {},
+
+    #[error("Invalid ZK Proof")]
+    InvalidZKProof {},
 }

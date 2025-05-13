@@ -11,8 +11,8 @@ use cw_utils::Expiration;
 use neutron_sdk::proto_types::osmosis::tokenfactory::v1beta1::{MsgBurn, MsgCreateDenom, MsgMint};
 use valence_authorization_utils::{
     authorization::{
-        Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationState, PermissionType,
-        Priority,
+        Authorization, AuthorizationInfo, AuthorizationMode, AuthorizationMsg, AuthorizationState,
+        PermissionType, Priority,
     },
     callback::{ExecutionResult, OperationInitiator, PolytoneCallbackMsg, ProcessorCallbackInfo},
     domain::{
@@ -23,6 +23,7 @@ use valence_authorization_utils::{
         ExecuteMsg, ExternalDomainInfo, InstantiateMsg, InternalAuthorizationMsg, Mint, OwnerMsg,
         PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg,
     },
+    zk_authorization::ZkAuthorization,
 };
 use valence_encoder_broker::msg::QueryMsg as EncoderBrokerQueryMsg;
 use valence_encoder_utils::msg::{
@@ -35,15 +36,19 @@ use valence_gmp_utils::{
     },
     polytone::{Callback, CallbackMessage, CallbackRequest, PolytoneExecuteMsg},
 };
-use valence_processor_utils::msg::{AuthorizationMsg, ExecuteMsg as ProcessorExecuteMsg};
+use valence_processor_utils::msg::ExecuteMsg as ProcessorExecuteMsg;
 
 use crate::{
-    authorization::Validate,
+    authorization::{validate_permission, Validate},
     domain::{add_external_domain, create_msg_for_processor, get_domain},
-    error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason},
+    error::{
+        AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason,
+        ZKErrorReason,
+    },
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
-        PROCESSOR_CALLBACKS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS,
+        PROCESSOR_CALLBACKS, PROCESSOR_ON_MAIN_DOMAIN, SUB_OWNERS, VERIFICATION_GATEWAY,
+        ZK_AUTHORIZATIONS,
     },
 };
 
@@ -125,6 +130,16 @@ pub fn execute(
                     max_concurrent_executions,
                     priority,
                 ),
+                PermissionedMsg::ModifyZkAuthorization {
+                    label,
+                    max_concurrent_executions,
+                    validate_last_block_execution,
+                } => modify_zk_authorization(
+                    deps,
+                    label,
+                    max_concurrent_executions,
+                    validate_last_block_execution,
+                ),
                 PermissionedMsg::DisableAuthorization { label } => {
                     disable_authorization(deps, label)
                 }
@@ -145,6 +160,9 @@ pub fn execute(
                 } => insert_messages(deps, env, label, queue_position, priority, messages),
                 PermissionedMsg::PauseProcessor { domain } => pause_processor(deps, domain),
                 PermissionedMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
+                PermissionedMsg::SetVerificationGateway {
+                    verification_gateway,
+                } => set_verification_gateway(deps, verification_gateway),
             }
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
@@ -157,6 +175,11 @@ pub fn execute(
             PermissionlessMsg::RetryBridgeCreation { domain_name } => {
                 retry_bridge_creation(deps, env, domain_name)
             }
+            PermissionlessMsg::ExecuteZkAuthorization {
+                label,
+                message,
+                proof,
+            } => execute_zk_authorization(deps, env, info, label, message, proof),
         },
         ExecuteMsg::InternalAuthorizationAction(internal_authorization_msg) => {
             match internal_authorization_msg {
@@ -265,7 +288,9 @@ fn create_authorizations(
         let authorization = each_authorization.into_authorization(&env.block, deps.api);
 
         // Check that it doesn't exist yet
-        if AUTHORIZATIONS.has(deps.storage, authorization.label.clone()) {
+        if AUTHORIZATIONS.has(deps.storage, authorization.label.clone())
+            || ZK_AUTHORIZATIONS.has(deps.storage, authorization.label.clone())
+        {
             return Err(ContractError::Authorization(
                 AuthorizationErrorReason::LabelAlreadyExists(authorization.label.clone()),
             ));
@@ -362,30 +387,83 @@ fn modify_authorization(
     Ok(Response::new().add_attribute("action", "modify_authorization"))
 }
 
-fn disable_authorization(deps: DepsMut, label: String) -> Result<Response, ContractError> {
-    let mut authorization = AUTHORIZATIONS
+fn modify_zk_authorization(
+    deps: DepsMut,
+    label: String,
+    max_concurrent_executions: Option<u64>,
+    validate_last_block_execution: Option<bool>,
+) -> Result<Response, ContractError> {
+    let mut authorization = ZK_AUTHORIZATIONS
         .load(deps.storage, label.clone())
         .map_err(|_| {
             ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
         })?;
 
-    authorization.state = AuthorizationState::Disabled;
+    if let Some(max_concurrent_executions) = max_concurrent_executions {
+        authorization.max_concurrent_executions = max_concurrent_executions;
+    }
 
-    AUTHORIZATIONS.save(deps.storage, label, &authorization)?;
+    if let Some(validate_last_block_execution) = validate_last_block_execution {
+        authorization.validate_last_block_execution = validate_last_block_execution;
+    }
+
+    ZK_AUTHORIZATIONS.save(deps.storage, label, &authorization)?;
+
+    Ok(Response::new().add_attribute("action", "modify_zk_authorization"))
+}
+
+fn disable_authorization(deps: DepsMut, label: String) -> Result<Response, ContractError> {
+    // Try to load from AUTHORIZATIONS first
+    let auth_result = AUTHORIZATIONS.may_load(deps.storage, label.clone())?;
+
+    match auth_result {
+        Some(mut authorization) => {
+            // Found in AUTHORIZATIONS map
+            authorization.state = AuthorizationState::Disabled;
+            AUTHORIZATIONS.save(deps.storage, label, &authorization)?;
+        }
+        None => {
+            // Not found in AUTHORIZATIONS, try ZK_AUTHORIZATIONS
+            let mut zk_authorization = ZK_AUTHORIZATIONS
+                .load(deps.storage, label.clone())
+                .map_err(|_| {
+                    ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(
+                        label.clone(),
+                    ))
+                })?;
+
+            zk_authorization.state = AuthorizationState::Disabled;
+            ZK_AUTHORIZATIONS.save(deps.storage, label, &zk_authorization)?;
+        }
+    }
 
     Ok(Response::new().add_attribute("action", "disable_authorization"))
 }
 
 fn enable_authorization(deps: DepsMut, label: String) -> Result<Response, ContractError> {
-    let mut authorization = AUTHORIZATIONS
-        .load(deps.storage, label.clone())
-        .map_err(|_| {
-            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
-        })?;
+    // Try to load from AUTHORIZATIONS first
+    let auth_result = AUTHORIZATIONS.may_load(deps.storage, label.clone())?;
 
-    authorization.state = AuthorizationState::Enabled;
+    match auth_result {
+        Some(mut authorization) => {
+            // Found in AUTHORIZATIONS map
+            authorization.state = AuthorizationState::Enabled;
+            AUTHORIZATIONS.save(deps.storage, label, &authorization)?;
+        }
+        None => {
+            // Not found in AUTHORIZATIONS, try ZK_AUTHORIZATIONS
+            let mut zk_authorization = ZK_AUTHORIZATIONS
+                .load(deps.storage, label.clone())
+                .map_err(|_| {
+                    ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(
+                        label.clone(),
+                    ))
+                })?;
 
-    AUTHORIZATIONS.save(deps.storage, label, &authorization)?;
+            zk_authorization.state = AuthorizationState::Enabled;
+            ZK_AUTHORIZATIONS.save(deps.storage, label, &zk_authorization)?;
+        }
+    }
 
     Ok(Response::new().add_attribute("action", "enable_authorization"))
 }
@@ -396,13 +474,22 @@ fn mint_authorizations(
     label: String,
     mints: Vec<Mint>,
 ) -> Result<Response, ContractError> {
-    let authorization = AUTHORIZATIONS
-        .load(deps.storage, label.clone())
-        .map_err(|_| {
-            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
-        })?;
+    let authorization_mode;
+    // Try to find the authorization in AUTHORIZATIONS first
+    let auth_result = AUTHORIZATIONS.may_load(deps.storage, label.clone())?;
+    if let Some(authorization) = auth_result {
+        authorization_mode = authorization.mode;
+    } else {
+        // If not found, try to find it in ZK_AUTHORIZATIONS
+        let zk_authorization = ZK_AUTHORIZATIONS
+            .load(deps.storage, label.clone())
+            .map_err(|_| {
+                ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+            })?;
+        authorization_mode = zk_authorization.mode;
+    }
 
-    let tokenfactory_msgs = match authorization.mode {
+    let tokenfactory_msgs = match authorization_mode {
         AuthorizationMode::Permissioned(_) => Ok(mints.iter().map(|mint| {
             mint_msg(
                 env.contract.address.to_string(),
@@ -733,6 +820,63 @@ fn send_msgs(
         .add_message(msg)
         .add_attribute("action", "send_msgs")
         .add_attribute("authorization_label", authorization.label))
+}
+
+fn set_verification_gateway(
+    deps: DepsMut,
+    verification_gateway: String,
+) -> Result<Response, ContractError> {
+    VERIFICATION_GATEWAY.save(
+        deps.storage,
+        &deps.api.addr_validate(verification_gateway.as_str())?,
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("action", "set_verification_gateway")
+        .add_attribute("verification_gateway", verification_gateway))
+}
+
+fn execute_zk_authorization(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    label: String,
+    message: Binary,
+    proof: Binary,
+) -> Result<Response, ContractError> {
+    let zk_authorization = ZK_AUTHORIZATIONS
+        .load(deps.storage, label.clone())
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
+
+    // Get the verification gateway address
+    let verification_gateway = VERIFICATION_GATEWAY
+        .load(deps.storage)
+        .map_err(|_| ContractError::ZK(ZKErrorReason::VerificationGatewayNotSet {}))?;
+
+    // Validate that we have permission to execute the zk authorization
+    validate_permission(
+        &zk_authorization.label,
+        &zk_authorization.mode,
+        deps.querier,
+        &env.contract.address.as_str(),
+        &info,
+    )?;
+
+    let valid: bool = deps.querier.query_wasm_smart(
+        verification_gateway,
+        &valence_verification_gateway::msg::QueryMsg::VerifyProof {
+            vk: zk_authorization.vk,
+            proof,
+            inputs: message,
+        },
+    )?;
+    if !valid {
+        return Err(ContractError::ZK(ZKErrorReason::InvalidZKProof {}));
+    }
+
+    Ok(Response::new())
 }
 
 fn retry_msgs(deps: DepsMut, env: Env, execution_id: u64) -> Result<Response, ContractError> {
@@ -1263,6 +1407,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Authorizations { start_after, limit } => {
             to_json_binary(&get_authorizations(deps, start_after, limit))
         }
+        QueryMsg::ZkAuthorizations { start_after, limit } => {
+            to_json_binary(&get_zk_authorizations(deps, start_after, limit))
+        }
+        QueryMsg::VerificationGateway {} => to_json_binary(&get_verification_gateway(deps)?),
         QueryMsg::ProcessorCallbacks { start_after, limit } => {
             to_json_binary(&get_processor_callbacks(deps, start_after, limit))
         }
@@ -1326,6 +1474,26 @@ fn get_authorizations(
         .filter_map(Result::ok)
         .map(|(_, auth)| auth)
         .collect()
+}
+
+fn get_zk_authorizations(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Vec<ZkAuthorization> {
+    let limit = limit.unwrap_or(MAX_PAGE_LIMIT).min(MAX_PAGE_LIMIT);
+    let start = start_after.map(Bound::exclusive);
+
+    ZK_AUTHORIZATIONS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit as usize)
+        .filter_map(Result::ok)
+        .map(|(_, auth)| auth)
+        .collect()
+}
+
+fn get_verification_gateway(deps: Deps) -> StdResult<Addr> {
+    VERIFICATION_GATEWAY.load(deps.storage)
 }
 
 fn get_processor_callbacks(

@@ -1,9 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
-use valence_authorization_utils::{
-    authorization::{Priority, Subroutine},
-    msg::ProcessorMessage,
-};
+use valence_authorization_utils::authorization::{AuthorizationMsg, Priority};
 use valence_gmp_utils::polytone::CallbackMessage;
 
 use crate::{
@@ -33,32 +30,6 @@ pub enum ExecuteMsg {
     // Polytone callback listener
     #[serde(rename = "callback")]
     PolytoneCallback(CallbackMessage),
-}
-
-#[cw_serde]
-pub enum AuthorizationMsg {
-    EnqueueMsgs {
-        // Used for the callback or to remove the messages
-        id: u64,
-        msgs: Vec<ProcessorMessage>,
-        subroutine: Subroutine,
-        priority: Priority,
-        expiration_time: Option<u64>,
-    },
-    EvictMsgs {
-        queue_position: u64,
-        priority: Priority,
-    },
-    InsertMsgs {
-        queue_position: u64,
-        id: u64,
-        msgs: Vec<ProcessorMessage>,
-        subroutine: Subroutine,
-        priority: Priority,
-        expiration_time: Option<u64>,
-    },
-    Pause {},
-    Resume {},
 }
 
 #[cw_serde]
