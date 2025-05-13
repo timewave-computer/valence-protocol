@@ -12,8 +12,8 @@ use localic_utils::{
     DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::{info, warn};
-use valence_chain_client_utils::{
-    ethereum::EthereumClient,
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
@@ -650,8 +650,8 @@ pub mod vault_users {
 
     use alloy::primitives::{Address, U256};
     use log::info;
-    use valence_chain_client_utils::{
-        ethereum::EthereumClient,
+    use valence_domain_clients::{
+        clients::ethereum::EthereumClient,
         evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     };
 

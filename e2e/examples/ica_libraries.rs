@@ -10,8 +10,8 @@ use localic_utils::{
 };
 use log::info;
 use valence_account_utils::ica::{IcaState, RemoteDomainInfo};
-use valence_chain_client_utils::{
-    cosmos::base_client::BaseClient, neutron::NeutronClient, noble::NobleClient,
+use valence_domain_clients::{
+    clients::neutron::NeutronClient, clients::noble::NobleClient, cosmos::base_client::BaseClient,
 };
 use valence_e2e::utils::{
     ibc::poll_for_ica_state,

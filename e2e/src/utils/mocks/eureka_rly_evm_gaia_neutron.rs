@@ -10,19 +10,16 @@ use alloy::{
     primitives::{Address, Log, U256},
     providers::Provider,
     rpc::types::Filter,
-    signers::local::{coins_bip39::English, MnemonicBuilder},
     sol_types::SolEvent,
 };
 use async_trait::async_trait;
 use cosmwasm_std::Uint128;
 use localic_utils::{GAIA_CHAIN_ADMIN_ADDR, GAIA_CHAIN_DENOM, GAIA_CHAIN_ID, NEUTRON_CHAIN_ID};
 use log::{info, warn};
-use valence_chain_client_utils::{
+use valence_domain_clients::{
+    clients::{ethereum::EthereumClient, gaia::CosmosHubClient, neutron::NeutronClient},
     cosmos::base_client::BaseClient,
-    ethereum::EthereumClient,
     evm::{anvil::AnvilImpersonationClient, request_provider_client::RequestProviderClient},
-    gaia::CosmosHubClient,
-    neutron::NeutronClient,
 };
 
 const POLLING_PERIOD: Duration = Duration::from_secs(5);
@@ -110,15 +107,11 @@ impl RelayerRuntime {
         .await
         .expect("failed to create neutron client");
 
-        let signer = MnemonicBuilder::<English>::default()
-            .phrase("test test test test test test test test test test test junk")
-            .index(5)? // derive the mnemonic at a different index to avoid nonce issues
-            .build()?;
-
-        let eth_client = EthereumClient {
-            rpc_url: DEFAULT_ANVIL_RPC_ENDPOINT.to_string(),
-            signer,
-        };
+        let eth_client = EthereumClient::new(
+            DEFAULT_ANVIL_RPC_ENDPOINT,
+            "test test test test test test test test test test test junk",
+            Some(5),
+        )?;
 
         Ok(Self {
             eth_client,
