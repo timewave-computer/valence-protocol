@@ -1523,9 +1523,9 @@ dependencies = [
 
 [[package]]
 name = "blake3"
-version = "1.6.1"
+version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "675f87afced0413c9bb02843499dbbd3882a237645883f71a2b59644a6d2f753"
+checksum = "3888aaa89e4b2a40fca9848e400f6a658a5a3978de7be858e209cafa8be9a4a0"
 dependencies = [
  "arrayref",
  "arrayvec",
@@ -1622,9 +1622,9 @@ dependencies = [
 
 [[package]]
 name = "borsh"
-version = "1.5.5"
+version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5430e3be710b68d984d1391c854eb431a9d548640711faa54eecb1df93db91cc"
+checksum = "ad8646f98db542e39fc66e68a20b2144f6a732636df7c2354e74645faaa433ce"
 dependencies = [
  "borsh-derive",
  "cfg_aliases",
@@ -1632,9 +1632,9 @@ dependencies = [
 
 [[package]]
 name = "borsh-derive"
-version = "1.5.5"
+version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8b668d39970baad5356d7c83a86fee3a539e6f93bf6764c97368243e17a0487"
+checksum = "fdd1d3c0c2f5833f22386f252fe8ed005c7f59fdcddeef025c01b4c3b9fd9ac3"
 dependencies = [
  "once_cell",
  "proc-macro-crate",
@@ -3615,9 +3615,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.8"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5017294ff4bb30944501348f6f8e42e6ad28f42c8bbef7a74029aff064a4e3c2"
+checksum = "a9421a676d1b147b16b82c9225157dc629087ef8ec4d5e2960f9437a90dac0a5"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -3884,7 +3884,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-util",
- "h2 0.4.8",
+ "h2 0.4.10",
  "http 1.2.0",
  "http-body 1.0.1",
  "httparse",
@@ -5150,9 +5150,9 @@ dependencies = [
 
 [[package]]
 name = "neutron-std"
-version = "5.1.2"
+version = "5.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eedb87e41d6065ef0012e33aae06692a03e888c6ddca7125d768e24deace367a"
+checksum = "8fd808afc35eaeb219789e6e508a0dff51a195d557212b7fbcc2f4a33b9bd8d7"
 dependencies = [
  "bech32 0.9.1",
  "chrono",
@@ -8078,7 +8078,7 @@ dependencies = [
  "axum 0.7.9",
  "base64 0.22.1",
  "bytes",
- "h2 0.4.8",
+ "h2 0.4.10",
  "http 1.2.0",
  "http-body 1.0.1",
  "http-body-util",
@@ -8507,8 +8507,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "valence-chain-client-utils"
-version = "0.2.0"
+name = "valence-domain-clients"
+version = "0.1.0"
+source = "git+https://github.com/timewave-computer/valence-domain-clients.git?tag=v0.1.0#2ea04c386b8bc14beb5a8234b0245011833b55cc"
 dependencies = [
  "alloy",
  "alloy-primitives 0.7.7",
@@ -8528,8 +8529,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tonic 0.12.3",
- "valence-e2e",
- "valence-processor-utils",
 ]
 
 [[package]]
@@ -8609,7 +8608,7 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
- "valence-chain-client-utils",
+ "valence-domain-clients",
  "valence-encoder-broker",
  "valence-encoder-utils",
  "valence-forwarder-library",

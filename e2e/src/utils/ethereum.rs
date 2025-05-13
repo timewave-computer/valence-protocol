@@ -8,8 +8,8 @@ use bollard::{
 };
 use futures_util::StreamExt;
 use log::{error, info};
-use valence_chain_client_utils::{
-    ethereum::EthereumClient, evm::request_provider_client::RequestProviderClient,
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient, evm::request_provider_client::RequestProviderClient,
 };
 
 const ANVIL_IMAGE_URL: &str = "ghcr.io/foundry-rs/foundry:latest";
@@ -176,8 +176,8 @@ pub mod valence_account {
 
     use alloy::primitives::Address;
     use log::info;
-    use valence_chain_client_utils::{
-        ethereum::EthereumClient,
+    use valence_domain_clients::{
+        clients::ethereum::EthereumClient,
         evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     };
 
@@ -232,8 +232,8 @@ pub mod mock_erc20 {
 
     use alloy::primitives::{Address, U256};
     use log::info;
-    use valence_chain_client_utils::{
-        ethereum::EthereumClient,
+    use valence_domain_clients::{
+        clients::ethereum::EthereumClient,
         evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     };
 
@@ -256,12 +256,9 @@ pub mod mock_erc20 {
                     .into_transaction_request();
 
             let evm_vault_deposit_token_rx =
-                valence_chain_client_utils::evm::base_client::EvmBaseClient::execute_tx(
-                    eth_client,
-                    evm_vault_deposit_token_tx,
-                )
-                .await
-                .unwrap();
+                EvmBaseClient::execute_tx(eth_client, evm_vault_deposit_token_tx)
+                    .await
+                    .unwrap();
 
             let valence_vault_deposit_token_address =
                 evm_vault_deposit_token_rx.contract_address.unwrap();
@@ -369,8 +366,8 @@ pub mod lite_processor {
 
     use alloy::primitives::Address;
     use log::info;
-    use valence_chain_client_utils::{
-        ethereum::EthereumClient,
+    use valence_domain_clients::{
+        clients::ethereum::EthereumClient,
         evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     };
 

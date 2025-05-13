@@ -26,14 +26,14 @@ use strategist::{
         StrategyConfig,
     },
 };
-use valence_chain_client_utils::{
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
+    clients::neutron::NeutronClient,
     cosmos::base_client::BaseClient,
-    ethereum::EthereumClient,
     evm::{
         anvil::AnvilImpersonationClient, base_client::EvmBaseClient,
         request_provider_client::RequestProviderClient,
     },
-    neutron::NeutronClient,
 };
 
 mod program;
@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
     );
 
-    let eth_client = EthereumClient::new(DEFAULT_ANVIL_RPC_ENDPOINT, EVM_MNEMONIC).unwrap();
+    let eth_client = EthereumClient::new(DEFAULT_ANVIL_RPC_ENDPOINT, EVM_MNEMONIC, None)?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
 

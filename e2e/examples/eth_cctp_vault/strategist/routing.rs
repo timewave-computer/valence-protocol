@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use cosmwasm_std::Uint128;
 use localic_utils::NEUTRON_CHAIN_DENOM;
 use log::{error, info, warn};
-use valence_chain_client_utils::{
+use valence_domain_clients::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
