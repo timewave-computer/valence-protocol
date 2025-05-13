@@ -149,4 +149,7 @@ pub enum ZKErrorReason {
 
     #[error("Proof no longer valid")]
     ProofNoLongerValid {},
+
+    #[error("Invalid domain, execution environment should be CosmWasm")]
+    InvalidDomain {},
 }

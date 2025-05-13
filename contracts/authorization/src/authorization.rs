@@ -366,7 +366,6 @@ impl Validate for Authorization {
                         }
                     }
                 }
-                ProcessorMessage::CosmWasmZKMsg { .. } => unreachable!(),
             }
         }
         Ok(())

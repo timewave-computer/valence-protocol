@@ -380,6 +380,21 @@ fn create_zk_authorizations(
             ));
         }
 
+        // Validate that the domain exists and it's a CosmWasm Domain
+        match &zk_authorization.domain {
+            Domain::Main => {}
+            Domain::External(external_domain_id) => {
+                let external_domain =
+                    EXTERNAL_DOMAINS.load(deps.storage, external_domain_id.clone())?;
+                if !matches!(
+                    external_domain.execution_environment,
+                    ExecutionEnvironment::Cosmwasm(_)
+                ) {
+                    return Err(ContractError::ZK(ZKErrorReason::InvalidDomain {}));
+                }
+            }
+        }
+
         // If Authorization is permissioned we need to create the tokenfactory token and mint the corresponding amounts to the addresses that can
         // execute the authorization
         if let AuthorizationMode::Permissioned(permission_type) = &zk_authorization.mode {
@@ -990,8 +1005,8 @@ fn execute_zk_authorization(
 
     // If the processor message is a Enqueue or Insert we need to perform some extra validations and state updates
     let mut callback_request = None;
-    let processor_msg = match zk_message.message {
-        AuthorizationMsg::EnqueueMsgs { .. } | AuthorizationMsg::InsertMsgs { .. } => {
+    let processor_msg = match zk_message.message.clone() {
+        AuthorizationMsg::EnqueueMsgs { msgs, .. } | AuthorizationMsg::InsertMsgs { msgs, .. } => {
             // Check that we haven't reached the max concurrent executions and if not, increase it by 1
             let current_executions = CURRENT_EXECUTIONS
                 .load(deps.storage, label.clone())
@@ -1031,7 +1046,7 @@ fn execute_zk_authorization(
                 zk_authorization.domain.clone(),
                 label.clone(),
                 None,
-                vec![ProcessorMessage::CosmWasmZKMsg { msg: message }],
+                msgs,
             )?;
 
             processor_msg
