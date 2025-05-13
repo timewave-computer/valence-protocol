@@ -1,6 +1,6 @@
-// Since mars is using an old CosmWasm version, to make it compatible with our packages, we are going to redefine the messages here using Cosmwasm 2.x that we need
+// Since Mars is using an old CosmWasm version, to make it compatible with our packages, we are going to redefine the messages here using Cosmwasm 2.x that we need
 // for our library
-// The content here is from https://github.com/mars-protocol/core-contracts, which is the stable API for mars contracts
+// The content here is from https://github.com/mars-protocol/core-contracts, which is the stable API for Mars contracts
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_schema::QueryResponses;
@@ -36,7 +36,6 @@ pub enum AccountKind {
     },
 }
 
-#[allow(clippy::large_enum_variant)]
 #[cw_serde]
 pub enum ExecuteMsg {
     //--------------------------------------------------------------------------------------------------

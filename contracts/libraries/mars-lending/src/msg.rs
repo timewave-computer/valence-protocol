@@ -23,13 +23,13 @@ pub enum QueryMsg {}
 #[cw_serde]
 #[derive(ValenceLibraryInterface)]
 pub struct LibraryConfig {
-    // Address of the input account (Valence interchain account)
+    // Address of the input account
     pub input_addr: LibraryAccountType,
     /// Address of the output account
     pub output_addr: LibraryAccountType,
     // Address of the credit manager contract
     pub credit_manager_addr: String,
-    // Denom of the asset we are going to land
+    // Denom of the asset we are going to lend
     pub denom: String,
 }
 
@@ -37,13 +37,13 @@ impl LibraryConfig {
     pub fn new(
         input_addr: impl Into<LibraryAccountType>,
         output_addr: impl Into<LibraryAccountType>,
-        credit_manager_addr: String,
+        credit_manager_address: String,
         denom: String,
     ) -> Self {
         LibraryConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
-            credit_manager_addr: credit_manager_addr,
+            credit_manager_addr: credit_manager_address,
             denom,
         }
     }
@@ -65,12 +65,12 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
-        let (input_addr, output_addr, credit_manager_addr) = self.do_validate(deps.api)?;
+        let (input_addr, output_addr, credit_manager_address) = self.do_validate(deps.api)?;
 
         Ok(Config {
             input_addr,
             output_addr,
-            credit_manager_addr: credit_manager_addr,
+            credit_manager_addr: credit_manager_address,
             denom: self.denom.clone(),
         })
     }
@@ -117,13 +117,13 @@ impl Config {
     pub fn new(
         input_addr: Addr,
         output_addr: Addr,
-        credit_manager_addr: Addr,
+        credit_manager_address: Addr,
         denom: String,
     ) -> Self {
         Config {
             input_addr,
             output_addr,
-            credit_manager_addr: credit_manager_addr,
+            credit_manager_addr: credit_manager_address,
             denom,
         }
     }

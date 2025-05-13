@@ -1,6 +1,6 @@
 # Mars Lending library
 
-The **Valence Mars Lending** library enables lending on Mars by funding a mars credit account from an **input account**. The credit account, owned by the **input account**, then uses the funds to lend assets. Also, the library allows **withdrawing lent assets** from a credit account on Mars and depositing the withdrawed tokens into an **output account**.
+The **Valence Mars Lending** library facilitates lending operations on Mars. It allows users to create and fund a Mars credit account from their input account. This credit account, which remains owned by the input account, then manages the **lending** of these assets. Additionally, the library supports the **withdrawal** of lent assets from the credit account, automatically depositing the retrieved tokens into the **output account**
 
 ## Configuration
 
@@ -14,7 +14,7 @@ pub struct LibraryConfig {
     pub output_addr: LibraryAccountType,
     // Address of the credit manager contract
     pub credit_manager_addr: String,
-    // Denom of the asset we are going to land
+    // Denom of the asset we are going to lend
     pub denom: String,
 }
 ```

@@ -48,6 +48,15 @@ pub fn process_function(
 ) -> Result<Response, LibraryError> {
     match msg {
         FunctionMsgs::Lend {} => {
+            // Query account balance
+            let balance = deps
+                .querier
+                .query_balance(cfg.input_addr.clone(), cfg.denom.clone())?;
+
+            if balance.amount.is_zero() {
+                return Err(LibraryError::ExecutionError("No funds to lend".to_string()));
+            }
+
             let credit_accounts: Vec<valence_lending_utils::mars::Account> =
                 deps.querier.query_wasm_smart(
                     cfg.credit_manager_addr.to_string(),
@@ -65,7 +74,7 @@ pub fn process_function(
                     LibraryError::ExecutionError("No credit account found".to_string())
                 })?;
 
-                return lend(deps, cfg, credit_account);
+                return lend(cfg, credit_account, balance);
             }
 
             // Create credit account creation message
@@ -165,6 +174,16 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
         CREATE_CREDIT_ACC_REPLY_ID => {
             // Extract configuration from the reply payload
             let cfg: Config = valence_account_utils::msg::parse_valence_payload(&msg.result)?;
+
+            // Query account balance
+            let balance = deps
+                .querier
+                .query_balance(cfg.input_addr.clone(), cfg.denom.clone())?;
+
+            if balance.amount.is_zero() {
+                return Err(LibraryError::ExecutionError("No funds to lend".to_string()));
+            }
+
             // Query for the created credit account
             let credit_accounts: Vec<valence_lending_utils::mars::Account> =
                 deps.querier.query_wasm_smart(
@@ -181,22 +200,17 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
                 LibraryError::ExecutionError("No credit account found".to_string())
             })?;
 
-            lend(deps, cfg, credit_account)
+            lend(cfg, credit_account, balance)
         }
         _ => Err(LibraryError::Std(StdError::generic_err("unknown reply id"))),
     }
 }
 
-fn lend(deps: DepsMut, cfg: Config, credit_account: &Account) -> Result<Response, LibraryError> {
-    // Query account balance
-    let balance = deps
-        .querier
-        .query_balance(cfg.input_addr.clone(), cfg.denom.clone())?;
-
-    if balance.amount.is_zero() {
-        return Err(LibraryError::ExecutionError("No funds to lend".to_string()));
-    }
-
+fn lend(
+    cfg: Config,
+    credit_account: &Account,
+    balance: cosmwasm_std::Coin,
+) -> Result<Response, LibraryError> {
     // Prepare lending message
     let lend_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.credit_manager_addr.to_string(),

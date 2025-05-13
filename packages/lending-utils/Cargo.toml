@@ -1,5 +1,5 @@
 [package]
-name = "valence-lending-utils"
+name        = "valence-lending-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
 authors     = { workspace = true }
