@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
     );
 
-    let eth_client = EthereumClient::new(DEFAULT_ANVIL_RPC_ENDPOINT, EVM_MNEMONIC).unwrap();
+    let eth_client = EthereumClient::new(DEFAULT_ANVIL_RPC_ENDPOINT, EVM_MNEMONIC, None)?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
 

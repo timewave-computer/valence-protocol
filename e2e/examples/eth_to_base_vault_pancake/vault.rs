@@ -72,10 +72,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let endpoint_base = format!("http://127.0.0.1:{}", BASE_ANVIL_PORT);
 
     // Create an Ethereum client
-    let eth_client = EthereumClient::new(&endpoint_eth, TEST_MNEMONIC)?;
+    let eth_client = EthereumClient::new(&endpoint_eth, TEST_MNEMONIC, None)?;
 
     // Create a Base client
-    let base_client = EthereumClient::new(&endpoint_base, TEST_MNEMONIC)?;
+    let base_client = EthereumClient::new(&endpoint_base, TEST_MNEMONIC, None)?;
 
     // Get an admin account for Ethereum
     let accounts_eth = eth_client.get_provider_accounts().await?;

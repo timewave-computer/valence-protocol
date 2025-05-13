@@ -86,10 +86,10 @@ pub struct Strategy {
 impl Strategy {
     // async constructor which initializes the clients baesd on the StrategyConfig
     pub async fn new(cfg: StrategyConfig) -> Result<Self, Box<dyn Error>> {
-        // TODO: used to be derived at index 7
-        let eth_client = EthereumClient::new(&cfg.ethereum.rpc_url, &cfg.ethereum.mnemonic)?;
+        let eth_client =
+            EthereumClient::new(&cfg.ethereum.rpc_url, &cfg.ethereum.mnemonic, Some(7))?;
 
-        let base_client = EthereumClient::new(&cfg.base.rpc_url, &cfg.base.mnemonic)?;
+        let base_client = EthereumClient::new(&cfg.base.rpc_url, &cfg.base.mnemonic, Some(7))?;
 
         Ok(Strategy {
             cfg,

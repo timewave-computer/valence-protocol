@@ -54,10 +54,10 @@ impl RelayerRuntime {
         .await
         .expect("failed to create noble client");
 
-        // TODO: used to derive signer at index 5
         let eth_client = EthereumClient::new(
             DEFAULT_ANVIL_RPC_ENDPOINT,
             "test test test test test test test test test test test junk",
+            Some(5),
         )?;
 
         Ok(Self {

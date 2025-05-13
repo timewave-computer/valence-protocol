@@ -46,8 +46,8 @@ impl Strategy {
         )
         .await?;
 
-        // TODO: used to be derived at index 7
-        let eth_client = EthereumClient::new(&cfg.ethereum.rpc_url, &cfg.ethereum.mnemonic)?;
+        let eth_client =
+            EthereumClient::new(&cfg.ethereum.rpc_url, &cfg.ethereum.mnemonic, Some(7))?;
 
         Ok(Strategy {
             cfg,

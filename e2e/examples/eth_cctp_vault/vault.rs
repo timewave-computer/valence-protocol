@@ -73,8 +73,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let eth_client = EthereumClient::new(
         DEFAULT_ANVIL_RPC_ENDPOINT,
         "test test test test test test test test test test test junk",
-    )
-    .unwrap();
+        None,
+    )?;
     let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
     let eth_accounts = async_run!(rt, eth_client.get_provider_accounts().await.unwrap());

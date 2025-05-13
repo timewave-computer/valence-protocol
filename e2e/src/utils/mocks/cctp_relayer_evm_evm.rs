@@ -33,15 +33,16 @@ pub struct RelayerRuntime {
 
 impl RelayerRuntime {
     async fn new(endpoint_a: String, endpoint_b: String) -> Result<Self, Box<dyn Error>> {
-        // TODO: used to derive signer at index 5
         let evm_client_a = EthereumClient::new(
             &endpoint_a,
             "test test test test test test test test test test test junk",
+            Some(5),
         )?;
 
         let evm_client_b = EthereumClient::new(
             &endpoint_b,
             "test test test test test test test test test test test junk",
+            Some(5),
         )?;
 
         Ok(Self {

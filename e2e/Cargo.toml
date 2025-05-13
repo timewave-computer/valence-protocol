@@ -65,7 +65,7 @@ valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }
 valence-middleware-asserter          = { workspace = true }
 valence-test-icq-lib                 = { workspace = true }
-valence-domain-clients = { git = "https://github.com/timewave-computer/valence-domain-clients.git", branch = "benskey/valence-protocol-upstream", features = ["test-utils"] }
+valence-domain-clients               = { git = "https://github.com/timewave-computer/valence-domain-clients.git", tag = "v0.1.0", features = ["test-utils"] }
 valence-ica-cctp-transfer            = { workspace = true }
 valence-ica-ibc-transfer             = { workspace = true }
 tokio                                = { workspace = true }

@@ -110,6 +110,7 @@ impl RelayerRuntime {
         let eth_client = EthereumClient::new(
             DEFAULT_ANVIL_RPC_ENDPOINT,
             "test test test test test test test test test test test junk",
+            Some(5),
         )?;
 
         Ok(Self {
