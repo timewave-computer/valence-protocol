@@ -8,6 +8,7 @@ import {ProcessorMessageDecoder} from "../processor/libs/ProcessorMessageDecoder
 import {ICallback} from "../processor/interfaces/ICallback.sol";
 import {IProcessor} from "../processor/interfaces/IProcessor.sol";
 import {VerificationGateway} from "../verification/VerificationGateway.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title Authorization
@@ -19,7 +20,7 @@ import {VerificationGateway} from "../verification/VerificationGateway.sol";
  * It will receive callbacks from the processor after executing messages and can either store
  * the callback data in its state or just emit events for them.
  */
-contract Authorization is Ownable, ICallback {
+contract Authorization is Ownable, ICallback, ReentrancyGuard {
     // Address of the processor that we will forward batches to
     ProcessorBase public processor;
 
@@ -244,6 +245,9 @@ contract Authorization is Ownable, ICallback {
         external
         onlyOwner
     {
+        // Check that the arrays are the same length
+        // We are allowing adding multiple authorizations at once for gas optimization
+        // The arrays must be the same length because for each user we have a contract and a call
         require(_users.length == _contracts.length && _contracts.length == _calls.length, "Array lengths must match");
 
         for (uint256 i = 0; i < _users.length; i++) {
@@ -267,114 +271,33 @@ contract Authorization is Ownable, ICallback {
         require(_users.length == _contracts.length && _contracts.length == _calls.length, "Array lengths must match");
 
         for (uint256 i = 0; i < _users.length; i++) {
+            address user = _users[i];
+            address contractAddress = _contracts[i];
             bytes32 callHash = keccak256(_calls[i]);
-            delete authorizations[_users[i]][_contracts[i]][callHash];
-            emit AuthorizationRemoved(_users[i], _contracts[i], callHash);
+            delete authorizations[user][contractAddress][callHash];
+            emit AuthorizationRemoved(user, contractAddress, callHash);
         }
     }
 
     /**
      * @notice Main function to send messages to the processor after authorization checks
-     * @dev Handles various message types differently:
-     *      - For SendMsgs: Checks authorization for each function call
-     *      - For InsertMsgs: Requires admin access and sets execution ID
-     *      - For other types: Requires admin access
+     * @dev Delegates to specialized helper functions based on message type
      * @param _message Encoded processor message to be executed
      */
-    function sendProcessorMessage(bytes calldata _message) external {
+    function sendProcessorMessage(bytes calldata _message) external nonReentrant {
         // Make a copy of the message to apply modifications
         bytes memory message = _message;
 
         // Decode the message to check authorization and apply modifications
         IProcessorMessageTypes.ProcessorMessage memory decodedMessage = ProcessorMessageDecoder.decode(message);
 
-        // Handle different message types with different authorization requirements
-        if (decodedMessage.messageType != IProcessorMessageTypes.ProcessorMessageType.SendMsgs) {
-            // For non-SendMsgs messages, only admin addresses are authorized
-            if (!adminAddresses[msg.sender]) {
-                revert("Unauthorized access");
-            }
-
-            // Special handling for InsertMsgs to set execution ID
-            if (decodedMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.InsertMsgs) {
-                IProcessorMessageTypes.InsertMsgs memory insertMsgs =
-                    abi.decode(decodedMessage.message, (IProcessorMessageTypes.InsertMsgs));
-
-                // Set the execution ID of the message
-                insertMsgs.executionId = executionId;
-
-                // Encode the message back after modification
-                decodedMessage.message = abi.encode(insertMsgs);
-
-                // Encode the processor message back to bytes
-                message = abi.encode(decodedMessage);
-            }
+        // Process message based on type
+        if (decodedMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.SendMsgs) {
+            message = _handleSendMsgsMessage(decodedMessage);
+        } else if (decodedMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.InsertMsgs) {
+            message = _handleInsertMsgsMessage(decodedMessage);
         } else {
-            // For SendMsgs, check function-level authorizations
-
-            // Decode the SendMsgs message
-            IProcessorMessageTypes.SendMsgs memory sendMsgs =
-                abi.decode(decodedMessage.message, (IProcessorMessageTypes.SendMsgs));
-
-            // Handle different subroutine types (Atomic vs NonAtomic)
-            if (sendMsgs.subroutine.subroutineType == IProcessorMessageTypes.SubroutineType.Atomic) {
-                IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine =
-                    abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.AtomicSubroutine));
-
-                // Verify message and function array lengths match
-                if (
-                    atomicSubroutine.functions.length > 0
-                        && atomicSubroutine.functions.length != sendMsgs.messages.length
-                ) {
-                    revert("Subroutine functions length does not match messages length");
-                }
-
-                // Check authorization for each function in the atomic subroutine
-                for (uint256 i = 0; i < atomicSubroutine.functions.length; i++) {
-                    if (
-                        !_checkUserIsAuthorized(
-                            msg.sender, atomicSubroutine.functions[i].contractAddress, sendMsgs.messages[i]
-                        )
-                    ) {
-                        revert("Unauthorized access");
-                    }
-                }
-            } else {
-                // Handle NonAtomic subroutine
-                IProcessorMessageTypes.NonAtomicSubroutine memory nonAtomicSubroutine =
-                    abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.NonAtomicSubroutine));
-
-                // Verify message and function array lengths match
-                if (
-                    nonAtomicSubroutine.functions.length > 0
-                        && nonAtomicSubroutine.functions.length != sendMsgs.messages.length
-                ) {
-                    revert("Subroutine functions length does not match messages length");
-                }
-
-                // Check authorization for each function in the non-atomic subroutine
-                for (uint256 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
-                    if (
-                        !_checkUserIsAuthorized(
-                            msg.sender, nonAtomicSubroutine.functions[i].contractAddress, sendMsgs.messages[i]
-                        )
-                    ) {
-                        revert("Unauthorized access");
-                    }
-                }
-            }
-
-            // Force the priority to Medium for all SendMsgs
-            sendMsgs.priority = IProcessorMessageTypes.Priority.Medium;
-
-            // Set the execution ID of the message
-            sendMsgs.executionId = executionId;
-
-            // Encode the message back after modifications
-            decodedMessage.message = abi.encode(sendMsgs);
-
-            // Encode the processor message back to bytes
-            message = abi.encode(decodedMessage);
+            _requireAdminAccess();
         }
 
         // Forward the validated and modified message to the processor
@@ -385,20 +308,143 @@ contract Authorization is Ownable, ICallback {
     }
 
     /**
-     * @notice Checks if a user is authorized to execute a specific call on a specific contract
+     * @notice Handle InsertMsgs type messages
+     * @dev Requires admin access and sets execution ID
+     * @param decodedMessage The decoded processor message
+     * @return The modified encoded message
+     */
+    function _handleInsertMsgsMessage(IProcessorMessageTypes.ProcessorMessage memory decodedMessage)
+        private
+        view
+        returns (bytes memory)
+    {
+        _requireAdminAccess();
+
+        IProcessorMessageTypes.InsertMsgs memory insertMsgs =
+            abi.decode(decodedMessage.message, (IProcessorMessageTypes.InsertMsgs));
+
+        // Set the execution ID of the message
+        insertMsgs.executionId = executionId;
+
+        // Encode the message back after modification
+        decodedMessage.message = abi.encode(insertMsgs);
+
+        // Return the encoded processor message
+        return abi.encode(decodedMessage);
+    }
+
+    /**
+     * @notice Handle SendMsgs type messages
+     * @dev Checks function-level authorizations and modifies priority and execution ID
+     * @param decodedMessage The decoded processor message
+     * @return The modified encoded message
+     */
+    function _handleSendMsgsMessage(IProcessorMessageTypes.ProcessorMessage memory decodedMessage)
+        private
+        view
+        returns (bytes memory)
+    {
+        // Decode the SendMsgs message
+        IProcessorMessageTypes.SendMsgs memory sendMsgs =
+            abi.decode(decodedMessage.message, (IProcessorMessageTypes.SendMsgs));
+
+        // Verify authorizations based on subroutine type
+        if (sendMsgs.subroutine.subroutineType == IProcessorMessageTypes.SubroutineType.Atomic) {
+            _verifyAtomicSubroutineAuthorization(sendMsgs);
+        } else {
+            _verifyNonAtomicSubroutineAuthorization(sendMsgs);
+        }
+
+        // Apply standard modifications to all SendMsgs
+        sendMsgs.priority = IProcessorMessageTypes.Priority.Medium;
+        sendMsgs.executionId = executionId;
+
+        // Encode the message back after modifications
+        decodedMessage.message = abi.encode(sendMsgs);
+
+        // Return the encoded processor message
+        return abi.encode(decodedMessage);
+    }
+
+    /**
+     * @notice Verify authorization for atomic subroutine messages
+     * @dev Checks that each function call is authorized for the sender
+     * @param sendMsgs The SendMsgs message containing the atomic subroutine
+     */
+    function _verifyAtomicSubroutineAuthorization(IProcessorMessageTypes.SendMsgs memory sendMsgs) private view {
+        IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine =
+            abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.AtomicSubroutine));
+
+        // Verify message and function array lengths match
+        if (atomicSubroutine.functions.length > 0 && atomicSubroutine.functions.length != sendMsgs.messages.length) {
+            revert("Subroutine functions length does not match messages length");
+        }
+
+        // Check authorization for each function in the atomic subroutine
+        for (uint256 i = 0; i < atomicSubroutine.functions.length; i++) {
+            if (
+                !_checkAddressIsAuthorized(
+                    msg.sender, atomicSubroutine.functions[i].contractAddress, sendMsgs.messages[i]
+                )
+            ) {
+                revert("Unauthorized access");
+            }
+        }
+    }
+
+    /**
+     * @notice Verify authorization for non-atomic subroutine messages
+     * @dev Checks that each function call is authorized for the sender
+     * @param sendMsgs The SendMsgs message containing the non-atomic subroutine
+     */
+    function _verifyNonAtomicSubroutineAuthorization(IProcessorMessageTypes.SendMsgs memory sendMsgs) private view {
+        IProcessorMessageTypes.NonAtomicSubroutine memory nonAtomicSubroutine =
+            abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.NonAtomicSubroutine));
+
+        // Verify message and function array lengths match
+        if (
+            nonAtomicSubroutine.functions.length > 0 && nonAtomicSubroutine.functions.length != sendMsgs.messages.length
+        ) {
+            revert("Subroutine functions length does not match messages length");
+        }
+
+        // Check authorization for each function in the non-atomic subroutine
+        for (uint256 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
+            if (
+                !_checkAddressIsAuthorized(
+                    msg.sender, nonAtomicSubroutine.functions[i].contractAddress, sendMsgs.messages[i]
+                )
+            ) {
+                revert("Unauthorized access");
+            }
+        }
+    }
+
+    /**
+     * @notice Require that sender has admin access
+     * @dev Reverts if sender is not in the adminAddresses mapping
+     */
+    function _requireAdminAccess() private view {
+        if (!adminAddresses[msg.sender]) {
+            revert("Unauthorized access");
+        }
+    }
+
+    /**
+     * @notice Checks if an address is authorized to execute a specific call on a specific contract
      * @dev Uses the authorizations mapping to perform the check
-     * @param _user Address of the user to check authorization for
+     * @param _address Address to check authorization for
      * @param _contract Address of the contract being called
      * @param _call Function call data (used to generate the hash for lookup)
-     * @return bool True if the user is authorized, false otherwise
+     * @return bool True if the address is authorized, false otherwise
      */
-    function _checkUserIsAuthorized(address _user, address _contract, bytes memory _call)
+    function _checkAddressIsAuthorized(address _address, address _contract, bytes memory _call)
         internal
         view
         returns (bool)
     {
-        // Check if the user is authorized to call the contract with the given call
-        if (authorizations[_user][_contract][keccak256(_call)]) {
+        // Check if the address is authorized to call the contract with the given call
+        if (authorizations[_address][_contract][keccak256(_call)]) {
             return true;
         } else if (authorizations[address(0)][_contract][keccak256(_call)]) {
             // If address(0) is used, it indicates permissionless access
@@ -424,6 +470,9 @@ contract Authorization is Ownable, ICallback {
         bytes32[] calldata vks,
         bool[] memory validateBlockNumber
     ) external onlyOwner {
+        // Since we are allowing multiple registries to be added at once, we need to check that the arrays are the same length
+        // because for each registry we have a list of users, a verification key and a boolean
+        // Allowing multiple to be added is useful for gas optimization
         require(
             users.length == registries.length && users.length == vks.length
                 && users.length == validateBlockNumber.length,
@@ -476,7 +525,7 @@ contract Authorization is Ownable, ICallback {
      * @param _message Encoded ZK message to be executed
      * @param _proof Proof associated with the ZK message
      */
-    function executeZKMessage(bytes calldata _message, bytes calldata _proof) external {
+    function executeZKMessage(bytes calldata _message, bytes calldata _proof) external nonReentrant {
         // Check that the verification gateway is set
         if (address(verificationGateway) == address(0)) {
             revert("Verification gateway not set");
