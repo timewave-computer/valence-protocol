@@ -95,6 +95,7 @@ valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmo
 ] }
 valence-middleware-broker = { path = "contracts/middleware/broker", features = ["library"] }
 valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
+valence-mars-lending = { path = "contracts/libraries/mars-lending", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }
@@ -114,6 +115,7 @@ valence-program-registry       = { path = "contracts/program-registry", features
 valence-middleware-utils       = { path = "packages/middleware-utils" }
 valence-chain-client-utils     = { path = "packages/chain-client-utils" }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
+valence-lending-utils          = { path = "packages/lending-utils" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
