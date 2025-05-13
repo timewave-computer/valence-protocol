@@ -143,4 +143,10 @@ pub enum ZKErrorReason {
 
     #[error("Invalid ZK Proof")]
     InvalidZKProof {},
+
+    #[error("Invalid ZK registry of the message for this authorization execution")]
+    InvalidZKRegistry {},
+
+    #[error("Proof no longer valid")]
+    ProofNoLongerValid {},
 }

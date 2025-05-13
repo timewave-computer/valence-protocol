@@ -1,7 +1,8 @@
 use cosmwasm_std::{Addr, Empty};
 use cw_storage_plus::{Item, Map};
 use valence_authorization_utils::{
-    authorization::Authorization, callback::ProcessorCallbackInfo, domain::ExternalDomain, zk_authorization::ZkAuthorization,
+    authorization::Authorization, callback::ProcessorCallbackInfo, domain::ExternalDomain,
+    zk_authorization::ZkAuthorization,
 };
 
 pub const FIRST_OWNERSHIP: Item<bool> = Item::new("first_ownership");

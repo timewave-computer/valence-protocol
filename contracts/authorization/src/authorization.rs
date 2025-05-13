@@ -366,6 +366,7 @@ impl Validate for Authorization {
                         }
                     }
                 }
+                ProcessorMessage::CosmWasmZKMsg { .. } => unreachable!(),
             }
         }
         Ok(())
@@ -382,13 +383,7 @@ impl Validate for Authorization {
         self.ensure_enabled()?;
         self.ensure_active(block)?;
         self.ensure_not_expired(block)?;
-        validate_permission(
-            &self.label,
-            &self.mode,
-            querier,
-            contract_address,
-            info,
-        )?;
+        validate_permission(&self.label, &self.mode, querier, contract_address, info)?;
         self.validate_messages(messages)?;
 
         Ok(())

@@ -2,7 +2,10 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Api, BlockInfo, Uint128};
 use cw_utils::Expiration;
 
-use crate::{function::{AtomicFunction, Function, NonAtomicFunction, RetryLogic}, msg::ProcessorMessage};
+use crate::{
+    function::{AtomicFunction, Function, NonAtomicFunction, RetryLogic},
+    msg::ProcessorMessage,
+};
 
 #[cw_serde]
 // What an owner or subowner can pass to the contract to create an authorization
