@@ -996,11 +996,16 @@ fn execute_zk_authorization(
             let current_executions = CURRENT_EXECUTIONS
                 .load(deps.storage, label.clone())
                 .unwrap_or_default();
-            if current_executions >= zk_authorization.max_concurrent_executions {
-                return Err(ContractError::Authorization(
-                    AuthorizationErrorReason::MaxConcurrentExecutionsReached {},
-                ));
+
+            // Only check max concurrent executions for EnqueueMsgs
+            if let AuthorizationMsg::EnqueueMsgs { .. } = zk_message.message {
+                if current_executions >= zk_authorization.max_concurrent_executions {
+                    return Err(ContractError::Authorization(
+                        AuthorizationErrorReason::MaxConcurrentExecutionsReached {},
+                    ));
+                }
             }
+
             CURRENT_EXECUTIONS.save(
                 deps.storage,
                 label.clone(),
