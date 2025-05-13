@@ -2,8 +2,8 @@ use std::{error::Error, str::FromStr};
 
 use alloy::primitives::{Address, U256};
 use log::info;
-use valence_chain_client_utils::{
-    ethereum::EthereumClient,
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_e2e::{
@@ -84,16 +84,16 @@ pub(crate) fn setup_eth_libraries(
     )?;
 
     let fee_config = FeeConfig {
-        depositFeeBps: 0,          // No deposit fee
-        platformFeeBps: 10_000,    // 0.1% yearly platform fee
-        performanceFeeBps: 10_000, // 0.1% performance fee
-        solverCompletionFee: 0,    // No solver completion fee
+        depositFeeBps: 0,       // No deposit fee
+        platformFeeBps: 10,     // 0.1% yearly platform fee
+        performanceFeeBps: 10,  // 0.1% performance fee
+        solverCompletionFee: 0, // No solver completion fee
     };
 
     let fee_distribution = FeeDistributionConfig {
         strategistAccount: eth_accounts[0], // Strategist fee recipient
         platformAccount: eth_accounts[1],   // Platform fee recipient
-        strategistRatioBps: 10_000,         // 0.1% to strategist
+        strategistRatioBps: 10,             // 0.1% to strategist
     };
 
     let vault_config = VaultConfig {
@@ -116,6 +116,7 @@ pub(crate) fn setup_eth_libraries(
         eth_program_accounts.withdraw,
         wbtc_token_address,
         vault_config,
+        1e8,
     )?;
 
     let libraries = strategy_config::ethereum::EthereumLibraries {
@@ -156,13 +157,9 @@ pub fn setup_eureka_forwarder(
         .await
     )
     .unwrap();
+    let relative_timeout_secs = skip_api_response.timeout / 1_000_000_000;
 
     info!("skip api evm route query response: {:?}", skip_api_response);
-    let expiration_seconds =
-        chrono::DateTime::parse_from_rfc3339(&skip_api_response.smart_relay_fee_quote.expiration)
-            .unwrap()
-            .with_timezone(&chrono::Utc)
-            .timestamp() as u64;
 
     let cfg = IBCEurekaTransferConfig {
         amount: U256::ZERO,
@@ -172,7 +169,7 @@ pub fn setup_eureka_forwarder(
         inputAccount: alloy_primitives_encoder::Address::from_str(input_acc.to_string().as_str())?,
         recipient,
         sourceClient: skip_api_response.source_client,
-        timeout: expiration_seconds,
+        timeout: relative_timeout_secs,
         eurekaHandler: alloy_primitives_encoder::Address::from_str(
             &skip_api_response.entry_contract_address,
         )?,

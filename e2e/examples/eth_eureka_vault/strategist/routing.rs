@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use cosmwasm_std::{Coin, Uint128};
 use localic_utils::{GAIA_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM};
 use log::{error, info, warn};
-use valence_chain_client_utils::{
+use valence_domain_clients::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
@@ -136,20 +136,20 @@ impl EurekaVaultRouting for Strategy {
 
     async fn route_eth_to_neutron(&self) {
         info!("Eureka forwarding WBTC from Ethereum to Neutron...");
-        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
-        let erc20 = MockERC20::new(
-            Address::from_str(&self.cfg.ethereum.denoms.wbtc).unwrap(),
-            &eth_rp,
-        );
+        let wbtc_contract_address = Address::from_str(&self.cfg.ethereum.denoms.wbtc).unwrap();
+        let eth_deposit_account_address =
+            Address::from_str(&self.cfg.ethereum.accounts.deposit).unwrap();
+        let eureka_transfer_address =
+            Address::from_str(&self.cfg.ethereum.libraries.eureka_transfer).unwrap();
 
-        let eureka_transfer_lib = IBCEurekaTransfer::new(
-            Address::from_str(&self.cfg.ethereum.libraries.eureka_transfer).unwrap(),
-            &eth_rp,
-        );
+        let eth_rp = self.eth_client.get_request_provider().await.unwrap();
+
+        let erc20 = MockERC20::new(wbtc_contract_address, &eth_rp);
+        let eureka_transfer_lib = IBCEurekaTransfer::new(eureka_transfer_address, &eth_rp);
 
         let eth_deposit_acc_wbtc_bal = self
             .eth_client
-            .query(erc20.balanceOf(Address::from_str(&self.cfg.ethereum.accounts.deposit).unwrap()))
+            .query(erc20.balanceOf(eth_deposit_account_address))
             .await
             .unwrap()
             ._0;
@@ -184,24 +184,19 @@ impl EurekaVaultRouting for Strategy {
         )
         .await
         .unwrap();
+        let relative_timeout_secs = skip_response.timeout / 1_000_000_000;
 
-        info!(
-            "[routing] Eureka Route Skip API response: {:?}",
-            skip_response
-        );
+        let rly_fee_recipient_address =
+            Address::from_str(&skip_response.smart_relay_fee_quote.fee_payment_address).unwrap();
 
         let expiration_seconds =
             chrono::DateTime::parse_from_rfc3339(&skip_response.smart_relay_fee_quote.expiration)
                 .unwrap()
-                .with_timezone(&chrono::Utc)
                 .timestamp() as u64;
 
         let eureka_fees_cfg = IEurekaHandler::Fees {
             relayFee: U256::from_str(&skip_response.smart_relay_fee_quote.fee_amount).unwrap(),
-            relayFeeRecipient: Address::from_str(
-                &skip_response.smart_relay_fee_quote.fee_payment_address,
-            )
-            .unwrap(),
+            relayFeeRecipient: rly_fee_recipient_address,
             quoteExpiry: expiration_seconds,
         };
 
@@ -225,7 +220,7 @@ impl EurekaVaultRouting for Strategy {
                             }
                         },
                         "exact_out":false,
-                        "timeout_timestamp": skip_response.timeout.to_string()
+                        "timeout_timestamp": relative_timeout_secs.to_string()
                     }
                 }
             }
@@ -238,12 +233,19 @@ impl EurekaVaultRouting for Strategy {
 
         info!("eureka fees cfg: {:?}", eureka_fees_cfg);
 
+        let eureka_fee_u128 = Uint128::from_str(&eureka_fees_cfg.relayFee.to_string())
+            .unwrap()
+            .u128();
+
         let eureka_transfer_msg = eureka_transfer_lib
             .transfer(eureka_fees_cfg, hub_to_neutron_pfm.to_string())
             .into_transaction_request();
 
         match self.eth_client.execute_tx(eureka_transfer_msg).await {
-            Ok(resp) => info!("success executing eureka transfer: {:?}", resp),
+            Ok(resp) => info!(
+                "success executing eureka transfer: {:?}",
+                resp.transaction_hash
+            ),
             Err(e) => warn!("failed to execute eureka transfer: {:?}", e),
         };
 
@@ -252,7 +254,8 @@ impl EurekaVaultRouting for Strategy {
             .poll_until_expected_balance(
                 &self.cfg.neutron.accounts.deposit,
                 &self.cfg.neutron.denoms.wbtc,
-                pre_eureka_neutron_deposit_acc_wbtc_bal + eth_deposit_acc_wbtc_u128.u128(),
+                pre_eureka_neutron_deposit_acc_wbtc_bal + eth_deposit_acc_wbtc_u128.u128()
+                    - eureka_fee_u128,
                 3,
                 10,
             )
@@ -287,7 +290,9 @@ impl EurekaVaultRouting for Strategy {
             "ibc/D742E8566B0B8CC8F569D950051C09CF57988A88F0E45574BFB3079D41DE6462",
             "1",
             "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-            withdraw_account_wbtc_bal.to_string(),
+            "100000",
+            // withdraw_account_wbtc_bal.to_string(), this can be too small for eureka
+            // api so hardcoding the value for now
         )
         .await
         .unwrap();
@@ -300,7 +305,6 @@ impl EurekaVaultRouting for Strategy {
         let expiration_seconds =
             chrono::DateTime::parse_from_rfc3339(&skip_response.smart_relay_fee_quote.expiration)
                 .unwrap()
-                .with_timezone(&chrono::Utc)
                 .timestamp() as u64;
 
         let eureka_fee = EurekaFee {
@@ -312,6 +316,17 @@ impl EurekaVaultRouting for Strategy {
             timeout_timestamp: expiration_seconds,
         };
 
+        let pre_transfer_withdraw_acc_bals = self
+            .neutron_client
+            .query_balance(
+                &self.cfg.neutron.accounts.withdraw,
+                &self.cfg.neutron.denoms.wbtc,
+            )
+            .await
+            .unwrap_or_default();
+
+        info!("pre-ibc_transfer neutron withdraw account {} wbtc balance: {pre_transfer_withdraw_acc_bals}", self.cfg.neutron.accounts.withdraw);
+
         info!("Initiating neutron ibc transfer");
         let neutron_ibc_transfer_msg =
             &valence_library_utils::msg::ExecuteMsg::<_, ()>::ProcessFunction(
@@ -319,7 +334,7 @@ impl EurekaVaultRouting for Strategy {
                     eureka_fee,
                 },
             );
-        let rx = self
+        match self
             .neutron_client
             .execute_wasm(
                 &self.cfg.neutron.libraries.neutron_ibc_transfer,
@@ -328,8 +343,26 @@ impl EurekaVaultRouting for Strategy {
                 None,
             )
             .await
-            .unwrap();
-        self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+        {
+            Ok(rx) => {
+                info!("rx hash: {}", rx.hash);
+                self.neutron_client.poll_for_tx(&rx.hash).await.unwrap();
+            }
+            Err(e) => {
+                warn!("failed to initiate neutron ibc transfer: {:?}", e)
+            }
+        };
+
+        let post_transfer_withdraw_acc_bals = self
+            .neutron_client
+            .query_balance(
+                &self.cfg.neutron.accounts.withdraw,
+                &self.cfg.neutron.denoms.wbtc,
+            )
+            .await
+            .unwrap_or_default();
+
+        info!("post-ibc_transfer neutron withdraw account wbtc balance: {post_transfer_withdraw_acc_bals}");
 
         let eth_rp = self.eth_client.get_request_provider().await.unwrap();
         let erc20 = MockERC20::new(

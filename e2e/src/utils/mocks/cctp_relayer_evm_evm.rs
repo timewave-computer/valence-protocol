@@ -5,7 +5,6 @@ use alloy::{
     primitives::{Address, FixedBytes, Log, U256},
     providers::Provider,
     rpc::types::Filter,
-    signers::local::{coins_bip39::English, MnemonicBuilder},
     sol_types::SolEvent,
 };
 use async_trait::async_trait;
@@ -15,8 +14,8 @@ use crate::utils::{
     worker::ValenceWorker,
 };
 use log::{info, warn};
-use valence_chain_client_utils::{
-    ethereum::EthereumClient,
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 
@@ -34,20 +33,17 @@ pub struct RelayerRuntime {
 
 impl RelayerRuntime {
     async fn new(endpoint_a: String, endpoint_b: String) -> Result<Self, Box<dyn Error>> {
-        let signer = MnemonicBuilder::<English>::default()
-            .phrase("test test test test test test test test test test test junk")
-            .index(5)? // derive the mnemonic at a different index to avoid nonce issues
-            .build()?;
+        let evm_client_a = EthereumClient::new(
+            &endpoint_a,
+            "test test test test test test test test test test test junk",
+            Some(5),
+        )?;
 
-        let evm_client_a = EthereumClient {
-            rpc_url: endpoint_a,
-            signer: signer.clone(),
-        };
-
-        let evm_client_b = EthereumClient {
-            rpc_url: endpoint_b,
-            signer,
-        };
+        let evm_client_b = EthereumClient::new(
+            &endpoint_b,
+            "test test test test test test test test test test test junk",
+            Some(5),
+        )?;
 
         Ok(Self {
             evm_client_a,

@@ -7,8 +7,8 @@ use alloy::{
     primitives::{Address, U256},
 };
 use log::info;
-use valence_chain_client_utils::{
-    ethereum::EthereumClient,
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_encoder_utils::libraries::cctp_transfer::solidity_types::CCTPTransferConfig;
@@ -120,6 +120,7 @@ pub fn setup_eth_libraries(
         eth_program_accounts.withdraw,
         usdc_token_addr,
         vault_config,
+        1e6,
     )?;
 
     let libraries = strategy_config::ethereum::EthereumLibraries {

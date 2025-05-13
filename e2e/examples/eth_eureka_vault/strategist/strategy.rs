@@ -3,17 +3,16 @@ use std::{error::Error, path::Path, str::FromStr};
 use alloy::{
     primitives::{Address, U256},
     providers::Provider,
-    signers::local::{coins_bip39::English, MnemonicBuilder},
 };
 use async_trait::async_trait;
 use cosmwasm_std::Uint128;
 use localic_utils::{NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_ID};
 
 use log::{info, warn};
-use valence_chain_client_utils::{
-    ethereum::EthereumClient,
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
+    clients::neutron::NeutronClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
-    neutron::NeutronClient,
 };
 use valence_e2e::utils::{
     solidity_contracts::{MockERC20, ValenceVault},
@@ -47,13 +46,8 @@ impl Strategy {
         )
         .await?;
 
-        let eth_client = EthereumClient {
-            rpc_url: cfg.ethereum.rpc_url.to_string(),
-            signer: MnemonicBuilder::<English>::default()
-                .phrase(cfg.ethereum.mnemonic.clone())
-                .index(7)? // derive the mnemonic at a different index to avoid nonce issues
-                .build()?,
-        };
+        let eth_client =
+            EthereumClient::new(&cfg.ethereum.rpc_url, &cfg.ethereum.mnemonic, Some(7))?;
 
         Ok(Strategy {
             cfg,
@@ -128,6 +122,11 @@ impl ValenceWorker for Strategy {
             .checked_sub(netting_amount)
             .unwrap_or_default();
         info!("updated pending obligations: {pending_obligations}");
+
+        // 3.1. scale down the obligations
+        let pending_obligations = pending_obligations
+            .checked_div(U256::from(1e3))
+            .unwrap_or_default();
 
         // 4. lp shares to be liquidated will yield untrn+wbtc. to figure out
         // the amount of ntrn needed to get 1/2 of the obligations, we half the

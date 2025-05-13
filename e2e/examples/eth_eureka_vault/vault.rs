@@ -26,14 +26,14 @@ use strategist::{
         StrategyConfig,
     },
 };
-use valence_chain_client_utils::{
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
+    clients::neutron::NeutronClient,
     cosmos::base_client::BaseClient,
-    ethereum::EthereumClient,
     evm::{
         anvil::AnvilImpersonationClient, base_client::EvmBaseClient,
         request_provider_client::RequestProviderClient,
     },
-    neutron::NeutronClient,
 };
 
 mod program;
@@ -43,7 +43,8 @@ use valence_e2e::{
     utils::{
         astroport::setup_astroport_cl_pool,
         authorization::set_up_authorization_and_processor,
-        ethereum::{mine_blocks, set_up_anvil_container, ANVIL_NAME, DEFAULT_ANVIL_PORT},
+        ethereum::{set_up_anvil_container, ANVIL_NAME, DEFAULT_ANVIL_PORT},
+        mocks::eureka_rly_evm_gaia_neutron::MockEurekaRelayerEvmNeutron,
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::{MockERC20, ValenceVault},
         vault::{self, time::wait_until_half_minute, vault_users::EthereumUsers},
@@ -75,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
     );
 
-    let eth_client = EthereumClient::new(DEFAULT_ANVIL_RPC_ENDPOINT, EVM_MNEMONIC).unwrap();
+    let eth_client = EthereumClient::new(DEFAULT_ANVIL_RPC_ENDPOINT, EVM_MNEMONIC, None)?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
 
@@ -253,7 +254,26 @@ fn main() -> Result<(), Box<dyn Error>> {
             .await
             .unwrap();
     });
-    // TODO: start eureka relayer
+
+    info!("Starting mock IBC-Eureka relayer between Noble and Ethereum...");
+    let mock_eureka_relayer = async_run!(
+        tokio::runtime::Runtime::new()?,
+        MockEurekaRelayerEvmNeutron::new(
+            Address::from_str(&ethereum_program_libraries.eureka_transfer).unwrap(),
+            wbtc_contract.address(),
+            WBTC_NEUTRON_SUBDENOM.to_string(),
+            test_ctx
+                .get_ibc_denom()
+                .base_denom(WBTC_NEUTRON_DENOM.to_string())
+                .src(NEUTRON_CHAIN_NAME)
+                .dest(GAIA_CHAIN_NAME)
+                .get(),
+            WBTC_WHALE,
+            ethereum_program_accounts.withdraw.clone()
+        )
+        .await
+    )?;
+    let _eureka_rly_join_handle = mock_eureka_relayer.start();
 
     info!("main sleep for 3...");
     sleep(Duration::from_secs(3));
@@ -320,7 +340,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         info!("\n======================== EPOCH 1 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        mine_blocks(&rt, &eth_client, 5, 3);
 
         info!("User0 depositing {user_0_deposit_amount}WBTC tokens to vault...");
         vault::deposit_to_vault(
@@ -330,8 +349,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             eth_users.users[0],
             user_0_deposit_amount,
         )?;
-
-        mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // ================================================================================ //
@@ -340,7 +357,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         info!("\n======================== EPOCH 2 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        mine_blocks(&rt, &eth_client, 5, 3);
 
         info!("User1 depositing {user_1_deposit_amount}WBTC tokens to vault...");
         vault::deposit_to_vault(
@@ -350,7 +366,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             eth_users.users[1],
             user_1_deposit_amount,
         )?;
-        mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // ================================================================================ //
@@ -359,7 +374,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         info!("\n======================== EPOCH 3 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        mine_blocks(&rt, &eth_client, 5, 3);
 
         let user0_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 0);
 
@@ -405,8 +419,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .unwrap()
         });
         info!("Update withdraw request: {:?}", request);
-
-        mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // ================================================================================ //
@@ -415,7 +427,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         info!("\n======================== EPOCH 4 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        mine_blocks(&rt, &eth_client, 5, 3);
 
         let user1_pre_redeem_shares_bal = eth_users.get_user_shares(&rt, &eth_client, 1);
         info!("USER1 initiating the redeem of {user1_pre_redeem_shares_bal} shares from vault...");
@@ -458,8 +469,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .unwrap()
         });
         info!("User1 update withdraw request: {:?}", request);
-
-        mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // ================================================================================ //
@@ -468,7 +477,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         info!("\n======================== EPOCH 5 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        mine_blocks(&rt, &eth_client, 5, 3);
 
         // Get the withdrawal request details before completion
         let withdraw_request = async_run!(&rt, {
@@ -526,8 +534,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("user0 has withdraw request: {user0_withdraw_request}");
         info!("post completion user0 wbtc bal: {post_completion_user0_bal}",);
         info!("post completion user0 shares bal: {post_completion_user0_shares}",);
-
-        mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // ================================================================================ //
@@ -536,7 +542,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         info!("\n======================== EPOCH 6 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        mine_blocks(&rt, &eth_client, 5, 3);
 
         info!("User0 depositing 2_000_000 to vault");
         vault::deposit_to_vault(
@@ -559,8 +564,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             10_000,
             false,
         )?;
-
-        mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     // ================================================================================ //
@@ -569,7 +572,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         info!("\n======================== EPOCH 7 ========================\n");
         async_run!(&rt, wait_until_half_minute().await);
-        mine_blocks(&rt, &eth_client, 5, 3);
 
         let pre_completion_user2_bal = eth_users.get_user_deposit_token_bal(&rt, &eth_client, 2);
         let pre_completion_user2_shares = eth_users.get_user_shares(&rt, &eth_client, 2);
@@ -589,8 +591,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("user2 has withdraw request: {user2_withdraw_request}");
         info!("post completion user2 wbtc bal: {post_completion_user2_bal}",);
         info!("post completion user2 shares bal: {post_completion_user2_shares}",);
-
-        mine_blocks(&rt, &eth_client, 5, 3);
     }
 
     let mut i = 8;
@@ -601,8 +601,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         info!("\n======================== EPOCH {i} ========================\n");
 
         async_run!(&rt, wait_until_half_minute().await);
-
-        mine_blocks(&rt, &eth_client, 5, 3);
 
         i += 1;
 

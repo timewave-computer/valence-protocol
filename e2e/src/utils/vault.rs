@@ -12,8 +12,8 @@ use localic_utils::{
     DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_DENOM, NEUTRON_CHAIN_NAME,
 };
 use log::{info, warn};
-use valence_chain_client_utils::{
-    ethereum::EthereumClient,
+use valence_domain_clients::{
+    clients::ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_forwarder_library::msg::{ForwardingConstraints, UncheckedForwardingConfig};
@@ -400,10 +400,7 @@ pub fn setup_neutron_ibc_transfer_lib(
         .get(NEUTRON_IBC_TRANSFER_NAME)
         .unwrap();
 
-    info!(
-        "neutron ibc transfer code id: {:?}",
-        neutron_ibc_transfer_code_id
-    );
+    info!("neutron ibc transfer code id: {neutron_ibc_transfer_code_id}");
 
     let remote_chain_info = valence_generic_ibc_transfer_library::msg::RemoteChainInfo {
         channel_id: test_ctx
@@ -474,6 +471,7 @@ pub fn setup_neutron_ibc_transfer_lib(
 
 /// sets up a Valence Vault on Ethereum with a proxy.
 /// approves deposit & withdraw accounts.
+#[allow(clippy::too_many_arguments)]
 pub fn setup_valence_vault(
     rt: &tokio::runtime::Runtime,
     eth_client: &EthereumClient,
@@ -482,6 +480,7 @@ pub fn setup_valence_vault(
     eth_withdraw_account: String,
     vault_deposit_token_addr: Address,
     vault_config: VaultConfig,
+    precision: f64,
 ) -> Result<Address, Box<dyn Error>> {
     let eth_rp = async_run!(rt, eth_client.get_request_provider().await.unwrap());
 
@@ -531,7 +530,7 @@ pub fn setup_valence_vault(
                 vault_deposit_token_addr,         // underlying token
                 "Valence Test Vault".to_string(), // vault token name
                 "vTEST".to_string(),              // vault token symbol
-                U256::from(1e6),                  // match deposit token precision
+                U256::from(precision),            // match deposit token precision
             )
             .into_transaction_request()
             .from(admin);
@@ -651,8 +650,8 @@ pub mod vault_users {
 
     use alloy::primitives::{Address, U256};
     use log::info;
-    use valence_chain_client_utils::{
-        ethereum::EthereumClient,
+    use valence_domain_clients::{
+        clients::ethereum::EthereumClient,
         evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     };
 
