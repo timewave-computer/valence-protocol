@@ -14,8 +14,8 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-schema             = { workspace = true }
-cosmwasm-std                = { workspace = true }
-cw2                         = { workspace = true }
-thiserror                   = { workspace = true }
-sp1-verifier                = "4.2.0"
+cosmwasm-schema = { workspace = true }
+cosmwasm-std    = { workspace = true }
+cw2             = { workspace = true }
+thiserror       = { workspace = true }
+sp1-verifier    = "4.2.0"
