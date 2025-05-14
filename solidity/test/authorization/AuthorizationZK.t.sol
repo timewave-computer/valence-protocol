@@ -254,12 +254,42 @@ contract AuthorizationZKTest is Test {
         Authorization authWithoutGateway = new Authorization(owner, address(processor), address(0), true);
 
         // Create a ZK message
-        bytes memory zkMessage = createDummyZKMessage(registryId1);
+        bytes memory zkMessage = createDummyZKMessage(registryId1, address(auth));
         bytes memory dummyProof = hex"deadbeef"; // Dummy proof data
 
         // Should fail because verification gateway is not set
         vm.expectRevert("Verification gateway not set");
         authWithoutGateway.executeZKMessage(zkMessage, dummyProof);
+
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_InvalidAuthorizationContract() public {
+        vm.startPrank(owner);
+
+        // Add registry with only user1 authorized
+        uint64[] memory registries = new uint64[](1);
+        registries[0] = registryId1;
+
+        address[][] memory users = new address[][](1);
+        users[0] = new address[](1);
+        users[0][0] = user1;
+
+        bytes32[] memory vks = new bytes32[](1);
+        vks[0] = vk1;
+
+        bool[] memory validateBlockNumbers = new bool[](1);
+        validateBlockNumbers[0] = validateBlockNumber1;
+
+        auth.addRegistries(registries, users, vks, validateBlockNumbers);
+
+        // Create a ZK message with an invalid authorization contract
+        bytes memory zkMessage = createDummyZKMessage(registryId1, address(user1));
+        bytes memory dummyProof = hex"deadbeef"; // Dummy proof data
+
+        // Should fail because address is not the authorization contract
+        vm.expectRevert("Invalid authorization contract");
+        auth.executeZKMessage(zkMessage, dummyProof);
 
         vm.stopPrank();
     }
@@ -292,7 +322,7 @@ contract AuthorizationZKTest is Test {
         vm.startPrank(unauthorized);
 
         // Create a ZK message
-        bytes memory zkMessage = createDummyZKMessage(registryId1);
+        bytes memory zkMessage = createDummyZKMessage(registryId1, address(auth));
         bytes memory dummyProof = hex"deadbeef"; // Dummy proof data
 
         // Should fail because address is unauthorized
@@ -307,10 +337,15 @@ contract AuthorizationZKTest is Test {
     /**
      * @notice Create a dummy ZK message for testing
      * @param _registryId Registry ID to include in the message
+     * @param _authorizationContract Address of the authorization contract
      * @return Encoded ZK message bytes
      */
-    function createDummyZKMessage(uint64 _registryId) internal view returns (bytes memory) {
-        return createDummyZKMessageWithBlockNumber(_registryId, uint64(block.number + 1));
+    function createDummyZKMessage(uint64 _registryId, address _authorizationContract)
+        internal
+        view
+        returns (bytes memory)
+    {
+        return createDummyZKMessageWithBlockNumber(_registryId, uint64(block.number + 1), _authorizationContract);
     }
 
     /**
@@ -319,11 +354,11 @@ contract AuthorizationZKTest is Test {
      * @param _blockNumber Block number to include in the message
      * @return Encoded ZK message bytes
      */
-    function createDummyZKMessageWithBlockNumber(uint64 _registryId, uint64 _blockNumber)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function createDummyZKMessageWithBlockNumber(
+        uint64 _registryId,
+        uint64 _blockNumber,
+        address _authorizationContract
+    ) internal view returns (bytes memory) {
         // Create a simple processor message (Pause message)
         IProcessorMessageTypes.ProcessorMessage memory processorMessage = IProcessorMessageTypes.ProcessorMessage({
             messageType: IProcessorMessageTypes.ProcessorMessageType.Pause,
@@ -334,6 +369,7 @@ contract AuthorizationZKTest is Test {
         Authorization.ZKMessage memory zkMessage = Authorization.ZKMessage({
             registry: _registryId,
             blockNumber: _blockNumber,
+            authorizationContract: _authorizationContract,
             processorMessage: processorMessage
         });
 

@@ -136,11 +136,13 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @dev This structure contains all the information to know if the sender is authorized to provide this message and to prevent replay attacks
      * @param registry An ID to identify this message, similar to the label on CosmWasm authorizations
      * @param blockNumber The block number when the message was created
+     * @param authorizationContract The address of the authorization contract that this message is for. If address(0) is used, then it's valid for any contract
      * @param processorMessage The actual message to be processed and that was proven
      */
     struct ZKMessage {
         uint64 registry;
         uint64 blockNumber;
+        address authorizationContract;
         IProcessorMessageTypes.ProcessorMessage processorMessage;
     }
 
@@ -534,6 +536,14 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         // Decode the message to check authorization and apply modifications
         // We need to skip the first 32 bytes because this will be the coprocessor root which we don't need to decode
         ZKMessage memory decodedZKMessage = abi.decode(_message[32:], (ZKMessage));
+
+        // Check that the message is valid for this authorization contract
+        if (
+            decodedZKMessage.authorizationContract != address(0)
+                && decodedZKMessage.authorizationContract != address(this)
+        ) {
+            revert("Invalid authorization contract");
+        }
 
         // Check that sender is authorized to send this message
         address[] memory authorizedAddresses = zkAuthorizations[decodedZKMessage.registry];
