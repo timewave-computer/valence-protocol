@@ -195,7 +195,6 @@ pub enum PermissionedMsg {
     },
     ModifyZkAuthorization {
         label: String,
-        max_concurrent_executions: Option<u64>,
         validate_last_block_execution: Option<bool>,
     },
     DisableAuthorization {

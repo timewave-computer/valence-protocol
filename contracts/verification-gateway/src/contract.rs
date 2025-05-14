@@ -6,7 +6,6 @@ use sp1_verifier::{Groth16Verifier, GROTH16_VK_BYTES};
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    VerifyingKey,
 };
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -43,21 +42,24 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
-fn verify_proof(vk: &VerifyingKey, proof: Binary, inputs: Binary) -> StdResult<bool> {
-    match vk {
-        VerifyingKey::SP1VerifyingKeyHash(sp1_vkey_hash) => Groth16Verifier::verify(
-            proof.as_slice(),
-            inputs.as_slice(),
-            sp1_vkey_hash,
-            &GROTH16_VK_BYTES,
-        )
-        .map_err(|e| {
-            cosmwasm_std::StdError::generic_err(format!(
-                "Failed to verify SP1 proof with vk hash {}: {}",
-                sp1_vkey_hash, e
-            ))
-        })?,
-    }
+fn verify_proof(vk: &Binary, proof: Binary, inputs: Binary) -> StdResult<bool> {
+    // Get the VK as a String
+    let sp1_vkey_hash = String::from_utf8(vk.to_vec()).map_err(|e| {
+        cosmwasm_std::StdError::generic_err(format!("Failed to parse vk hash: {}", e))
+    })?;
+
+    Groth16Verifier::verify(
+        proof.as_slice(),
+        inputs.as_slice(),
+        &sp1_vkey_hash,
+        &GROTH16_VK_BYTES,
+    )
+    .map_err(|e| {
+        cosmwasm_std::StdError::generic_err(format!(
+            "Failed to verify SP1 proof with vk hash {}: {}",
+            sp1_vkey_hash, e
+        ))
+    })?;
 
     Ok(true)
 }

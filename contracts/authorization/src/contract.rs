@@ -135,14 +135,8 @@ pub fn execute(
                 ),
                 PermissionedMsg::ModifyZkAuthorization {
                     label,
-                    max_concurrent_executions,
                     validate_last_block_execution,
-                } => modify_zk_authorization(
-                    deps,
-                    label,
-                    max_concurrent_executions,
-                    validate_last_block_execution,
-                ),
+                } => modify_zk_authorization(deps, label, validate_last_block_execution),
                 PermissionedMsg::DisableAuthorization { label } => {
                     disable_authorization(deps, label)
                 }
@@ -490,7 +484,6 @@ fn modify_authorization(
 fn modify_zk_authorization(
     deps: DepsMut,
     label: String,
-    max_concurrent_executions: Option<u64>,
     validate_last_block_execution: Option<bool>,
 ) -> Result<Response, ContractError> {
     let mut authorization = ZK_AUTHORIZATIONS
@@ -498,10 +491,6 @@ fn modify_zk_authorization(
         .map_err(|_| {
             ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
         })?;
-
-    if let Some(max_concurrent_executions) = max_concurrent_executions {
-        authorization.max_concurrent_executions = max_concurrent_executions;
-    }
 
     if let Some(validate_last_block_execution) = validate_last_block_execution {
         authorization.validate_last_block_execution = validate_last_block_execution;
@@ -1007,26 +996,6 @@ fn execute_zk_authorization(
     let mut callback_request = None;
     let processor_msg = match zk_message.message.clone() {
         AuthorizationMsg::EnqueueMsgs { msgs, .. } | AuthorizationMsg::InsertMsgs { msgs, .. } => {
-            // Check that we haven't reached the max concurrent executions and if not, increase it by 1
-            let current_executions = CURRENT_EXECUTIONS
-                .load(deps.storage, label.clone())
-                .unwrap_or_default();
-
-            // Only check max concurrent executions for EnqueueMsgs
-            if let AuthorizationMsg::EnqueueMsgs { .. } = zk_message.message {
-                if current_executions >= zk_authorization.max_concurrent_executions {
-                    return Err(ContractError::Authorization(
-                        AuthorizationErrorReason::MaxConcurrentExecutionsReached {},
-                    ));
-                }
-            }
-
-            CURRENT_EXECUTIONS.save(
-                deps.storage,
-                label.clone(),
-                &current_executions.checked_add(1).expect("Overflow"),
-            )?;
-
             // If the message for the processor has an execution ID, use the one of the authorization contract instead
             let execution_id = get_and_increase_execution_id(deps.storage)?;
             let processor_msg = assign_execution_id(zk_message.message, execution_id);

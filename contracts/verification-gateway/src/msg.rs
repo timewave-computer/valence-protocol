@@ -1,8 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
 
-use crate::VerifyingKey;
-
 #[cw_serde]
 pub struct InstantiateMsg {}
 
@@ -14,7 +12,7 @@ pub enum ExecuteMsg {}
 pub enum QueryMsg {
     #[returns(bool)]
     VerifyProof {
-        vk: VerifyingKey,
+        vk: Binary,
         proof: Binary,
         inputs: Binary,
     },
