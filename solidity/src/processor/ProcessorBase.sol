@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.28;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ProcessorErrors} from "./libs/ProcessorErrors.sol";
 import {IProcessorMessageTypes} from "./interfaces/IProcessorMessageTypes.sol";
 import {IProcessor} from "./interfaces/IProcessor.sol";
@@ -8,7 +9,7 @@ import {IMailbox} from "hyperlane/interfaces/IMailbox.sol";
 import {ICallback} from "./interfaces/ICallback.sol";
 import {ProcessorEvents} from "./libs/ProcessorEvents.sol";
 
-abstract contract ProcessorBase {
+abstract contract ProcessorBase is Ownable {
     /**
      * @notice The authorization contract that can send messages from the main domain
      * @dev Stored as bytes32 to handle cross-chain address representation
@@ -39,9 +40,9 @@ abstract contract ProcessorBase {
 
     /**
      * @notice Initializes the state variables
-     * @param _authorizationContract The authorization contract address in bytes32
-     * @param _mailbox The Hyperlane mailbox address
-     * @param _originDomain The origin domain ID for sending callbacks
+     * @param _authorizationContract The authorization contract address in bytes32. If we dont want to use Hyperlane, just pass empty bytes here.
+     * @param _mailbox The Hyperlane mailbox address. If we don't want to use Hyperlane, we can set it to address(0).
+     * @param _originDomain The origin domain ID for sending callbacks. If address(0) is used for mailbox, this will be not be used.
      * @param _authorizedAddresses The addresses authorized to interact with the processor directly
      */
     constructor(
@@ -49,10 +50,7 @@ abstract contract ProcessorBase {
         address _mailbox,
         uint32 _originDomain,
         address[] memory _authorizedAddresses
-    ) {
-        if (_mailbox == address(0)) {
-            revert ProcessorErrors.InvalidAddress();
-        }
+    ) Ownable(msg.sender) {
         authorizationContract = _authorizationContract;
         mailbox = IMailbox(_mailbox);
         originDomain = _originDomain;
@@ -293,5 +291,40 @@ abstract contract ProcessorBase {
         }
         // Emit an event to track the callback transmission
         emit ProcessorEvents.CallbackSent(callback.executionId, callback.executionResult, callback.executedCount);
+    }
+
+    /**
+     * @notice Adds an address to the list of authorized addresses
+     * @dev Only callable by the contract owner
+     * @param _address The address to be authorized
+     */
+    function addAuthorizedAddress(address _address) public onlyOwner {
+        // Check that address is not the zero address
+        if (_address == address(0)) {
+            revert ProcessorErrors.InvalidAddress();
+        }
+
+        // Check that address is not already authorized
+        if (authorizedAddresses[_address]) {
+            revert ProcessorErrors.AddressAlreadyAuthorized();
+        }
+
+        authorizedAddresses[_address] = true;
+        emit ProcessorEvents.AuthorizedAddressAdded(_address);
+    }
+
+    /**
+     * @notice Removes an address from the list of authorized addresses
+     * @dev Only callable by the contract owner
+     * @param _address The address to be removed from the authorized list
+     */
+    function removeAuthorizedAddress(address _address) public onlyOwner {
+        // Check that address is currently authorized
+        if (!authorizedAddresses[_address]) {
+            revert ProcessorErrors.AddressNotAuthorized();
+        }
+
+        delete authorizedAddresses[_address];
+        emit ProcessorEvents.AuthorizedAddressRemoved(_address);
     }
 }

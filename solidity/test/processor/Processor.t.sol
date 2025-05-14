@@ -30,10 +30,4 @@ contract ProcessorTest is Test {
         assertEq(processor.authorizedAddresses(AUTHORIZED_ADDRESSES[0]), true);
         assertFalse(processor.paused());
     }
-
-    /// @notice Test that constructor reverts when given zero address for mailbox
-    function testConstructorRevertOnZeroMailbox() public {
-        vm.expectRevert(ProcessorErrors.InvalidAddress.selector);
-        new Processor(AUTH_CONTRACT, address(0), ORIGIN_DOMAIN, AUTHORIZED_ADDRESSES);
-    }
 }
