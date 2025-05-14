@@ -4324,28 +4324,6 @@
           "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
           "type": "string"
         },
-        "Domain": {
-          "oneOf": [
-            {
-              "type": "string",
-              "enum": [
-                "main"
-              ]
-            },
-            {
-              "type": "object",
-              "required": [
-                "external"
-              ],
-              "properties": {
-                "external": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false
-            }
-          ]
-        },
         "PermissionType": {
           "oneOf": [
             {
@@ -4397,7 +4375,6 @@
         "ZkAuthorization": {
           "type": "object",
           "required": [
-            "domain",
             "label",
             "mode",
             "registry",
@@ -4406,9 +4383,6 @@
             "vk"
           ],
           "properties": {
-            "domain": {
-              "$ref": "#/definitions/Domain"
-            },
             "label": {
               "type": "string"
             },
