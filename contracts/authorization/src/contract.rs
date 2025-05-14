@@ -996,6 +996,17 @@ fn execute_zk_authorization(
     let mut callback_request = None;
     let processor_msg = match zk_message.message.clone() {
         AuthorizationMsg::EnqueueMsgs { msgs, .. } | AuthorizationMsg::InsertMsgs { msgs, .. } => {
+            // Increase current executions of this authorization
+            let current_executions = CURRENT_EXECUTIONS
+                .load(deps.storage, label.clone())
+                .unwrap_or_default();
+
+            CURRENT_EXECUTIONS.save(
+                deps.storage,
+                label.clone(),
+                &current_executions.checked_add(1).expect("Overflow"),
+            )?;
+
             // If the message for the processor has an execution ID, use the one of the authorization contract instead
             let execution_id = get_and_increase_execution_id(deps.storage)?;
             let processor_msg = assign_execution_id(zk_message.message, execution_id);
