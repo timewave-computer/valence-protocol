@@ -30,7 +30,6 @@ impl ZkAuthorizationInfo {
         ZkAuthorization {
             label: self.label,
             mode: self.mode.into_mode_validated(api),
-            domain: self.domain,
             registry: self.registry,
             vk: self.vk,
             validate_last_block_execution: self.validate_last_block_execution,
@@ -43,7 +42,6 @@ impl ZkAuthorizationInfo {
 pub struct ZkAuthorization {
     pub label: String,
     pub mode: AuthorizationMode,
-    pub domain: Domain,
     pub registry: u64,
     pub vk: Binary,
     pub validate_last_block_execution: bool,
@@ -54,5 +52,8 @@ pub struct ZkAuthorization {
 pub struct ZkMessage {
     pub registry: u64,
     pub block_number: u64,
+    pub domain: Domain,
+    // If this can only be executed on a specific authorization contract, we can optionally pass this here
+    pub authorization_contract: Option<String>,
     pub message: AuthorizationMsg,
 }

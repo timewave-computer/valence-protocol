@@ -374,21 +374,6 @@ fn create_zk_authorizations(
             ));
         }
 
-        // Validate that the domain exists and it's a CosmWasm Domain
-        match &zk_authorization.domain {
-            Domain::Main => {}
-            Domain::External(external_domain_id) => {
-                let external_domain =
-                    EXTERNAL_DOMAINS.load(deps.storage, external_domain_id.clone())?;
-                if !matches!(
-                    external_domain.execution_environment,
-                    ExecutionEnvironment::Cosmwasm(_)
-                ) {
-                    return Err(ContractError::ZK(ZKErrorReason::InvalidDomain {}));
-                }
-            }
-        }
-
         // If Authorization is permissioned we need to create the tokenfactory token and mint the corresponding amounts to the addresses that can
         // execute the authorization
         if let AuthorizationMode::Permissioned(permission_type) = &zk_authorization.mode {
@@ -977,6 +962,21 @@ fn execute_zk_authorization(
         return Err(ContractError::ZK(ZKErrorReason::InvalidZKRegistry {}));
     }
 
+    // Validate that the domain exists and it's a CosmWasm Domain
+    match &zk_message.domain {
+        Domain::Main => {}
+        Domain::External(external_domain_id) => {
+            let external_domain =
+                EXTERNAL_DOMAINS.load(deps.storage, external_domain_id.clone())?;
+            if !matches!(
+                external_domain.execution_environment,
+                ExecutionEnvironment::Cosmwasm(_)
+            ) {
+                return Err(ContractError::ZK(ZKErrorReason::InvalidDomain {}));
+            }
+        }
+    }
+
     // If applies, validate that the there hasn't been an execution with a higher block number
     if zk_authorization.validate_last_block_execution {
         let last_block = REGISTRY_LAST_BLOCK_EXECUTION
@@ -1023,7 +1023,7 @@ fn execute_zk_authorization(
                 env.block.time.seconds(),
                 execution_id,
                 OperationInitiator::User(info.sender),
-                zk_authorization.domain.clone(),
+                zk_message.domain.clone(),
                 label.clone(),
                 None,
                 msgs,
@@ -1043,7 +1043,7 @@ fn execute_zk_authorization(
     let msg = create_msg_for_processor(
         deps.storage,
         execute_msg_binary,
-        &zk_authorization.domain,
+        &zk_message.domain,
         callback_request,
     )?;
 
