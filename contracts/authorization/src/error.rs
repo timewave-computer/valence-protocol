@@ -152,4 +152,7 @@ pub enum ZKErrorReason {
 
     #[error("Invalid domain, execution environment should be CosmWasm")]
     InvalidDomain {},
+
+    #[error("This message is not for this authorization contract!")]
+    InvalidAuthorizationContract {},
 }

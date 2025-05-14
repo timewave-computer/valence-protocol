@@ -962,6 +962,15 @@ fn execute_zk_authorization(
         return Err(ContractError::ZK(ZKErrorReason::InvalidZKRegistry {}));
     }
 
+    // Check that the message is for this authorization contract
+    if let Some(authorization_contract) = zk_message.authorization_contract {
+        if authorization_contract != env.contract.address.to_string() {
+            return Err(ContractError::ZK(
+                ZKErrorReason::InvalidAuthorizationContract {},
+            ));
+        }
+    }
+
     // Validate that the domain exists and it's a CosmWasm Domain
     match &zk_message.domain {
         Domain::Main => {}
