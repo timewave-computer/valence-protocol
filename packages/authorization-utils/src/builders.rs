@@ -10,6 +10,7 @@ use crate::{
     authorization_message::{Message, MessageDetails, MessageType},
     domain::Domain,
     function::{AtomicFunction, FunctionCallback, NonAtomicFunction, RetryLogic},
+    zk::VerifyingKey,
 };
 
 pub struct AuthorizationBuilder {
@@ -20,6 +21,7 @@ pub struct AuthorizationBuilder {
     max_concurrent_executions: Option<u64>,
     subroutine: Subroutine,
     priority: Option<Priority>,
+    zk_vk: Option<VerifyingKey>,
 }
 
 impl Default for AuthorizationBuilder {
@@ -42,6 +44,7 @@ impl AuthorizationBuilder {
                 expiration_time: None,
             }),
             priority: None,
+            zk_vk: None,
         }
     }
 
@@ -80,6 +83,11 @@ impl AuthorizationBuilder {
         self
     }
 
+    pub fn with_zk_vk(mut self, zk_vk: VerifyingKey) -> Self {
+        self.zk_vk = Some(zk_vk);
+        self
+    }
+
     pub fn build(self) -> AuthorizationInfo {
         AuthorizationInfo {
             label: self.label,
@@ -89,6 +97,7 @@ impl AuthorizationBuilder {
             max_concurrent_executions: self.max_concurrent_executions,
             subroutine: self.subroutine,
             priority: self.priority,
+            zk_vk: self.zk_vk,
         }
     }
 }
