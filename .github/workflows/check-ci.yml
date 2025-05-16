@@ -173,7 +173,7 @@ jobs:
         run: ls -l ./artifacts
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo core-test
         env:
           RUST_BACKTRACE: 1
 
