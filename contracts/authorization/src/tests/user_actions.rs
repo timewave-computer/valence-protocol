@@ -2,6 +2,7 @@ use cosmwasm_std::{Binary, Coin, Timestamp, Uint128};
 use cw_utils::Expiration;
 use neutron_test_tube::{Account, Module, Wasm};
 use serde_json::json;
+use sp1_sdk::SP1ProofWithPublicValues;
 use valence_authorization_utils::{
     authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
@@ -17,8 +18,12 @@ use crate::{
 
 use super::{
     builders::NeutronTestAppBuilder,
-    helpers::store_and_instantiate_authorization_with_processor_contract,
+    helpers::{
+        instantiate_and_set_verification_gateway,
+        store_and_instantiate_authorization_with_processor_contract, ARTIFACTS_DIR,
+    },
 };
+use base64::prelude::*;
 
 #[test]
 fn disabled() {
@@ -746,4 +751,43 @@ fn invalid_messages() {
             .to_string()
             .as_str()
     ));
+}
+
+#[test]
+fn pause_and_resume_processor_using_zk_authorizations() {
+    let setup = NeutronTestAppBuilder::new().build().unwrap();
+
+    let _wasm = Wasm::new(&setup.app);
+
+    let (authorization, _processor) = store_and_instantiate_authorization_with_processor_contract(
+        &setup.app,
+        &setup.owner_accounts[0],
+        setup.owner_addr.to_string(),
+        vec![],
+    );
+
+    let _wasm_byte_code_verification_gateway = std::fs::read(format!(
+        "{}/valence_verification_gateway.wasm",
+        ARTIFACTS_DIR
+    ))
+    .unwrap();
+
+    instantiate_and_set_verification_gateway(&setup.app, &setup.owner_accounts[0], authorization);
+
+    // VK of the program that accepts 2 registry values and creates a message to pause the processor for registry 1 and
+    // creates a message to resume it for registry 2
+    let program_vk = "g1hLP6VhA141lA1LH4CjAKaYnzUr+KxrqmDyc6Sp7k04vyAAuiGlNpW+IGlt4RBoPrXgOjgxOEKvoiVpNzK5WbQj/VcAiH0cXasCXqq75V5XYypD0Ps4AJrw1CcCAAAAAAAAAAcAAAAAAAAAUHJvZ3JhbRMAAAAAAAAAAQAAAA4AAAAAAAAAAAAIAAAAAAAEAAAAAAAAAEJ5dGUQAAAAAAAAAAEAAAALAAAAAAAAAAAAAQAAAAAAAgAAAAAAAAAHAAAAAAAAAFByb2dyYW0AAAAAAAAAAAQAAAAAAAAAQnl0ZQEAAAAAAAAA";
+    let full_proof_pause = "AAAAAAAAAAAAAAAAhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHsicmVnaXN0cnkiOjEsImJsb2NrX251bWJlciI6MSwiZG9tYWluIjoibWFpbiIsImF1dGhvcml6YXRpb25fY29udHJhY3QiOm51bGwsIm1lc3NhZ2UiOnsicGF1c2UiOnt9fX0LAAAAAAAAAHY0LjAuMC1yYy4zAA==";
+    let full_proof_resume = "AAAAAAAAAAAAAAAAhQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHsicmVnaXN0cnkiOjIsImJsb2NrX251bWJlciI6MSwiZG9tYWluIjoibWFpbiIsImF1dGhvcml6YXRpb25fY29udHJhY3QiOm51bGwsIm1lc3NhZ2UiOnsicmVzdW1lIjp7fX19CwAAAAAAAAB2NC4wLjAtcmMuMwA=";
+
+    let _vk_decoded = BASE64_STANDARD.decode(program_vk).unwrap();
+    let full_proof_pause_decoded = BASE64_STANDARD.decode(full_proof_pause).unwrap();
+    let _full_proof_resume_decoded = BASE64_STANDARD.decode(full_proof_resume).unwrap();
+
+    let sp1_proof: SP1ProofWithPublicValues =
+        bincode::deserialize(&full_proof_pause_decoded).unwrap();
+
+    println!("sp1_proof: {:?}", sp1_proof);
+
+    // TODO: Once we can generate valid groth 16 proofs we can finish this test
 }

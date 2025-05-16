@@ -10,7 +10,7 @@ use neutron_test_tube::{
     SigningAccount, Wasm,
 };
 use serde::Serialize;
-use valence_authorization_utils::msg::InstantiateMsg;
+use valence_authorization_utils::msg::{ExecuteMsg, InstantiateMsg, PermissionedMsg};
 use valence_processor_utils::msg::InstantiateMsg as ProcessorInstantiateMsg;
 use valence_test_library::msg::InstantiateMsg as TestLibraryInstantiateMsg;
 
@@ -195,4 +195,48 @@ pub fn wait_for_height(app: &NeutronTestApp, height: u64) {
         // We can't increase blocks directly so we do it this way
         app.increase_time(1);
     }
+}
+
+pub fn instantiate_and_set_verification_gateway(
+    app: &NeutronTestApp,
+    signer: &SigningAccount,
+    authorization: String,
+) {
+    let wasm = Wasm::new(app);
+    let code_id = wasm
+        .store_code(
+            &std::fs::read(format!(
+                "{}/valence_verification_gateway.wasm",
+                ARTIFACTS_DIR
+            ))
+            .unwrap(),
+            None,
+            signer,
+        )
+        .unwrap()
+        .data
+        .code_id;
+
+    let verification_gateway = wasm
+        .instantiate(
+            code_id,
+            &valence_verification_gateway::msg::InstantiateMsg {},
+            None,
+            "verification_gateway".into(),
+            &[],
+            signer,
+        )
+        .unwrap()
+        .data
+        .address;
+
+    wasm.execute::<ExecuteMsg>(
+        &authorization,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::SetVerificationGateway {
+            verification_gateway,
+        }),
+        &[],
+        signer,
+    )
+    .unwrap();
 }
