@@ -9295,11 +9295,11 @@ dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-ownable",
- "neutron-test-tube",
  "valence-account-utils",
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
+ "valence-supervaults-utils",
 ]
 
 [[package]]
