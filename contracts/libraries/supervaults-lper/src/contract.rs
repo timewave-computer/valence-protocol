@@ -1,8 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    ensure, to_json_binary, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdResult,
+};
 use valence_library_utils::{
     error::LibraryError,
+    execute_on_behalf_of,
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
@@ -11,6 +15,7 @@ use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, Query
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const LP_REPLY_ID: u64 = 314;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -56,10 +61,17 @@ mod execute {
 }
 
 mod functions {
-    use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-    use valence_library_utils::error::LibraryError;
+    use cosmwasm_std::{
+        ensure, to_json_binary, to_json_string, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+        Response, SubMsg, Uint128, WasmMsg,
+    };
+    use neutron_std::types::neutron::util::precdec::PrecDec;
+    use valence_library_utils::{error::LibraryError, execute_submsgs_on_behalf_of};
 
-    use crate::msg::{Config, FunctionMsgs};
+    use crate::{
+        contract::LP_REPLY_ID,
+        msg::{CombinedPriceResponse, Config, FunctionMsgs, PrecDecimalRange},
+    };
 
     pub fn process_function(
         deps: DepsMut,
@@ -69,16 +81,109 @@ mod functions {
         cfg: Config,
     ) -> Result<Response, LibraryError> {
         match msg {
-            FunctionMsgs::ProvideLiquidity {} => try_provide_liquidity(deps, cfg),
+            FunctionMsgs::ProvideLiquidity {
+                expected_vault_ratio_range,
+            } => try_provide_liquidity(deps, cfg, expected_vault_ratio_range),
         }
     }
 
-    fn try_provide_liquidity(deps: DepsMut, cfg: Config) -> Result<Response, LibraryError> {
-        // perform validations
+    fn try_provide_liquidity(
+        deps: DepsMut,
+        cfg: Config,
+        expected_vault_ratio_range: Option<PrecDecimalRange>,
+    ) -> Result<Response, LibraryError> {
+        // ensure that the input account has the necessary funds
+        let (balance_asset1, balance_asset2) = query_asset_balances(&deps, &cfg)?;
+        ensure!(
+            balance_asset1.amount > Uint128::zero() || balance_asset2.amount > Uint128::zero(),
+            LibraryError::ExecutionError("input account vault denom balances 0".to_string(),)
+        );
+
+        // validate the expected price
+        let vault_price = query_vault_price(deps.as_ref(), cfg.vault_addr.to_string())?;
+        if let Some(range) = expected_vault_ratio_range {
+            ensure!(
+                vault_price.ge(&range.min) && vault_price.lt(&range.max),
+                LibraryError::ExecutionError(
+                    "vault price not within the expected range".to_string()
+                )
+            )
+        }
 
         // construct lp message
+        let supervaults_deposit_msg = valence_supervaults_utils::msg::ExecuteMsg::Deposit {};
+        let provide_liquidity_msg: CosmosMsg = WasmMsg::Execute {
+            contract_addr: cfg.vault_addr.to_string(),
+            msg: to_json_binary(&supervaults_deposit_msg)?,
+            funds: vec![balance_asset1, balance_asset2],
+        }
+        .into();
 
-        Ok(Response::new())
+        // delegate the LP submessage to the input account because supervault LP
+        // shares get issued at an unknown rate.
+        // to deal with that, we LP as a submessage and handle the resulting share
+        // transfer from input acc to output acc in the response
+        let delegated_input_account_submsgs = execute_submsgs_on_behalf_of(
+            vec![SubMsg::reply_on_success(provide_liquidity_msg, LP_REPLY_ID)],
+            Some(to_json_string(&cfg)?),
+            &cfg.input_addr,
+        )?;
+
+        Ok(Response::new().add_submessage(SubMsg::reply_on_success(
+            delegated_input_account_submsgs,
+            LP_REPLY_ID,
+        )))
+    }
+
+    fn query_asset_balances(deps: &DepsMut, cfg: &Config) -> Result<(Coin, Coin), LibraryError> {
+        let balance_asset1 = deps
+            .querier
+            .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset1)?;
+        let balance_asset2 = deps
+            .querier
+            .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset2)?;
+        Ok((balance_asset1, balance_asset2))
+    }
+
+    fn query_vault_price(deps: Deps, vault_addr: String) -> Result<PrecDec, LibraryError> {
+        let price_response: CombinedPriceResponse = deps.querier.query_wasm_smart(
+            vault_addr,
+            &valence_supervaults_utils::msg::QueryMsg::GetPrices {},
+        )?;
+
+        Ok(price_response.price_0_to_1)
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryError> {
+    match msg.id {
+        LP_REPLY_ID => {
+            // extract configuration from the reply payload
+            let cfg: Config = valence_account_utils::msg::parse_valence_payload(&msg.result)?;
+
+            // query account resulting LP balance
+            let balance = deps
+                .querier
+                .query_balance(cfg.input_addr.clone(), cfg.lp_config.lp_denom.clone())?;
+
+            ensure!(
+                !balance.amount.is_zero(),
+                LibraryError::ExecutionError("No LP tokens".to_string())
+            );
+
+            // construct the share transfer message to the output account
+            let lp_share_transfer_msg: CosmosMsg = BankMsg::Send {
+                to_address: cfg.output_addr.to_string(),
+                amount: vec![balance],
+            }
+            .into();
+
+            let delegated_msg = execute_on_behalf_of(vec![lp_share_transfer_msg], &cfg.input_addr)?;
+
+            Ok(Response::default().add_message(delegated_msg))
+        }
+        _ => Err(LibraryError::ExecutionError("unknown reply id".to_string())),
     }
 }
 

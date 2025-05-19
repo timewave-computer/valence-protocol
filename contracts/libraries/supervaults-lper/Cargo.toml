@@ -21,6 +21,8 @@ valence-macros              = { workspace = true }
 valence-library-utils       = { workspace = true }
 valence-library-base        = { workspace = true }
 valence-supervaults-utils   = { workspace = true }
+neutron-std                 = { git = "https://github.com/neutron-org/neutron-std.git", rev = "d0850ae" }
+valence-account-utils       = { workspace = true }
 
 [dev-dependencies]
 valence-account-utils   = { workspace = true }

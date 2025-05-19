@@ -5150,6 +5150,30 @@ dependencies = [
 
 [[package]]
 name = "neutron-std"
+version = "5.1.2"
+source = "git+https://github.com/neutron-org/neutron-std.git?rev=d0850ae#d0850ae013a37b7623b7e273938291ff3d784003"
+dependencies = [
+ "bech32 0.9.1",
+ "chrono",
+ "cosmos-sdk-proto 0.20.0",
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "neutron-std-derive 0.20.1 (git+https://github.com/neutron-org/neutron-std.git?rev=d0850ae)",
+ "prost 0.12.6",
+ "prost-types 0.12.6",
+ "protobuf 3.3.0",
+ "schemars",
+ "serde",
+ "serde-cw-value",
+ "serde-json-wasm 1.0.1",
+ "serde_json",
+ "speedate",
+ "tendermint-proto 0.34.1",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "neutron-std"
 version = "5.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd808afc35eaeb219789e6e508a0dff51a195d557212b7fbcc2f4a33b9bd8d7"
@@ -5159,7 +5183,7 @@ dependencies = [
  "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "neutron-std-derive",
+ "neutron-std-derive 0.20.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "prost 0.12.6",
  "prost-types 0.12.6",
  "protobuf 3.3.0",
@@ -5178,6 +5202,18 @@ name = "neutron-std-derive"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22f4948005dcbb0c4eb644141d00dcbdc422b1b7024fb008712ca2960392ec11"
+dependencies = [
+ "itertools 0.10.5",
+ "proc-macro2",
+ "prost-types 0.12.6",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "neutron-std-derive"
+version = "0.20.1"
+source = "git+https://github.com/neutron-org/neutron-std.git?rev=d0850ae#d0850ae013a37b7623b7e273938291ff3d784003"
 dependencies = [
  "itertools 0.10.5",
  "proc-macro2",
@@ -8522,7 +8558,7 @@ dependencies = [
  "hex",
  "ibc",
  "log",
- "neutron-std",
+ "neutron-std 5.1.4",
  "prost 0.13.5",
  "serde",
  "serde_json",
@@ -9295,6 +9331,7 @@ dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-ownable",
+ "neutron-std 5.1.2",
  "valence-account-utils",
  "valence-library-base",
  "valence-library-utils",
