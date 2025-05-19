@@ -10,6 +10,7 @@ pub mod balancer_v2_swap;
 pub mod cctp_transfer;
 pub mod forwarder;
 pub mod ibc_eureka_transfer;
+pub mod pancake_v3_position_manager;
 pub mod standard_bridge_transfer;
 pub mod stargate_transfer;
 

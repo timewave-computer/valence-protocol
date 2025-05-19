@@ -52,6 +52,38 @@ sol!(
     "../solidity/out/Forwarder.sol/Forwarder.json",
 );
 
+// CCTP Transfer
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    CCTPTransfer,
+    "../solidity/out/CCTPTransfer.sol/CCTPTransfer.json",
+);
+
+// Aave Position Manager
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    AavePositionManager,
+    "../solidity/out/AavePositionManager.sol/AavePositionManager.json",
+);
+
+// Standard Bridge Transfer
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    StandardBridgeTransfer,
+    "../solidity/out/StandardBridgeTransfer.sol/StandardBridgeTransfer.json",
+);
+
+// PancakeSwap V3 Position Manager
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    PancakeSwapV3PositionManager,
+    "../solidity/out/PancakeSwapV3PositionManager.sol/PancakeSwapV3PositionManager.json",
+);
+
 // Valence ERC4626-based vault
 sol!(
     #[sol(rpc)]
@@ -74,12 +106,10 @@ sol!(
     "../solidity/out/MockERC20.sol/MockERC20.json",
 );
 
-// CCTP Transfer
 sol!(
     #[sol(rpc)]
-    #[derive(Debug, PartialEq, Eq)]
-    CCTPTransfer,
-    "../solidity/out/CCTPTransfer.sol/CCTPTransfer.json",
+    ERC20,
+    "../solidity/out/ERC20.sol/ERC20.json",
 );
 
 // Mock CCTP messenger
@@ -88,4 +118,12 @@ sol!(
     #[derive(Debug, PartialEq, Eq)]
     MockTokenMessenger,
     "../solidity/out/MockTokenMessenger.sol/MockTokenMessenger.json",
+);
+
+// Eureka transfer
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    IBCEurekaTransfer,
+    "../solidity/out/IBCEurekaTransfer.sol/IBCEurekaTransfer.json",
 );

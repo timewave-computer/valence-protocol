@@ -6,8 +6,16 @@ version    = { workspace = true }
 repository = { workspace = true }
 
 [[example]]
-name = "vault"
-path = "examples/eth_vault/vault.rs"
+name = "cctp_vault"
+path = "examples/eth_cctp_vault/vault.rs"
+
+[[example]]
+name = "eureka_vault"
+path = "examples/eth_eureka_vault/vault.rs"
+
+[[example]]
+name = "eth_to_base_vault_pancake"
+path = "examples/eth_to_base_vault_pancake/vault.rs"
 
 [dependencies]
 localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
@@ -57,7 +65,7 @@ valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }
 valence-middleware-asserter          = { workspace = true }
 valence-test-icq-lib                 = { workspace = true }
-valence-chain-client-utils           = { workspace = true }
+valence-domain-clients               = { git = "https://github.com/timewave-computer/valence-domain-clients.git", tag = "v0.1.0", features = ["test-utils"] }
 valence-ica-cctp-transfer            = { workspace = true }
 valence-ica-ibc-transfer             = { workspace = true }
 tokio                                = { workspace = true }
@@ -74,3 +82,5 @@ futures-util                         = "0.3"
 toml                                 = "0.8.19"
 async-trait                          = "0.1.77"
 serde                                = "1.0.219"
+chrono                               = { version = "0.4", features = ["serde", "alloc"] }
+uniswap_v3_math                      = "0.6.0"

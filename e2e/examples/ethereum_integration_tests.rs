@@ -34,7 +34,7 @@ use valence_authorization_utils::{
 };
 use valence_e2e::utils::{
     authorization::{set_up_authorization_and_processor, verify_authorization_execution_result},
-    ethereum::set_up_anvil_container,
+    ethereum::{set_up_anvil_container, ANVIL_NAME, DEFAULT_ANVIL_PORT},
     hyperlane::{
         bech32_to_evm_bytes32, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
         set_up_hyperlane,
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Start anvil container
     let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(set_up_anvil_container())?;
+    rt.block_on(set_up_anvil_container(ANVIL_NAME, DEFAULT_ANVIL_PORT, None))?;
 
     let eth = EthClient::new(DEFAULT_ANVIL_RPC_ENDPOINT)?;
 
@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     set_up_hyperlane(
         "hyperlane-net",
-        vec!["localneutron-1-val-0-neutronic", "anvil"],
+        vec!["localneutron-1-val-0-neutronic", ANVIL_NAME],
         "neutron",
         "ethereum",
         &neutron_hyperlane_contracts,
@@ -286,14 +286,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Deploying ERC20s on Ethereum...");
     let token_1_tx =
-        MockERC20::deploy_builder(&eth.provider, "Token1".to_string(), "T1".to_string())
+        MockERC20::deploy_builder(&eth.provider, "Token1".to_string(), "T1".to_string(), 18u8)
             .into_transaction_request()
             .from(accounts[0]);
     let token_1_address = eth.send_transaction(token_1_tx)?.contract_address.unwrap();
     let token_1 = MockERC20::new(token_1_address, &eth.provider);
 
     let token_2_tx =
-        MockERC20::deploy_builder(&eth.provider, "Token2".to_string(), "T2".to_string())
+        MockERC20::deploy_builder(&eth.provider, "Token2".to_string(), "T2".to_string(), 18u8)
             .into_transaction_request()
             .from(accounts[0]);
     let token_2_address = eth.send_transaction(token_2_tx)?.contract_address.unwrap();
@@ -319,7 +319,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             tokenAddress: alloy_primitives_encoder::Address::from_str(
                 &token_1_address.to_string(),
             )?,
-            maxAmount: 1000,
+            maxAmount: U256::from(1000),
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,
@@ -345,7 +345,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             tokenAddress: alloy_primitives_encoder::Address::from_str(
                 &token_2_address.to_string(),
             )?,
-            maxAmount: 1000,
+            maxAmount: U256::from(1000),
         }],
         intervalType: IntervalType::TIME,
         minInterval: 0,
