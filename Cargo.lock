@@ -9289,6 +9289,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-supervaults-lper"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "neutron-test-tube",
+ "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-template-library"
 version = "0.2.0"
 dependencies = [

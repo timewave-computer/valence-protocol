@@ -1,0 +1,26 @@
+[package]
+name       = "valence-supervaults-lper"
+authors    = { workspace = true }
+edition    = { workspace = true }
+license    = { workspace = true }
+version    = { workspace = true }
+repository = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+
+[dependencies]
+cosmwasm-std            = { workspace = true }
+cosmwasm-schema         = { workspace = true }
+cw-ownable              = { workspace = true }
+valence-macros          = { workspace = true }
+valence-library-utils   = { workspace = true }
+valence-library-base    = { workspace = true }
+
+[dev-dependencies]
+valence-account-utils   = { workspace = true }
+neutron-test-tube       = { workspace = true }
