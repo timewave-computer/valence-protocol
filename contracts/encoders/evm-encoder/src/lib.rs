@@ -5,7 +5,7 @@ use alloy_sol_types::SolValue;
 use cosmwasm_std::{Binary, StdError, StdResult};
 use libraries::{
     aave_position_manager, balancer_v2_swap, cctp_transfer, forwarder, ibc_eureka_transfer,
-    standard_bridge_transfer, stargate_transfer, union_transfer,
+    pancake_v3_position_manager, standard_bridge_transfer, stargate_transfer, union_transfer,
 };
 use strum::EnumString;
 use valence_authorization_utils::authorization::Subroutine;
@@ -32,6 +32,7 @@ pub enum EVMLibrary {
     StandardBridgeTransfer,
     IbcEurekaTransfer,
     UnionTransfer,
+    PancakeV3PositionManager,
 }
 
 impl EVMLibrary {
@@ -66,6 +67,7 @@ impl EVMLibrary {
             EVMLibrary::StandardBridgeTransfer => standard_bridge_transfer::encode(msg),
             EVMLibrary::IbcEurekaTransfer => ibc_eureka_transfer::encode(msg),
             EVMLibrary::UnionTransfer => union_transfer::encode(msg),
+            EVMLibrary::PancakeV3PositionManager => pancake_v3_position_manager::encode(msg),
         }
     }
 }
@@ -183,4 +185,21 @@ fn encode_retry_logic(
 /// Helper to parse EVM addresses from strings
 fn parse_address(addr: &str) -> StdResult<Address> {
     Address::from_str(addr).map_err(|e| StdError::generic_err(format!("Invalid address: {}", e)))
+}
+
+/// Validates if a value is within the valid int24 range that is used in EVM
+/// This is because ABI encoding silently truncates values outside of the range
+/// Returns the value if valid, or an appropriate error if invalid
+fn validate_i24_value(value: i32) -> Result<i32, StdError> {
+    const MAX_INT24: i32 = 8_388_607; // 2^23 - 1
+    const MIN_INT24: i32 = -8_388_608; // -2^23
+
+    if !(MIN_INT24..=MAX_INT24).contains(&value) {
+        return Err(StdError::generic_err(format!(
+            "Value {} outside int24 range ({} to {})",
+            value, MIN_INT24, MAX_INT24
+        )));
+    }
+
+    Ok(value)
 }

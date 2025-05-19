@@ -14,7 +14,7 @@ run-example program:
     RUST_LOG=debug cargo run --package {{program}}
 
 run-e2e test:
-    RUST_LOG=debug cargo run --package valence-e2e --example {{test}}
+    RUST_LOG=info cargo run --package valence-e2e --example {{test}}
 
 precommit:
     cargo fmt --all -- --check

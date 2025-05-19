@@ -70,6 +70,14 @@ contract CCTPTransfer is Library {
     }
 
     /**
+     * @dev Internal initialization function called during construction
+     * @param _config New configuration
+     */
+    function _initConfig(bytes memory _config) internal override {
+        config = validateConfig(_config);
+    }
+
+    /**
      * @dev Updates the CCTPTransfer configuration.
      * Only the contract owner is authorized to call this function.
      * @param _config New encoded configuration parameters.

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Script} from "forge-std/src/Script.sol";
-import {MockERC20} from "../test/mocks/MockERC20.sol";
+import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {IBCEurekaTransfer} from "../src/libraries/IBCEurekaTransfer.sol";
 import {IEurekaHandler} from "../src/libraries/interfaces/eureka/IEurekaHandler.sol";
 import {BaseAccount} from "../src/accounts/BaseAccount.sol";
@@ -14,6 +14,9 @@ contract IBCEurekaTransferScript is Script {
 
     // Address of the Eureka Handler on Ethereum
     address constant EUREKA_HANDLER = 0xFc2d0487A0ae42ae7329a80dc269916A9184cF7C;
+
+    // Address of WETH Whale
+    address constant WETH_WHALE = 0xfA1fDbBD71B0aA16162D76914d69cD8CB3Ef92da;
 
     // Example addresses for owner, processor, and fee recipient
     address owner = address(1);
@@ -38,20 +41,21 @@ contract IBCEurekaTransferScript is Script {
         uint256 forkId = vm.createFork("https://eth-mainnet.public.blastapi.io");
         vm.selectFork(forkId);
 
-        // Replace the runtime code at WETH_ADDR with our MockERC20 code so we can mint some WETH
-        bytes memory mockCode = type(MockERC20).runtimeCode;
-        vm.etch(WETH_ADDR, mockCode);
-
         // Start broadcasting transactions
         vm.startPrank(owner);
 
         // Deploy a new BaseAccount contract
         inputAccount = new BaseAccount(owner, new address[](0));
 
-        // Mint some WETH tokens to the BaseAccount
-        MockERC20 weth = MockERC20(WETH_ADDR);
-        weth.mint(address(inputAccount), tokenAmount * 2);
+        vm.stopPrank();
 
+        // Fund the input account with WETH
+        vm.startPrank(WETH_WHALE);
+        uint256 amountToFund = 1000 * 10 ** 18; // 1000 WETH
+        IERC20(WETH_ADDR).transfer(address(inputAccount), amountToFund);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
         // Deploy a new IBCEurekaTransfer contract with fixed amount
         IBCEurekaTransfer.IBCEurekaTransferConfig memory wethConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: tokenAmount,
@@ -71,7 +75,7 @@ contract IBCEurekaTransferScript is Script {
         vm.stopPrank();
 
         // Get the balance before the transfer of the inputAccount
-        uint256 wethBalanceBefore = weth.balanceOf(address(inputAccount));
+        uint256 wethBalanceBefore = IERC20(WETH_ADDR).balanceOf(address(inputAccount));
         console.log("WETH balance before transfer: ", wethBalanceBefore);
 
         // Create a fee structure for the transfer
@@ -86,7 +90,7 @@ contract IBCEurekaTransferScript is Script {
         ibcEurekaTransfer.transfer(fees, "");
 
         // Get the balance after the transfer
-        uint256 wethBalanceAfter = weth.balanceOf(address(inputAccount));
+        uint256 wethBalanceAfter = IERC20(WETH_ADDR).balanceOf(address(inputAccount));
         console.log("WETH balance after transfer: ", wethBalanceAfter);
 
         // Check balance changes
@@ -96,7 +100,7 @@ contract IBCEurekaTransferScript is Script {
         assert(wethBalanceBefore - wethBalanceAfter == tokenAmount);
 
         // Check that fee recipient received the fees
-        uint256 feeRecipientBalance = weth.balanceOf(feeRecipient);
+        uint256 feeRecipientBalance = IERC20(WETH_ADDR).balanceOf(feeRecipient);
         console.log("Fee recipient balance: ", feeRecipientBalance);
         assert(feeRecipientBalance == 1000); // The relay fee amount
 
@@ -118,7 +122,8 @@ contract IBCEurekaTransferScript is Script {
         inputAccount.approveLibrary(address(ibcEurekaTransferFull));
         vm.stopPrank();
 
-        uint256 wethBalanceBeforeFullTransfer = weth.balanceOf(address(inputAccount));
+        // Get the balance before the full transfer of the inputAccount
+        uint256 wethBalanceBeforeFullTransfer = IERC20(WETH_ADDR).balanceOf(address(inputAccount));
         console.log("WETH balance before full transfer: ", wethBalanceBeforeFullTransfer);
 
         // Create a fee structure for the full transfer
@@ -132,14 +137,15 @@ contract IBCEurekaTransferScript is Script {
         vm.prank(processor);
         ibcEurekaTransferFull.transfer(fullTransferFees, "test memo");
 
-        uint256 wethBalanceAfterFullTransfer = weth.balanceOf(address(inputAccount));
+        // Get the balance after the full transfer
+        uint256 wethBalanceAfterFullTransfer = IERC20(WETH_ADDR).balanceOf(address(inputAccount));
         console.log("WETH balance after full transfer: ", wethBalanceAfterFullTransfer);
 
         // Check that all WETH has been transferred
         assert(wethBalanceAfterFullTransfer == 0);
 
         // Check total fees received by fee recipient
-        uint256 finalFeeRecipientBalance = weth.balanceOf(feeRecipient);
+        uint256 finalFeeRecipientBalance = IERC20(WETH_ADDR).balanceOf(feeRecipient);
         console.log("Final fee recipient balance: ", finalFeeRecipientBalance);
         assert(finalFeeRecipientBalance == 2000); // Two relay fees of 1000 each
     }

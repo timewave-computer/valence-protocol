@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Script} from "forge-std/src/Script.sol";
-import {MockERC20} from "../test/mocks/MockERC20.sol";
+import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {StandardBridgeTransfer} from "../src/libraries/StandardBridgeTransfer.sol";
 import {IStandardBridge} from "../src/libraries/interfaces/standard-bridge/IStandardBridge.sol";
 import {BaseAccount} from "../src/accounts/BaseAccount.sol";
@@ -14,6 +14,9 @@ contract L2StandardBridgeTransferScript is Script {
 
     // Address of the corresponding L1 USDC (for remoteToken parameter)
     address constant USDC_L1_ADDR = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC on Ethereum
+
+    // Address of USDC Whale
+    address constant USDC_WHALE = 0x133FA49A01801264fC05A12EF5ef9Db6a302e93D;
 
     // Address of the L2StandardBridge on Optimism
     address constant L2_STANDARD_BRIDGE = 0x4200000000000000000000000000000000000010;
@@ -39,23 +42,22 @@ contract L2StandardBridgeTransferScript is Script {
         uint256 forkId = vm.createFork("https://mainnet.optimism.io");
         vm.selectFork(forkId);
 
-        // Replace the runtime code at USDC_L2_ADDR with our MockERC20 code so we can mint some USDC
-        bytes memory mockCode = type(MockERC20).runtimeCode;
-        vm.etch(USDC_L2_ADDR, mockCode);
-
         // Start broadcasting transactions
         vm.startPrank(owner);
-
         // Deploy a new BaseAccount contract
         inputAccount = new BaseAccount(owner, new address[](0));
+        vm.stopPrank();
 
-        // Mint some USDC tokens to the BaseAccount
-        MockERC20 usdc = MockERC20(USDC_L2_ADDR);
-        usdc.mint(address(inputAccount), tokenAmount);
+        // Fund the input account with USDC
+        vm.startPrank(USDC_WHALE);
+        uint256 amountToFund = 1000 * 10 ** 6; // 1000 USDC
+        IERC20(USDC_L2_ADDR).transfer(address(inputAccount), amountToFund);
+        vm.stopPrank();
 
         // Send some ETH to the BaseAccount
         vm.deal(address(inputAccount), ethAmount * 3);
 
+        vm.startPrank(owner);
         // Deploy a new StandardBridgeTransfer contract for native ETH with fixed amount
         StandardBridgeTransfer.StandardBridgeTransferConfig memory ethConfig = StandardBridgeTransfer
             .StandardBridgeTransferConfig({
@@ -94,7 +96,7 @@ contract L2StandardBridgeTransferScript is Script {
 
         // Get the balance before the transfer of the inputAccount
         uint256 ethBalanceBefore = address(inputAccount).balance;
-        uint256 usdcBalanceBefore = usdc.balanceOf(address(inputAccount));
+        uint256 usdcBalanceBefore = IERC20(USDC_L2_ADDR).balanceOf(address(inputAccount));
 
         console.log("ETH balance before transfer: ", ethBalanceBefore);
         console.log("USDC balance before transfer: ", usdcBalanceBefore);
@@ -109,7 +111,7 @@ contract L2StandardBridgeTransferScript is Script {
 
         // Get the balance after the transfers
         uint256 ethBalanceAfter = address(inputAccount).balance;
-        uint256 usdcBalanceAfter = usdc.balanceOf(address(inputAccount));
+        uint256 usdcBalanceAfter = IERC20(USDC_L2_ADDR).balanceOf(address(inputAccount));
 
         console.log("ETH balance after transfer: ", ethBalanceAfter);
         console.log("USDC balance after transfer: ", usdcBalanceAfter);

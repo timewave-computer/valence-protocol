@@ -17,7 +17,7 @@ contract Forwarder is Library {
      */
     struct ForwardingConfig {
         address tokenAddress;
-        uint128 maxAmount;
+        uint256 maxAmount;
     }
 
     /**
@@ -84,6 +84,14 @@ contract Forwarder is Library {
             }
         }
         return decodedConfig;
+    }
+
+    /**
+     * @dev Internal initialization function called during construction
+     * @param _config New configuration
+     */
+    function _initConfig(bytes memory _config) internal override {
+        config = validateConfig(_config);
     }
 
     /**

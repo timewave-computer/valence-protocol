@@ -139,6 +139,14 @@ contract UnionTransfer is Library {
     }
 
     /**
+     * @dev Internal initialization function called during construction
+     * @param _config New configuration
+     */
+    function _initConfig(bytes memory _config) internal override {
+        config = validateConfig(_config);
+    }
+
+    /**
      * @dev Executes the token transfer using the UCS03-ZKGM protocol.
      *
      * Steps:

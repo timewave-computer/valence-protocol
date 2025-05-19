@@ -240,6 +240,14 @@ contract AavePositionManager is Library {
     }
 
     /**
+     * @dev Internal initialization function called during construction
+     * @param _config New configuration
+     */
+    function _initConfig(bytes memory _config) internal override {
+        config = validateConfig(_config);
+    }
+
+    /**
      * @dev Updates the AavePositionManager configuration.
      * Only the contract owner is authorized to call this function.
      * @param _config New encoded configuration parameters.

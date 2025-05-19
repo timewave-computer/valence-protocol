@@ -31,8 +31,8 @@ abstract contract Library is Ownable {
     constructor(address _owner, address _processor, bytes memory _config) Ownable(_owner) {
         // Set the processor address
         processor = _processor;
-        // Initialize configuration by calling updateConfig
-        updateConfig(_config);
+        // Initialize configuration using internal initialization (no access control)
+        _initConfig(_config);
     }
 
     /**
@@ -42,6 +42,12 @@ abstract contract Library is Ownable {
     function updateProcessor(address _processor) external onlyOwner {
         processor = _processor;
     }
+
+    /**
+     * @dev Internal function for initialization during construction
+     * @param _config Configuration data to be applied
+     */
+    function _initConfig(bytes memory _config) internal virtual;
 
     /**
      * @dev Updates the library configuration

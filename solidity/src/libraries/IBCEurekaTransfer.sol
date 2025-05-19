@@ -35,6 +35,8 @@ contract IBCEurekaTransfer is Library {
     // Holds the current configuration for token transfers
     IBCEurekaTransferConfig public config;
 
+    event EurekaTransfer(string recipient, uint256 amount);
+
     /**
      * @dev Constructor initializes the contract with the owner, processor, and initial configuration.
      * @param _owner Address of the contract owner.
@@ -74,6 +76,14 @@ contract IBCEurekaTransfer is Library {
         }
 
         return decodedConfig;
+    }
+
+    /**
+     * @dev Internal initialization function called during construction
+     * @param _config New configuration
+     */
+    function _initConfig(bytes memory _config) internal override {
+        config = validateConfig(_config);
     }
 
     /**
@@ -147,5 +157,7 @@ contract IBCEurekaTransfer is Library {
         _config.inputAccount.execute(_config.transferToken, 0, encodedApproveCall);
         // Execute the token transfer call via the Eureka Handler.
         _config.inputAccount.execute(address(_config.eurekaHandler), 0, encodedTransferCall);
+
+        emit EurekaTransfer(_config.recipient, amountToTransfer);
     }
 }
