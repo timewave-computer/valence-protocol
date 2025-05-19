@@ -1,0 +1,20 @@
+[package]
+name       = "valence-supervaults-utils"
+authors    = { workspace = true }
+edition    = { workspace = true }
+license    = { workspace = true }
+version    = { workspace = true }
+repository = { workspace = true }
+
+[features]
+default = []
+
+[dependencies]
+cosmwasm-schema   = { workspace = true }
+cosmwasm-std      = { workspace = true }
+cw-ownable        = { workspace = true }
+cw-utils          = { workspace = true }
+serde             = { workspace = true }
+serde_json        = { workspace = true }
+thiserror         = { workspace = true }
+valence-macros    = { workspace = true }

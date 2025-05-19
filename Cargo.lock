@@ -9303,6 +9303,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-supervaults-utils"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-utils 2.0.0",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-template-library"
 version = "0.2.0"
 dependencies = [

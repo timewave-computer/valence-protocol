@@ -116,6 +116,7 @@ valence-program-registry       = { path = "contracts/program-registry", features
 valence-middleware-utils       = { path = "packages/middleware-utils" }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 valence-lending-utils          = { path = "packages/lending-utils" }
+valence-supervaults-utils      = { path = "packages/supervaults-utils" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
