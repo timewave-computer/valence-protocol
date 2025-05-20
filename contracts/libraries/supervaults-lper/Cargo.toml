@@ -24,6 +24,7 @@ valence-account-utils       = { workspace = true }
 # TODO: update these to point to respective releases once cut
 neutron-std                 = { git = "https://github.com/neutron-org/neutron-std.git", branch = "temp/pd_and_sod" }
 mmvault                     = { git = "https://github.com/neutron-org/slinky-vault.git", package = "mmvault" }
+valence-supervaults-utils   = { workspace = true }
 
 [dev-dependencies]
 valence-account-utils   = { workspace = true }

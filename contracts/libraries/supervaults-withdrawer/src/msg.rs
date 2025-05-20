@@ -1,14 +1,12 @@
-use std::fmt::Display;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{ensure, Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
-use neutron_std::types::neutron::util::precdec::PrecDec;
 use valence_library_utils::{
     error::LibraryError, liquidity_utils::AssetData, msg::LibraryConfigValidation,
     LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
+use valence_supervaults_utils::prec_dec_range::PrecDecimalRange;
 
 #[cw_serde]
 /// Validated library configuration
@@ -49,18 +47,6 @@ impl LibraryConfig {
         let vault_addr = api.addr_validate(&self.vault_addr)?;
 
         Ok((input_addr, output_addr, vault_addr))
-    }
-}
-
-#[cw_serde]
-pub struct PrecDecimalRange {
-    pub min: PrecDec,
-    pub max: PrecDec,
-}
-
-impl Display for PrecDecimalRange {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}, {}]", self.min, self.max)
     }
 }
 

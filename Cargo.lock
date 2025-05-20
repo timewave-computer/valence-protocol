@@ -9388,6 +9388,19 @@ dependencies = [
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
+ "valence-supervaults-utils",
+]
+
+[[package]]
+name = "valence-supervaults-utils"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "mmvault",
+ "neutron-std 5.1.2",
+ "valence-account-utils",
+ "valence-library-utils",
 ]
 
 [[package]]
@@ -9403,6 +9416,7 @@ dependencies = [
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
+ "valence-supervaults-utils",
 ]
 
 [[package]]

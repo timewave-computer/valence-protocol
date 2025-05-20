@@ -59,8 +59,9 @@ mod functions {
 
     use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
     use valence_library_utils::error::LibraryError;
+    use valence_supervaults_utils::prec_dec_range::PrecDecimalRange;
 
-    use crate::msg::{Config, FunctionMsgs, PrecDecimalRange};
+    use crate::msg::{Config, FunctionMsgs};
 
     pub fn process_function(
         deps: DepsMut,
@@ -77,9 +78,9 @@ mod functions {
     }
 
     fn try_withdraw_liquidity(
-        deps: DepsMut,
-        cfg: Config,
-        expected_vault_ratio_range: Option<PrecDecimalRange>,
+        _deps: DepsMut,
+        _cfg: Config,
+        _expected_vault_ratio_range: Option<PrecDecimalRange>,
     ) -> Result<Response, LibraryError> {
         Ok(Response::new())
     }

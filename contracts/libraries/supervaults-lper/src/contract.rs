@@ -63,15 +63,16 @@ mod execute {
 mod functions {
 
     use cosmwasm_std::{
-        ensure, to_json_binary, to_json_string, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+        ensure, to_json_binary, to_json_string, Coin, CosmosMsg, DepsMut, Env, MessageInfo,
         Response, SubMsg, WasmMsg,
     };
-    use neutron_std::types::neutron::util::precdec::PrecDec;
+
     use valence_library_utils::{error::LibraryError, execute_submsgs_on_behalf_of};
+    use valence_supervaults_utils::prec_dec_range::PrecDecimalRange;
 
     use crate::{
         contract::LP_REPLY_ID,
-        msg::{Config, FunctionMsgs, PrecDecimalRange},
+        msg::{Config, FunctionMsgs},
     };
 
     pub fn process_function(
@@ -114,14 +115,12 @@ mod functions {
         );
 
         // validate the expected price
-        let vault_price = query_vault_price(deps.as_ref(), cfg.vault_addr.to_string())?;
+        let vault_price = valence_supervaults_utils::queries::query_vault_price(
+            deps.as_ref(),
+            cfg.vault_addr.to_string(),
+        )?;
         if let Some(range) = expected_vault_ratio_range {
-            ensure!(
-                vault_price.ge(&range.min) && vault_price.lt(&range.max),
-                LibraryError::ExecutionError(format!(
-                    "expected range: {range}, got: {vault_price}"
-                ))
-            )
+            range.ensure_contains(vault_price)?;
         }
 
         // construct lp message
@@ -129,7 +128,6 @@ mod functions {
         let provide_liquidity_msg: CosmosMsg = WasmMsg::Execute {
             contract_addr: cfg.vault_addr.to_string(),
             msg: to_json_binary(&supervaults_deposit_msg)?,
-
             funds: provision_assets,
         }
         .into();
@@ -158,14 +156,6 @@ mod functions {
             .querier
             .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset2)?;
         Ok((balance_asset1, balance_asset2))
-    }
-
-    fn query_vault_price(deps: Deps, vault_addr: String) -> Result<PrecDec, LibraryError> {
-        let price_response: mmvault::msg::CombinedPriceResponse = deps
-            .querier
-            .query_wasm_smart(vault_addr, &mmvault::msg::QueryMsg::GetPrices {})?;
-
-        Ok(price_response.price_0_to_1)
     }
 }
 

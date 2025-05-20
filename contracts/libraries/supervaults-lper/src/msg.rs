@@ -1,14 +1,12 @@
-use std::fmt::Display;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Deps, DepsMut};
+use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
-use neutron_std::types::neutron::util::precdec::PrecDec;
 use valence_library_utils::{
     error::LibraryError, liquidity_utils::AssetData, msg::LibraryConfigValidation,
     LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
+use valence_supervaults_utils::{ensure_correct_vault, prec_dec_range::PrecDecimalRange};
 
 #[cw_serde]
 /// Validated library configuration
@@ -53,18 +51,6 @@ impl LibraryConfig {
 }
 
 #[cw_serde]
-pub struct PrecDecimalRange {
-    pub min: PrecDec,
-    pub max: PrecDec,
-}
-
-impl Display for PrecDecimalRange {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}, {}]", self.min, self.max)
-    }
-}
-
-#[cw_serde]
 pub enum FunctionMsgs {
     ProvideLiquidity {
         expected_vault_ratio_range: Option<PrecDecimalRange>,
@@ -93,7 +79,12 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
         let (input_addr, output_addr, vault_addr) = self.do_validate(deps.api)?;
 
-        ensure_correct_vault(deps, vault_addr.to_string(), &self.lp_config)?;
+        ensure_correct_vault(
+            deps,
+            vault_addr.to_string(),
+            &self.lp_config.asset_data,
+            &self.lp_config.lp_denom,
+        )?;
 
         Ok(Config {
             input_addr,
@@ -127,38 +118,11 @@ impl LibraryConfigUpdate {
         ensure_correct_vault(
             deps.as_ref(),
             config.vault_addr.to_string(),
-            &config.lp_config,
+            &config.lp_config.asset_data,
+            &config.lp_config.lp_denom,
         )?;
 
         valence_library_base::save_config(deps.storage, &config)?;
         Ok(())
     }
-}
-
-fn ensure_correct_vault(
-    deps: Deps,
-    vault_addr: String,
-    lp_config: &LiquidityProviderConfig,
-) -> Result<(), LibraryError> {
-    let vault_config: mmvault::state::Config = deps
-        .querier
-        .query_wasm_smart(vault_addr, &mmvault::msg::QueryMsg::GetConfig {})?;
-
-    ensure!(
-        lp_config.asset_data.asset1 == vault_config.pair_data.token_0.denom
-            && lp_config.asset_data.asset2 == vault_config.pair_data.token_1.denom,
-        LibraryError::ConfigurationError(
-            "Pool type does not match the expected pair type".to_string(),
-        )
-    );
-
-    ensure!(
-        vault_config.lp_denom == lp_config.lp_denom,
-        LibraryError::ConfigurationError(format!(
-            "Vault LP denom mismatch; expected: {}, got {}",
-            lp_config.lp_denom, vault_config.lp_denom
-        ))
-    );
-
-    Ok(())
 }
