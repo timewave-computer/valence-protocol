@@ -508,7 +508,7 @@ contract OneWayVault is
         nonReentrant
         whenNotPaused
     {
-        _validateWithdrawParams(owner, assets);
+        _validateWithdrawParams(owner, receiver, assets);
 
         // Check if assets exceed max withdraw amount
         uint256 maxAssets = maxWithdraw(owner);
@@ -531,7 +531,7 @@ contract OneWayVault is
         nonReentrant
         whenNotPaused
     {
-        _validateWithdrawParams(owner, shares);
+        _validateWithdrawParams(owner, receiver, shares);
 
         // Check if shares exceed max redeem amount
         uint256 maxShares = maxRedeem(owner);
@@ -650,10 +650,12 @@ contract OneWayVault is
     /**
      * @dev Internal function to validate common withdraw/redeem parameters
      * @param owner Address that owns the shares
+     * @param receiver Address to receive the assets on the destination domain (as string)
      * @param amount Amount of shares/assets to withdraw
      */
-    function _validateWithdrawParams(address owner, uint256 amount) internal pure {
+    function _validateWithdrawParams(address owner, string calldata receiver, uint256 amount) internal pure {
         if (owner == address(0)) revert("Owner of shares cannot be zero address");
+        if (bytes(receiver).length == 0) revert("Receiver cannot be empty");
         if (amount == 0) revert("Amount to withdraw cannot be zero");
     }
 
