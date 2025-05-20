@@ -89,6 +89,7 @@ valence-drop-liquid-unstaker         = { path = "contracts/libraries/drop-liquid
 valence-ica-cctp-transfer            = { path = "contracts/libraries/ica-cctp-transfer", features = ["library"] }
 valence-ica-ibc-transfer             = { path = "contracts/libraries/ica-ibc-transfer", features = ["library"] }
 valence-supervaults-lper             = { path = "contracts/libraries/supervaults-lper", features = ["library"] }
+valence-supervaults-withdrawer       = { path = "contracts/libraries/supervaults-withdrawer", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
