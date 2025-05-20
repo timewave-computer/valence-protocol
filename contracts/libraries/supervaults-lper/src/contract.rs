@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdResult,
+    ensure, to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdResult,
 };
 use valence_library_utils::{
     error::LibraryError,
@@ -61,9 +61,10 @@ mod execute {
 }
 
 mod functions {
+
     use cosmwasm_std::{
         ensure, to_json_binary, to_json_string, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-        Response, SubMsg, Uint128, WasmMsg,
+        Response, SubMsg, WasmMsg,
     };
     use neutron_std::types::neutron::util::precdec::PrecDec;
     use valence_library_utils::{error::LibraryError, execute_submsgs_on_behalf_of};
@@ -92,11 +93,24 @@ mod functions {
         cfg: Config,
         expected_vault_ratio_range: Option<PrecDecimalRange>,
     ) -> Result<Response, LibraryError> {
-        // ensure that the input account has the necessary funds
+        // query the input account pool asset balances
         let (balance_asset1, balance_asset2) = query_asset_balances(&deps, &cfg)?;
+
+        // filter out zero-amount balances
+        let provision_assets: Vec<Coin> = [balance_asset1, balance_asset2]
+            .iter()
+            .filter_map(|c| match c.amount.is_zero() {
+                true => None,
+                false => Some(c.clone()),
+            })
+            .collect();
+
+        // ensure that the input account has the necessary funds for liquidity provision
         ensure!(
-            balance_asset1.amount > Uint128::zero() || balance_asset2.amount > Uint128::zero(),
-            LibraryError::ExecutionError("input account vault denom balances 0".to_string(),)
+            !provision_assets.is_empty(),
+            LibraryError::ExecutionError(
+                "liquidity provision requires at least one input denom".to_string()
+            )
         );
 
         // validate the expected price
@@ -104,9 +118,9 @@ mod functions {
         if let Some(range) = expected_vault_ratio_range {
             ensure!(
                 vault_price.ge(&range.min) && vault_price.lt(&range.max),
-                LibraryError::ExecutionError(
-                    "vault price not within the expected range".to_string()
-                )
+                LibraryError::ExecutionError(format!(
+                    "expected range: {range}, got: {vault_price}"
+                ))
             )
         }
 
@@ -115,7 +129,8 @@ mod functions {
         let provide_liquidity_msg: CosmosMsg = WasmMsg::Execute {
             contract_addr: cfg.vault_addr.to_string(),
             msg: to_json_binary(&supervaults_deposit_msg)?,
-            funds: vec![balance_asset1, balance_asset2],
+
+            funds: provision_assets,
         }
         .into();
 
@@ -169,17 +184,17 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
 
             ensure!(
                 !balance.amount.is_zero(),
-                LibraryError::ExecutionError("No LP tokens".to_string())
+                LibraryError::ExecutionError("input account shares balance is zero".to_string())
             );
 
-            // construct the share transfer message to the output account
-            let lp_share_transfer_msg: CosmosMsg = BankMsg::Send {
+            // construct the resulting share transfer message to the output account
+            let lp_share_transfer_msg = BankMsg::Send {
                 to_address: cfg.output_addr.to_string(),
                 amount: vec![balance],
-            }
-            .into();
+            };
 
-            let delegated_msg = execute_on_behalf_of(vec![lp_share_transfer_msg], &cfg.input_addr)?;
+            let delegated_msg =
+                execute_on_behalf_of(vec![lp_share_transfer_msg.into()], &cfg.input_addr)?;
 
             Ok(Response::default().add_message(delegated_msg))
         }

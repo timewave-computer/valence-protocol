@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{ensure, Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
@@ -61,6 +63,12 @@ pub struct CombinedPriceResponse {
 pub struct PrecDecimalRange {
     pub min: PrecDec,
     pub max: PrecDec,
+}
+
+impl Display for PrecDecimalRange {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}, {}]", self.min, self.max)
+    }
 }
 
 #[cw_serde]
