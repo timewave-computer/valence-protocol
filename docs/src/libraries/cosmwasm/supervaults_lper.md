@@ -13,11 +13,11 @@ graph LR
   OA((Output Account))
   P[Processor]
   S[Supervaults<br>Liquidity<br>Provider]
-  AP[Supervault]
+  SV[Supervault]
   P -- 1/Provide Liquidity --> S
   S -- 2/Query balances --> IA
   S -- 3/Try Provide Liquidity --> IA
-  IA -- 4/Provide Liquidity [Tokens] --> AP
+  IA -- 4/Provide Liquidity [Tokens] --> SV
   IA -- 4'/Transfer LP Tokens --> OA
 ```
 
