@@ -53,13 +53,6 @@ impl LibraryConfig {
 }
 
 #[cw_serde]
-pub struct CombinedPriceResponse {
-    pub token_0_price: PrecDec,
-    pub token_1_price: PrecDec,
-    pub price_0_to_1: PrecDec,
-}
-
-#[cw_serde]
 pub struct PrecDecimalRange {
     pub min: PrecDec,
     pub max: PrecDec,
@@ -147,10 +140,9 @@ fn ensure_correct_vault(
     vault_addr: String,
     lp_config: &LiquidityProviderConfig,
 ) -> Result<(), LibraryError> {
-    let vault_config: valence_supervaults_utils::state::Config = deps.querier.query_wasm_smart(
-        vault_addr,
-        &valence_supervaults_utils::msg::QueryMsg::GetConfig {},
-    )?;
+    let vault_config: mmvault::state::Config = deps
+        .querier
+        .query_wasm_smart(vault_addr, &mmvault::msg::QueryMsg::GetConfig {})?;
 
     ensure!(
         lp_config.asset_data.asset1 == vault_config.pair_data.token_0.denom

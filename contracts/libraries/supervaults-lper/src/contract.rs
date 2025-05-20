@@ -71,7 +71,7 @@ mod functions {
 
     use crate::{
         contract::LP_REPLY_ID,
-        msg::{CombinedPriceResponse, Config, FunctionMsgs, PrecDecimalRange},
+        msg::{Config, FunctionMsgs, PrecDecimalRange},
     };
 
     pub fn process_function(
@@ -125,7 +125,7 @@ mod functions {
         }
 
         // construct lp message
-        let supervaults_deposit_msg = valence_supervaults_utils::msg::ExecuteMsg::Deposit {};
+        let supervaults_deposit_msg = mmvault::msg::ExecuteMsg::Deposit {};
         let provide_liquidity_msg: CosmosMsg = WasmMsg::Execute {
             contract_addr: cfg.vault_addr.to_string(),
             msg: to_json_binary(&supervaults_deposit_msg)?,
@@ -161,10 +161,9 @@ mod functions {
     }
 
     fn query_vault_price(deps: Deps, vault_addr: String) -> Result<PrecDec, LibraryError> {
-        let price_response: CombinedPriceResponse = deps.querier.query_wasm_smart(
-            vault_addr,
-            &valence_supervaults_utils::msg::QueryMsg::GetPrices {},
-        )?;
+        let price_response: mmvault::msg::CombinedPriceResponse = deps
+            .querier
+            .query_wasm_smart(vault_addr, &mmvault::msg::QueryMsg::GetPrices {})?;
 
         Ok(price_response.price_0_to_1)
     }

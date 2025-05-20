@@ -20,9 +20,10 @@ cw-ownable                  = { workspace = true }
 valence-macros              = { workspace = true }
 valence-library-utils       = { workspace = true }
 valence-library-base        = { workspace = true }
-valence-supervaults-utils   = { workspace = true }
-neutron-std                 = { git = "https://github.com/neutron-org/neutron-std.git", rev = "d0850ae" }
 valence-account-utils       = { workspace = true }
+# TODO: update these to point to respective releases once cut
+neutron-std                 = { git = "https://github.com/neutron-org/neutron-std.git", branch = "temp/pd_and_sod" }
+mmvault                     = { git = "https://github.com/neutron-org/slinky-vault.git", package = "mmvault" }
 
 [dev-dependencies]
 valence-account-utils   = { workspace = true }
