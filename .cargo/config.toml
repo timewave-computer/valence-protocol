@@ -2,3 +2,4 @@
 wasm       = "build --release --lib --target wasm32-unknown-unknown"
 wasm-debug = "build --lib --target wasm32-unknown-unknown"
 clippy-all = "clippy --all-targets -- -D warnings"
+core-test  = "test --workspace --exclude valence-program-manager --exclude valence-e2e --verbose"
