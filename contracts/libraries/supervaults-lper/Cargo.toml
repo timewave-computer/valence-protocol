@@ -21,6 +21,4 @@ valence-macros              = { workspace = true }
 valence-library-utils       = { workspace = true }
 valence-library-base        = { workspace = true }
 valence-account-utils       = { workspace = true }
-# TODO: update these to point to respective releases once cut
-mmvault                     = { git = "https://github.com/neutron-org/slinky-vault", package = "mmvault" }
 valence-supervaults-utils   = { workspace = true }

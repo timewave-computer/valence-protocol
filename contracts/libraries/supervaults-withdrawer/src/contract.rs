@@ -93,17 +93,6 @@ mod functions {
         cfg: Config,
         expected_vault_ratio_range: Option<PrecDecimalRange>,
     ) -> Result<Response, LibraryError> {
-        // if expected vault ratio range is specified, we validate it
-        if let Some(range) = expected_vault_ratio_range {
-            // query the current vault price
-            let vault_price = valence_supervaults_utils::queries::query_vault_price(
-                deps.as_ref(),
-                cfg.vault_addr.to_string(),
-            )?;
-            // validate the query result against the specified range
-            range.ensure_contains(vault_price)?;
-        }
-
         // assert that the input account has available lp shares in their balance
         let input_acc_lp_bal = deps.querier.query_balance(
             cfg.input_addr.to_string(),
@@ -117,13 +106,23 @@ mod functions {
             )
         );
 
+        // if expected vault ratio range is specified, we validate it
+        if let Some(range) = expected_vault_ratio_range {
+            // query the current vault price
+            let vault_price = valence_supervaults_utils::queries::query_vault_price(
+                deps.as_ref(),
+                cfg.vault_addr.to_string(),
+            )?;
+            // validate the query result against the specified range
+            range.ensure_contains(vault_price)?;
+        }
+
         // construct the supervaults withdraw message
-        let supervaults_withdraw_msg = mmvault::msg::ExecuteMsg::Withdraw {
-            amount: input_acc_lp_bal.amount,
-        };
         let withdraw_msg = WasmMsg::Execute {
             contract_addr: cfg.vault_addr.to_string(),
-            msg: to_json_binary(&supervaults_withdraw_msg)?,
+            msg: to_json_binary(&valence_supervaults_utils::msg::get_mmvault_withdraw_msg(
+                input_acc_lp_bal.amount,
+            ))?,
             funds: vec![input_acc_lp_bal],
         };
 

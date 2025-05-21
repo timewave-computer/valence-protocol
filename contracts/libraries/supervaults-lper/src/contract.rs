@@ -95,7 +95,12 @@ mod functions {
         expected_vault_ratio_range: Option<PrecDecimalRange>,
     ) -> Result<Response, LibraryError> {
         // query the input account pool asset balances
-        let (balance_asset1, balance_asset2) = query_asset_balances(&deps, &cfg)?;
+        let balance_asset1 = deps
+            .querier
+            .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset1)?;
+        let balance_asset2 = deps
+            .querier
+            .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset2)?;
 
         // filter out zero-amount balances
         let provision_assets: Vec<Coin> = [balance_asset1, balance_asset2]
@@ -123,10 +128,9 @@ mod functions {
         }
 
         // construct lp message
-        let supervaults_deposit_msg = mmvault::msg::ExecuteMsg::Deposit {};
         let provide_liquidity_msg: CosmosMsg = WasmMsg::Execute {
             contract_addr: cfg.vault_addr.to_string(),
-            msg: to_json_binary(&supervaults_deposit_msg)?,
+            msg: to_json_binary(&valence_supervaults_utils::msg::get_mmvault_deposit_msg())?,
             funds: provision_assets,
         }
         .into();
@@ -145,16 +149,6 @@ mod functions {
             delegated_input_account_submsgs,
             LP_REPLY_ID,
         )))
-    }
-
-    fn query_asset_balances(deps: &DepsMut, cfg: &Config) -> Result<(Coin, Coin), LibraryError> {
-        let balance_asset1 = deps
-            .querier
-            .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset1)?;
-        let balance_asset2 = deps
-            .querier
-            .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset2)?;
-        Ok((balance_asset1, balance_asset2))
     }
 }
 

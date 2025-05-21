@@ -1,6 +1,7 @@
 use cosmwasm_std::{ensure, Deps};
 use valence_library_utils::{error::LibraryError, liquidity_utils::AssetData};
 
+pub mod msg;
 pub mod prec_dec_range;
 pub mod queries;
 

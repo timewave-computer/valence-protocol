@@ -5112,7 +5112,7 @@ dependencies = [
 [[package]]
 name = "mmvault"
 version = "0.1.4"
-source = "git+https://github.com/neutron-org/slinky-vault#0432ad77ca44c8166401a31e4b7319cbf9cdebeb"
+source = "git+https://github.com/neutron-org/slinky-vault.git#0432ad77ca44c8166401a31e4b7319cbf9cdebeb"
 dependencies = [
  "cosmwasm-std 2.2.1",
  "cw-storage-plus 2.0.0",
@@ -9382,7 +9382,6 @@ dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-ownable",
- "mmvault",
  "valence-account-utils",
  "valence-library-base",
  "valence-library-utils",
@@ -9409,7 +9408,6 @@ dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-ownable",
- "mmvault",
  "valence-account-utils",
  "valence-library-base",
  "valence-library-utils",
