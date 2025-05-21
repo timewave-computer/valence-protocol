@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Splitter - Valence Protocol Documentation</title>
+        <title>Supervaults LPer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -160,77 +160,59 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-splitter-library"><a class="header" href="#valence-splitter-library">Valence Splitter library</a></h1>
-<p>The <strong>Valence Splitter</strong> library allows to <strong>split funds</strong> from <strong>one input account</strong> to <strong>one or more output account(s)</strong>, for <strong>one or more token denom(s)</strong> according to the configured <strong>ratio(s)</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
+                        <h1 id="supervaults-liquidity-provider-library"><a class="header" href="#supervaults-liquidity-provider-library">Supervaults Liquidity Provider library</a></h1>
+<p>The <strong>Valence Supervaults LPer library</strong> library allows to <strong>provide liquidity</strong> into <strong>Neutron Supervaults</strong> from an <strong>input account</strong> and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Splitter Library
+title: Supervaults Liquidity Provider
 ---
 graph LR
-  IA((Input
-      Account))
-  OA1((Output
-		  Account 1))
-	OA2((Output
-		  Account 2))
+  IA((Input Account))
+  OA((Output Account))
   P[Processor]
-  S[Splitter
-    Library]
-  C[Contract]
-  P -- 1/Split --&gt; S
+  S[Supervaults&lt;br&gt;Liquidity&lt;br&gt;Provider]
+  SV[Supervault]
+  P -- 1/Provide Liquidity --&gt; S
   S -- 2/Query balances --&gt; IA
-  S -. 3/Query split ratio .-&gt; C
-  S -- 4/Do Send funds --&gt; IA
-  IA -- 5/Send funds --&gt; OA1
-  IA -- 5'/Send funds --&gt; OA2
+  S -- 3/Try Provide Liquidity --&gt; IA
+  IA -- 4/Provide Liquidity [Tokens] --&gt; SV
+  IA -- 4'/Transfer LP Tokens --&gt; OA
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>Split</strong></td><td>-</td><td>Split funds from the configured <strong>input account</strong> to the <strong>output account(s)</strong>, according to the configured <strong>token denom(s)</strong> and <strong>ratio(s)</strong>.</td></tr>
+<tr><td><strong>ProvideLiquidity</strong></td><td><code>expected_vault_ratio_range: Option&lt;PrecDecimalRange&gt;</code></td><td>Provide liquidity to the pre-configured <strong>Supervault</strong> from the <strong>input account</strong>, using available balances of both assets, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort if the vault price ratio is not within the <code>expected_vault_ratio_range</code> (if specified). <em>Note</em>: <code>PrecDec</code> is a 27 decimal precision value.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>struct LibraryConfig {
-    input_addr: LibraryAccountType,    // Address of the input account
-    splits: Vec&lt;UncheckedSplitConfig&gt;, // Split configuration per denom
+</span>pub struct LibraryConfig {
+    // Account from which the funds are LPed
+    pub input_addr: LibraryAccountType,
+    // Account to which the LP tokens are forwarded
+    pub output_addr: LibraryAccountType,
+    // Supervault address
+    pub vault_addr: String,
+    // LP configuration
+    pub lp_config: LiquidityProviderConfig,
 }
 
-// Split config for specified account
-struct UncheckedSplitConfig {
-  denom: UncheckedDenom,          // Denom for this split configuration (either native or CW20)
-  account: LibraryAccountType,    // Address of the output account for this split config
-  amount: UncheckedSplitAmount,   // Fixed amount of tokens or an amount defined based on a ratio
+pub struct LiquidityProviderConfig {
+    // Denoms of both native assets we are going to provide liquidity for
+    pub asset_data: AssetData,
+    // LP token denom for the supervault
+    pub lp_denom: String,
 }
 
-// Split amount configuration, either a fixed amount of tokens or an amount defined based on a ratio
-enum UncheckedSplitAmount {
-  FixedAmount(Uint128),       // Fixed amount of tokens
-  FixedRatio(Decimal),        // Fixed ratio e.g. 0.0262 for NTRN/STARS (or could be another arbitrary ratio)
-  DynamicRatio {              // Dynamic ratio calculation (delegated to external contract)
-    contract_addr: "&lt;TWAP Oracle wrapper contract address&gt;",
-    params: "base64-encoded arbitrary payload to send in addition to the denoms"
-  }
+pub struct PrecDecimalRange {
+    pub min: PrecDec,
+    pub max: PrecDec,
 }
 
-// Standard query &amp; response for contract computing a dynamic ratio
-// for the Splitter &amp; Reverse Splitter libraries.
-#[cw_serde]
-#[derive(QueryResponses)]
-pub enum DynamicRatioQueryMsg {
-    #[returns(DynamicRatioResponse)]
-    DynamicRatio {
-        denoms: Vec&lt;String&gt;,
-        params: String,
-    }
-}
-
-#[cw_serde]
-// Response returned by the external contract for a dynamic ratio
-struct DynamicRatioResponse {
-    pub denom_ratios: HashMap&lt;String, Decimal&gt;,
+pub struct AssetData {
+    pub asset1: String,
+    pub asset2: String,
 }
 <span class="boring">}</span></code></pre></pre>
 
@@ -238,11 +220,11 @@ struct DynamicRatioResponse {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/reverse_splitter.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/splitter.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/cosmwasm/supervaults_lper.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/cosmwasm/neutron_ic_querier.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -252,11 +234,11 @@ struct DynamicRatioResponse {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/reverse_splitter.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/splitter.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/cosmwasm/supervaults_lper.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/cosmwasm/neutron_ic_querier.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
