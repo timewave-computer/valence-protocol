@@ -26,8 +26,10 @@ contract AuthorizationStandardTest is Test {
     address owner = address(0x1);
     address admin = address(0x2);
     address user = address(0x3);
-    address[] users = new address[](1);
-    address[] contracts = new address[](1);
+    address[][] users = new address[][](1);
+    string[] labels = new string[](1);
+    string updateConfigLabel = "updateConfig";
+    Authorization.AuthorizationData[][] authorizationData = new Authorization.AuthorizationData[][](1);
     bytes[] calls = new bytes[](1);
     address unauthorized = address(0x4);
     address mockERC20 = address(0x5);
@@ -66,9 +68,14 @@ contract AuthorizationStandardTest is Test {
         updateConfigCall = abi.encodeWithSelector(Forwarder.updateConfig.selector, newForwarderConfig);
 
         // Create arrays for the batch function
-        users[0] = user;
-        contracts[0] = address(forwarder);
-        calls[0] = updateConfigCall;
+        users[0] = new address[](1);
+        users[0][0] = user;
+        labels[0] = updateConfigLabel;
+        authorizationData[0] = new Authorization.AuthorizationData[](1);
+        authorizationData[0][0] = Authorization.AuthorizationData({
+            contractAddress: address(forwarder),
+            callHash: keccak256(updateConfigCall)
+        });
 
         vm.stopPrank();
     }
@@ -83,7 +90,7 @@ contract AuthorizationStandardTest is Test {
 
         // Should fail because unauthorized user
         vm.expectRevert("Unauthorized access");
-        auth.sendProcessorMessage(encodedMessage);
+        auth.sendProcessorMessage("anyLabel", encodedMessage);
 
         vm.stopPrank();
     }
@@ -103,7 +110,7 @@ contract AuthorizationStandardTest is Test {
         bytes memory encodedMessage = abi.encode(processorMessage);
 
         // Execute and verify
-        auth.sendProcessorMessage(encodedMessage);
+        auth.sendProcessorMessage("anyLabel", encodedMessage);
         assertTrue(processor.paused(), "Processor should be paused");
 
         // Create Resume message (admin-only)
@@ -114,7 +121,7 @@ contract AuthorizationStandardTest is Test {
         encodedMessage = abi.encode(processorMessage);
 
         // Execute and verify
-        auth.sendProcessorMessage(encodedMessage);
+        auth.sendProcessorMessage("anyLabel", encodedMessage);
         assertFalse(processor.paused(), "Processor should be resumed");
 
         vm.stopPrank();
@@ -132,7 +139,7 @@ contract AuthorizationStandardTest is Test {
 
         // Should fail because user is not admin
         vm.expectRevert("Unauthorized access");
-        auth.sendProcessorMessage(encodedMessage);
+        auth.sendProcessorMessage("anyLabel", encodedMessage);
 
         vm.stopPrank();
     }
@@ -234,37 +241,34 @@ contract AuthorizationStandardTest is Test {
      */
     function testAddStandardAuthorization() public {
         vm.prank(owner);
-        auth.addStandardAuthorizations(users, contracts, calls);
+        auth.addStandardAuthorizations(labels, users, authorizationData);
 
-        assertTrue(
-            auth.authorizations(user, address(forwarder), keccak256(updateConfigCall)),
-            "Authorization should be granted"
-        );
+        address labelAddress = auth.authorizations(labels[0], 0);
+        assertEq(labelAddress, users[0][0], "User should be authorized");
     }
 
     /**
      * @notice Test adding a permissionless authorization (zero address)
      */
     function testAddPermissionlessAuthorization() public {
-        users[0] = address(0);
+        users[0][0] = address(0);
         vm.prank(owner);
-        auth.addStandardAuthorizations(users, contracts, calls);
+        auth.addStandardAuthorizations(labels, users, authorizationData);
 
-        assertTrue(
-            auth.authorizations(address(0), address(forwarder), keccak256(updateConfigCall)),
-            "Permissionless authorization should be granted"
-        );
+        address labelAddress = auth.authorizations(labels[0], 0);
+        assertEq(labelAddress, address(0), "Permissionless access should be authorized");
     }
 
     function test_RevertWhen_AddingInvalidAuthorization() public {
         // Create arrays for the batch function
-        address[] memory invalidUsers = new address[](2);
-        invalidUsers[0] = user;
-        invalidUsers[1] = address(0);
+        address[][] memory invalidUsers = new address[][](2);
+        invalidUsers[0] = new address[](1);
+        invalidUsers[0][0] = user;
+        invalidUsers[1] = new address[](0);
 
         vm.prank(owner);
         vm.expectRevert("Array lengths must match");
-        auth.addStandardAuthorizations(invalidUsers, contracts, calls);
+        auth.addStandardAuthorizations(labels, invalidUsers, authorizationData);
     }
 
     /**
@@ -274,14 +278,13 @@ contract AuthorizationStandardTest is Test {
         vm.startPrank(owner);
 
         // Add authorization
-        auth.addStandardAuthorizations(users, contracts, calls);
+        auth.addStandardAuthorizations(labels, users, authorizationData);
 
         // Remove authorization and verify
-        auth.removeStandardAuthorizations(users, contracts, calls);
-        assertFalse(
-            auth.authorizations(user, address(forwarder), keccak256(updateConfigCall)),
-            "Authorization should be removed"
-        );
+        auth.removeStandardAuthorizations(labels);
+
+        vm.expectRevert();
+        auth.authorizations(labels[0], 0); // This should revert if the array is empty
 
         vm.stopPrank();
     }
@@ -291,13 +294,13 @@ contract AuthorizationStandardTest is Test {
     function testSendProcessorMessageAuthorized() public {
         // Authorize user
         vm.prank(owner);
-        auth.addStandardAuthorizations(users, contracts, calls);
+        auth.addStandardAuthorizations(labels, users, authorizationData);
 
         vm.startPrank(user);
 
         // Create and send processor message
         bytes memory encodedMessage = createSendMsgsMessage(updateConfigCall);
-        auth.sendProcessorMessage(encodedMessage);
+        auth.sendProcessorMessage(updateConfigLabel, encodedMessage);
 
         // Verify executionId was incremented
         assertEq(auth.executionId(), 1, "Execution ID should be incremented");
@@ -318,14 +321,14 @@ contract AuthorizationStandardTest is Test {
     function testSendProcessorMessagePermissionless() public {
         // Add permissionless authorization
         vm.prank(owner);
-        users[0] = address(0);
-        auth.addStandardAuthorizations(users, contracts, calls);
+        users[0][0] = address(0);
+        auth.addStandardAuthorizations(labels, users, authorizationData);
 
         vm.startPrank(unauthorized);
 
         // Create and send processor message
         bytes memory encodedMessage = createSendMsgsMessage(updateConfigCall);
-        auth.sendProcessorMessage(encodedMessage);
+        auth.sendProcessorMessage(updateConfigLabel, encodedMessage);
 
         // Verify executionId was incremented
         assertEq(auth.executionId(), 1, "Execution ID should be incremented");
