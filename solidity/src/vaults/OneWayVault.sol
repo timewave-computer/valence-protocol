@@ -225,7 +225,7 @@ contract OneWayVault is
 
         unchecked {
             ONE_SHARE = 10 ** decimals();
-            redemptionRate = startingRate; // Initialize at specified starting rate (1:1)
+            redemptionRate = startingRate; // Initialize at specified starting rate
         }
     }
 
