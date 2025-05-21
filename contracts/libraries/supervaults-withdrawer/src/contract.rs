@@ -151,10 +151,10 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
             // query the input account resulting asset balance after withdrawal
             let asset1_balance = deps
                 .querier
-                .query_balance(cfg.input_addr.clone(), cfg.lw_config.asset_data.asset1)?;
+                .query_balance(&cfg.input_addr, &cfg.lw_config.asset_data.asset1)?;
             let asset2_balance = deps
                 .querier
-                .query_balance(cfg.input_addr.clone(), cfg.lw_config.asset_data.asset2)?;
+                .query_balance(&cfg.input_addr, &cfg.lw_config.asset_data.asset2)?;
 
             // filter out zero-amount balances
             let available_assets: Vec<Coin> = [asset1_balance, asset2_balance]

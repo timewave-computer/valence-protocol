@@ -5181,7 +5181,7 @@ dependencies = [
 [[package]]
 name = "mmvault"
 version = "0.1.4"
-source = "git+https://github.com/neutron-org/slinky-vault.git#0432ad77ca44c8166401a31e4b7319cbf9cdebeb"
+source = "git+https://github.com/neutron-org/slinky-vault#0432ad77ca44c8166401a31e4b7319cbf9cdebeb"
 dependencies = [
  "cosmwasm-std 2.2.2",
  "cw-storage-plus 2.0.0",
@@ -5238,14 +5238,14 @@ dependencies = [
 [[package]]
 name = "neutron-std"
 version = "5.1.2"
-source = "git+https://github.com/neutron-org/neutron-std.git?branch=temp%2Fpd_and_sod#d0850ae013a37b7623b7e273938291ff3d784003"
+source = "git+https://github.com/neutron-org/neutron-std?branch=temp%2Fpd_and_sod#d0850ae013a37b7623b7e273938291ff3d784003"
 dependencies = [
  "bech32 0.9.1",
  "chrono",
  "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.2.2",
  "cosmwasm-std 2.2.2",
- "neutron-std-derive 0.20.1 (git+https://github.com/neutron-org/neutron-std.git?branch=temp%2Fpd_and_sod)",
+ "neutron-std-derive 0.20.1 (git+https://github.com/neutron-org/neutron-std?branch=temp%2Fpd_and_sod)",
  "prost 0.12.6",
  "prost-types 0.12.6",
  "protobuf 3.3.0",
@@ -5300,7 +5300,7 @@ dependencies = [
 [[package]]
 name = "neutron-std-derive"
 version = "0.20.1"
-source = "git+https://github.com/neutron-org/neutron-std.git?branch=temp%2Fpd_and_sod#d0850ae013a37b7623b7e273938291ff3d784003"
+source = "git+https://github.com/neutron-org/neutron-std?branch=temp%2Fpd_and_sod#d0850ae013a37b7623b7e273938291ff3d784003"
 dependencies = [
  "itertools 0.10.5",
  "proc-macro2",

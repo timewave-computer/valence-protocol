@@ -162,7 +162,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
             // query account resulting LP balance
             let balance = deps
                 .querier
-                .query_balance(cfg.input_addr.clone(), cfg.lp_config.lp_denom.clone())?;
+                .query_balance(&cfg.input_addr, &cfg.lp_config.lp_denom)?;
 
             ensure!(
                 !balance.amount.is_zero(),
