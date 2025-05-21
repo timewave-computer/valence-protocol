@@ -5110,6 +5110,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "mmvault"
+version = "0.1.4"
+source = "git+https://github.com/neutron-org/slinky-vault#0432ad77ca44c8166401a31e4b7319cbf9cdebeb"
+dependencies = [
+ "cosmwasm-std 2.2.1",
+ "cw-storage-plus 2.0.0",
+ "cw2 2.0.0",
+ "neutron-std 5.1.2",
+ "prost 0.12.6",
+ "prost-types 0.12.6",
+ "schemars",
+ "serde",
+ "serde_json",
+ "test-case",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5150,6 +5168,30 @@ dependencies = [
 
 [[package]]
 name = "neutron-std"
+version = "5.1.2"
+source = "git+https://github.com/neutron-org/neutron-std?branch=temp%2Fpd_and_sod#d0850ae013a37b7623b7e273938291ff3d784003"
+dependencies = [
+ "bech32 0.9.1",
+ "chrono",
+ "cosmos-sdk-proto 0.20.0",
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "neutron-std-derive 0.20.1 (git+https://github.com/neutron-org/neutron-std?branch=temp%2Fpd_and_sod)",
+ "prost 0.12.6",
+ "prost-types 0.12.6",
+ "protobuf 3.3.0",
+ "schemars",
+ "serde",
+ "serde-cw-value",
+ "serde-json-wasm 1.0.1",
+ "serde_json",
+ "speedate",
+ "tendermint-proto 0.34.1",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "neutron-std"
 version = "5.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd808afc35eaeb219789e6e508a0dff51a195d557212b7fbcc2f4a33b9bd8d7"
@@ -5159,7 +5201,7 @@ dependencies = [
  "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "neutron-std-derive",
+ "neutron-std-derive 0.20.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "prost 0.12.6",
  "prost-types 0.12.6",
  "protobuf 3.3.0",
@@ -5178,6 +5220,18 @@ name = "neutron-std-derive"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22f4948005dcbb0c4eb644141d00dcbdc422b1b7024fb008712ca2960392ec11"
+dependencies = [
+ "itertools 0.10.5",
+ "proc-macro2",
+ "prost-types 0.12.6",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "neutron-std-derive"
+version = "0.20.1"
+source = "git+https://github.com/neutron-org/neutron-std?branch=temp%2Fpd_and_sod#d0850ae013a37b7623b7e273938291ff3d784003"
 dependencies = [
  "itertools 0.10.5",
  "proc-macro2",
@@ -7696,6 +7750,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-case"
+version = "3.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb2550dd13afcd286853192af8601920d959b14c401fcece38071d53bf0768a8"
+dependencies = [
+ "test-case-macros",
+]
+
+[[package]]
+name = "test-case-core"
+version = "3.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adcb7fd841cd518e279be3d5a3eb0636409487998a4aff22f3de87b81e88384f"
+dependencies = [
+ "cfg-if",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
+]
+
+[[package]]
+name = "test-case-macros"
+version = "3.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c89e72a01ed4c579669add59014b9a524d609c0c88c6a585ce37485879f6ffb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
+ "test-case-core",
+]
+
+[[package]]
 name = "test-tube"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8522,7 +8609,7 @@ dependencies = [
  "hex",
  "ibc",
  "log",
- "neutron-std",
+ "neutron-std 5.1.4",
  "prost 0.13.5",
  "serde",
  "serde_json",
@@ -9286,6 +9373,21 @@ dependencies = [
  "thiserror 1.0.69",
  "valence-account-utils",
  "valence-middleware-utils",
+]
+
+[[package]]
+name = "valence-supervaults-lper"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "mmvault",
+ "neutron-std 5.1.2",
+ "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
 ]
 
 [[package]]
