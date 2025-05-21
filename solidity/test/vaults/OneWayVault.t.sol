@@ -114,7 +114,7 @@ contract OneWayVaultTest is Test {
             BaseAccount initializedDepositAccount,
             address initializedStrategist,
             uint32 initializedDepositFeeBps,
-            uint128 initializedDepositCap,
+            uint256 initializedDepositCap,
             OneWayVault.FeeDistributionConfig memory initializedFeeDistribution
         ) = vault.config();
 
@@ -168,7 +168,7 @@ contract OneWayVaultTest is Test {
             ,
             address updatedStrategist,
             uint32 updatedDepositFeeBps,
-            uint128 updatedDepositCap,
+            uint256 updatedDepositCap,
             OneWayVault.FeeDistributionConfig memory updatedFeeDistribution
         ) = vault.config();
 

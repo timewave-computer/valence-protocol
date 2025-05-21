@@ -117,7 +117,7 @@ contract OneWayVault is
         BaseAccount depositAccount;
         address strategist;
         uint32 depositFeeBps;
-        uint128 depositCap;
+        uint256 depositCap;
         FeeDistributionConfig feeDistribution;
     }
 
@@ -223,10 +223,8 @@ contract OneWayVault is
         config = abi.decode(_config, (OneWayVaultConfig));
         _validateConfig(config);
 
-        unchecked {
-            ONE_SHARE = 10 ** decimals();
-            redemptionRate = startingRate; // Initialize at specified starting rate
-        }
+        ONE_SHARE = 10 ** decimals();
+        redemptionRate = startingRate; // Initialize at specified starting rate
     }
 
     /**
@@ -299,7 +297,7 @@ contract OneWayVault is
      * @return Maximum deposit amount allowed
      */
     function maxDeposit(address) public view override returns (uint256) {
-        uint128 cap = config.depositCap;
+        uint256 cap = config.depositCap;
         if (cap == 0) {
             return type(uint256).max;
         }
@@ -309,9 +307,7 @@ contract OneWayVault is
             return 0;
         }
 
-        unchecked {
-            return cap - totalDeposits;
-        }
+        return cap - totalDeposits;
     }
 
     /**
@@ -320,7 +316,7 @@ contract OneWayVault is
      * @return Maximum shares that can be minted
      */
     function maxMint(address) public view override returns (uint256) {
-        uint128 cap = config.depositCap;
+        uint256 cap = config.depositCap;
         if (cap == 0) {
             return type(uint256).max;
         }
@@ -348,9 +344,7 @@ contract OneWayVault is
 
         uint256 depositFee = calculateDepositFee(assets);
         uint256 assetsAfterFee;
-        unchecked {
-            assetsAfterFee = assets - depositFee;
-        }
+        assetsAfterFee = assets - depositFee;
 
         if (depositFee > 0) {
             feesOwedInAsset += depositFee;
@@ -465,13 +459,7 @@ contract OneWayVault is
         uint256 grossAssets = baseAssets.mulDiv(BASIS_POINTS, BASIS_POINTS - feeBps, Math.Rounding.Ceil);
 
         uint256 fee;
-        unchecked {
-            fee = grossAssets - baseAssets;
-        }
-
-        if (fee > type(uint256).max) {
-            revert("Fee exceeds uint256 max");
-        }
+        fee = grossAssets - baseAssets;
 
         return (grossAssets, fee);
     }
@@ -489,11 +477,6 @@ contract OneWayVault is
         if (feeBps == 0) return 0;
 
         uint256 fee = assets.mulDiv(feeBps, BASIS_POINTS, Math.Rounding.Ceil);
-
-        // Check if fee exceeds uint256 max value
-        if (fee > type(uint256).max) {
-            revert("Fee exceeds uint256 max");
-        }
 
         return fee;
     }
