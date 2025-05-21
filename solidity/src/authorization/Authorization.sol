@@ -273,13 +273,18 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         for (uint256 i = 0; i < _labels.length; i++) {
             // Get the label and the authorization data
             string memory label = _labels[i];
+            address[] memory users = _users[i];
+            // Check that users is not empty
+            require(users.length > 0, "Users array cannot be empty");
             AuthorizationData[] memory authorizationData = _authorizationData[i];
+            // Check that the authorization data is not empty
+            require(authorizationData.length > 0, "Authorization data array cannot be empty");
 
             // Add the label to the mapping
-            authorizations[label] = _users[i];
-
+            authorizations[label] = users;
             // Add the authorization data to the mapping
             authorizationsData[label] = authorizationData;
+
             emit AuthorizationAdded(label);
         }
     }
