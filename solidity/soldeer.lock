@@ -45,3 +45,10 @@ name = "hyperlane"
 version = "5.8.3"
 git = "https://github.com/hyperlane-xyz/hyperlane-monorepo"
 rev = "5b70527"
+
+[[dependencies]]
+name = "succinctlabs-sp1-contracts"
+version = "4.0.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/succinctlabs-sp1-contracts/4_0_0_23-02-2025_07:52:37_succinctlabs-sp1-contracts-4.0.zip"
+checksum = "b470b0a328169dcdd29da4e63e3a53a1ef886f030a5251a04f6fa5fd4d311856"
+integrity = "b7204891c337b2c25158becf50af77de5a9223411dbd006c3b6e86e2dfe60144"
