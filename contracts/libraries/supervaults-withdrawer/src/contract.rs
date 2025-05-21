@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdResult,
+    ensure, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Reply, Response, StdResult,
 };
 use valence_library_utils::{
     error::LibraryError,
@@ -148,7 +148,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
             // extract configuration from the reply payload
             let cfg: Config = valence_account_utils::msg::parse_valence_payload(&msg.result)?;
 
-            // query account resulting asset balance
+            // query the input account resulting asset balance after withdrawal
             let asset1_balance = deps
                 .querier
                 .query_balance(cfg.input_addr.clone(), cfg.lw_config.asset_data.asset1)?;
@@ -164,17 +164,19 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
 
             ensure!(
                 !available_assets.is_empty(),
-                LibraryError::ExecutionError("no available assets".to_string())
+                LibraryError::ExecutionError(
+                    "supervaults liquidity withdrawal resulted in no expected assets".to_string()
+                )
             );
 
             // construct the resulting asset transfer message to the output account
-            let asset_transfer_msg = BankMsg::Send {
+            let asset_transfer_msg: CosmosMsg = BankMsg::Send {
                 to_address: cfg.output_addr.to_string(),
                 amount: available_assets,
-            };
+            }
+            .into();
 
-            let delegated_msg =
-                execute_on_behalf_of(vec![asset_transfer_msg.into()], &cfg.input_addr)?;
+            let delegated_msg = execute_on_behalf_of(vec![asset_transfer_msg], &cfg.input_addr)?;
 
             Ok(Response::default().add_message(delegated_msg))
         }
