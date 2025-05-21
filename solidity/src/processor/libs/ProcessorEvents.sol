@@ -15,6 +15,16 @@ library ProcessorEvents {
     event ProcessorWasResumed();
 
     /**
+     * @notice Emitted when an address is allowed to send messages to the processor
+     */
+    event AuthorizedAddressAdded(address addr);
+
+    /**
+     * @notice Emitted when an address is removed from the list of authorized senders
+     */
+    event AuthorizedAddressRemoved(address addr);
+
+    /**
      * @notice Emitted when a callback is sent to the hyperlane mailbox
      * @param executionId The Execution ID of the message(s) that triggered the callback
      * @param result The outcome of the execution
