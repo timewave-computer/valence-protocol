@@ -159,11 +159,8 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
 
             // filter out zero-amount balances
             let available_assets: Vec<Coin> = [asset1_balance, asset2_balance]
-                .iter()
-                .filter_map(|c| match c.amount.is_zero() {
-                    true => None,
-                    false => Some(c.clone()),
-                })
+                .into_iter()
+                .filter(|c| !c.amount.is_zero())
                 .collect();
 
             ensure!(

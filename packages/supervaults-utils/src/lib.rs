@@ -18,7 +18,7 @@ pub fn ensure_correct_vault(
         asset_data.asset1 == vault_config.pair_data.token_0.denom
             && asset_data.asset2 == vault_config.pair_data.token_1.denom,
         LibraryError::ConfigurationError(
-            "Pool type does not match the expected pair type".to_string(),
+            "Vault validation failed due to asset mismatch".to_string(),
         )
     );
 

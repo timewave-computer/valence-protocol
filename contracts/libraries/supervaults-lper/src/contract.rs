@@ -111,12 +111,14 @@ mod functions {
             )
         );
 
-        // validate the expected price
-        let vault_price = valence_supervaults_utils::queries::query_vault_price(
-            deps.as_ref(),
-            cfg.vault_addr.to_string(),
-        )?;
+        // if expected vault ratio range is specified, we validate it
         if let Some(range) = expected_vault_ratio_range {
+            // query the current vault price
+            let vault_price = valence_supervaults_utils::queries::query_vault_price(
+                deps.as_ref(),
+                cfg.vault_addr.to_string(),
+            )?;
+            // validate the query result against the specified range
             range.ensure_contains(vault_price)?;
         }
 
