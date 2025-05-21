@@ -6,3 +6,4 @@
 aave-v3-origin/=dependencies/aave-v3-origin-3.3.0/src/contracts
 forge-std/=dependencies/forge-std-1.9.4/
 hyperlane/=dependencies/hyperlane-5.8.3/solidity/contracts
+succinctlabs-sp1-contracts/=dependencies/succinctlabs-sp1-contracts-4.0.0/contracts
