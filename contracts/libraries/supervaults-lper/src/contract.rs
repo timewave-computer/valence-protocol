@@ -99,11 +99,8 @@ mod functions {
 
         // filter out zero-amount balances
         let provision_assets: Vec<Coin> = [balance_asset1, balance_asset2]
-            .iter()
-            .filter_map(|c| match c.amount.is_zero() {
-                true => None,
-                false => Some(c.clone()),
-            })
+            .into_iter()
+            .filter(|c| !c.amount.is_zero())
             .collect();
 
         // ensure that the input account has the necessary funds for liquidity provision
