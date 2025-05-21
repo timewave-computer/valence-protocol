@@ -15,7 +15,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * @dev This contract manages authorizations for interactions with a processor contract.
  * It provides mechanisms for both standard address-based authorizations and ZK proof-based authorizations.
  * @notice The Authorization contract acts as a middleware for managing access control
- * to the Processor contract. It controls which addresses can call specific funcitons
+ * to the Processor contract. It controls which addresses can call specific functions
  * on specific contracts in a specific order through the processor.
  * It will receive callbacks from the processor after executing messages and can either store
  * the callback data in its state or just emit events for them.
