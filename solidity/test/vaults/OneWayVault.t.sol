@@ -582,7 +582,7 @@ contract OneWayVaultTest is Test {
         assertEq(vault.balanceOf(user1), expectedShares - redeemShares);
 
         // Check that withdraw request was created
-        (uint64 id, address ownerRequest, string memory receiver, uint256 redemptionRate, uint256 sharesAmount) =
+        (uint64 id, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
             vault.withdrawRequests(0);
 
         assertEq(id, 0);
@@ -614,7 +614,7 @@ contract OneWayVaultTest is Test {
         vault.withdraw(withdrawAssets, receiverAddress, user1);
 
         // Check that withdraw request was created
-        (, address ownerRequest, string memory receiver, uint256 redemptionRate, uint256 sharesAmount) =
+        (, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
             vault.withdrawRequests(0);
 
         assertEq(ownerRequest, user1);
@@ -946,7 +946,7 @@ contract OneWayVaultTest is Test {
         assertEq(vault.balanceOf(user1), user1Shares - redeemShares);
 
         // 6. Check withdrawal request was created with correct values
-        (, address ownerRequest, string memory receiver, uint256 redemptionRate, uint256 sharesAmount) =
+        (, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
             vault.withdrawRequests(0);
 
         assertEq(ownerRequest, user1);
@@ -1007,7 +1007,7 @@ contract OneWayVaultTest is Test {
         uint256 user1SharesAfter = vault.balanceOf(user1);
 
         // 8. Check withdrawal request uses current rate
-        (,,, uint256 redemptionRate, uint256 sharesAmount) = vault.withdrawRequests(0);
+        (,, uint256 redemptionRate, uint256 sharesAmount,) = vault.withdrawRequests(0);
         assertEq(redemptionRate, doubledRate);
 
         // 9. Verify shares burned matches the withdrawal request

@@ -148,16 +148,16 @@ contract OneWayVault is
      * @dev Structure for withdrawal requests to destination domain
      * @param id Unique ID for the request
      * @param owner Owner of the request who burned shares
-     * @param receiver Address to receive assets on destination domain (as string, e.g. Neutron address)
      * @param redemptionRate Redemption rate at time of request
      * @param sharesAmount Amount of shares to be redeemed
+     * @param receiver Address to receive assets on destination domain (as string, e.g. Neutron address)
      */
     struct WithdrawRequest {
         uint64 id;
         address owner;
-        string receiver;
         uint256 redemptionRate;
         uint256 sharesAmount;
+        string receiver;
     }
 
     // Main state variables
@@ -565,9 +565,9 @@ contract OneWayVault is
         WithdrawRequest memory request = WithdrawRequest({
             id: currentWithdrawRequestId,
             owner: owner,
-            receiver: receiver,
             sharesAmount: shares,
-            redemptionRate: redemptionRate
+            redemptionRate: redemptionRate,
+            receiver: receiver
         });
 
         // Store the request
