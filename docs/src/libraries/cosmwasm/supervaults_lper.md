@@ -25,7 +25,7 @@ graph LR
 
 | Function    | Parameters | Description |
 |-------------|------------|-------------|
-| **ProvideLiquidity** | `expected_vault_ratio_range: Option<PrecDecimalRange>` | Provide liquidity to the pre-configured **Supervault** from the **input account**, using available balances of both assets, and deposit the **LP tokens** into the **output account**. Abort if the vault price ratio is not within the `expected_vault_ratio_range` (if specified). |
+| **ProvideLiquidity** | `expected_vault_ratio_range: Option<PrecDecimalRange>` | Provide liquidity to the pre-configured **Supervault** from the **input account**, using available balances of both assets, and deposit the **LP tokens** into the **output account**. Abort if the vault price ratio is not within the `expected_vault_ratio_range` (if specified). *Note*: `PrecDec` is a 27 decimal precision value. |
 
 ## Configuration
 

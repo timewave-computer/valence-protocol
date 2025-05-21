@@ -98,11 +98,8 @@ mod functions {
 
         // filter out zero-amount balances
         let provision_assets: Vec<Coin> = [balance_asset1, balance_asset2]
-            .iter()
-            .filter_map(|c| match c.amount.is_zero() {
-                true => None,
-                false => Some(c.clone()),
-            })
+            .into_iter()
+            .filter(|c| !c.amount.is_zero())
             .collect();
 
         // ensure that the input account has the necessary funds for liquidity provision
@@ -117,7 +114,7 @@ mod functions {
         let vault_price = query_vault_price(deps.as_ref(), cfg.vault_addr.to_string())?;
         if let Some(range) = expected_vault_ratio_range {
             ensure!(
-                vault_price.ge(&range.min) && vault_price.lt(&range.max),
+                vault_price.ge(&range.min) && vault_price.le(&range.max),
                 LibraryError::ExecutionError(format!(
                     "expected range: {range}, got: {vault_price}"
                 ))
