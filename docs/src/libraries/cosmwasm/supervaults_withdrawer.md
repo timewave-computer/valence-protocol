@@ -21,6 +21,12 @@ graph LR
   IA -- 4'/Transfer underlying tokens --> OA
 ```
 
+## Functions
+
+| Function    | Parameters | Description |
+|-------------|------------|-------------|
+| **WithdrawLiquidity** | `expected_vault_ratio_range: Option<PrecDecimalRange>` | Withdraw liquidity from the pre-configured **Supervault** from the **input account**, using available LP shares, and deposit the resulting **underlying assets** into the **output account**. Abort if the vault price ratio is not within the `expected_vault_ratio_range` (if specified). *Note*: `PrecDec` is a 27 decimal precision value.|
+
 ## Configuration
 
 The library is configured on instantiation via the `LibraryConfig` type.
