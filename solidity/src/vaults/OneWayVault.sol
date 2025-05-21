@@ -266,6 +266,7 @@ contract OneWayVault is
         if (decodedConfig.strategist == address(0)) {
             revert("Strategist cannot be zero address");
         }
+
         if (decodedConfig.depositFeeBps > BASIS_POINTS) {
             revert("Deposit fee cannot exceed 100%");
         }
@@ -273,9 +274,11 @@ contract OneWayVault is
         if (decodedConfig.feeDistribution.strategistRatioBps > BASIS_POINTS) {
             revert("Strategist account fee distribution ratio cannot exceed 100%");
         }
+
         if (decodedConfig.feeDistribution.platformAccount == address(0)) {
             revert("Platform account cannot be zero address");
         }
+
         if (decodedConfig.feeDistribution.strategistAccount == address(0)) {
             revert("Strategist account cannot be zero address");
         }
