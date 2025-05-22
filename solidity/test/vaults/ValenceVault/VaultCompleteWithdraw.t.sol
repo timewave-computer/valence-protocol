@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {VaultHelper} from "./VaultHelper.t.sol";
-import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
+import {ValenceVault} from "../../../src/vaults/ValenceVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {console} from "forge-std/src/console.sol";
 import {VmSafe} from "forge-std/src/Vm.sol";

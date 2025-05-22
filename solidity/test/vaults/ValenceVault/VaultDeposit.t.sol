@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {VaultHelper} from "./VaultHelper.t.sol";
-import {ERC4626Upgradeable} from "../../src/libraries/ValenceVault.sol";
+import {ERC4626Upgradeable} from "../../../src/vaults/ValenceVault.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract ValenceVaultDepositTest is VaultHelper {

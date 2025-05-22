@@ -1,5 +1,5 @@
 [package]
-name       = "valence-supervaults-lper"
+name       = "valence-supervaults-withdrawer"
 authors    = { workspace = true }
 edition    = { workspace = true }
 license    = { workspace = true }

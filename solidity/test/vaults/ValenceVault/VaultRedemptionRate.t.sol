@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {VaultHelper} from "./VaultHelper.t.sol";
-import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
+import {ValenceVault} from "../../../src/vaults/ValenceVault.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract VaultRedemptionTest is VaultHelper {
