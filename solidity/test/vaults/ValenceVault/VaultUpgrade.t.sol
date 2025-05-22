@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {VaultHelper} from "./VaultHelper.t.sol";
-import {ValenceVault} from "../../src/libraries/ValenceVault.sol";
+import {ValenceVault} from "../../../src/vaults/ValenceVault.sol";
 
 /**
  * @title ValenceVaultV2

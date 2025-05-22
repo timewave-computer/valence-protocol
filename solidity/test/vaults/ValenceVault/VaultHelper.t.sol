@@ -2,9 +2,9 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/src/Test.sol";
-import {ERC4626Upgradeable, ValenceVault} from "../../src/libraries/ValenceVault.sol";
-import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
-import {MockERC20} from "../mocks/MockERC20.sol";
+import {ERC4626Upgradeable, ValenceVault} from "../../../src/vaults/ValenceVault.sol";
+import {BaseAccount} from "../../../src/accounts/BaseAccount.sol";
+import {MockERC20} from "../../mocks/MockERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
