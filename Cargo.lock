@@ -8610,6 +8610,7 @@ dependencies = [
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
+ "valence-processor-utils",
 ]
 
 [[package]]
