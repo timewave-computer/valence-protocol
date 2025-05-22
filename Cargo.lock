@@ -8594,6 +8594,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-clearing-queue"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "getset",
+ "itertools 0.13.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-domain-clients"
 version = "0.1.0"
 source = "git+https://github.com/timewave-computer/valence-domain-clients.git?tag=v0.1.0#2ea04c386b8bc14beb5a8234b0245011833b55cc"
