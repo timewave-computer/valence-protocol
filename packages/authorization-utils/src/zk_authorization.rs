@@ -14,8 +14,6 @@ pub struct ZkAuthorizationInfo {
     // Unique ID for the authorization, will be used as denom of the TokenFactory token if needed
     pub label: String,
     pub mode: AuthorizationModeInfo,
-    // Domain this needs to be sent to
-    pub domain: Domain,
     // ZK Specific:
     // The registry of the guest program that will be executed
     pub registry: u64,

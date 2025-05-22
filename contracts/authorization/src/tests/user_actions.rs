@@ -1,13 +1,16 @@
+use base64::prelude::*;
 use cosmwasm_std::{Binary, Coin, Timestamp, Uint128};
 use cw_utils::Expiration;
 use neutron_test_tube::{Account, Module, Wasm};
 use serde_json::json;
-use sp1_sdk::SP1ProofWithPublicValues;
+use sp1_sdk::{HashableKey, SP1VerifyingKey};
+use sp1_verifier::{Groth16Verifier, GROTH16_VK_BYTES};
 use valence_authorization_utils::{
     authorization::{AuthorizationDuration, AuthorizationModeInfo, PermissionTypeInfo},
     authorization_message::{Message, MessageDetails, MessageType, ParamRestriction},
     builders::{AtomicFunctionBuilder, AtomicSubroutineBuilder, AuthorizationBuilder, JsonBuilder},
-    msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage},
+    msg::{ExecuteMsg, PermissionedMsg, PermissionlessMsg, ProcessorMessage, QueryMsg},
+    zk_authorization::{ZkAuthorization, ZkAuthorizationInfo},
 };
 
 use crate::{
@@ -20,10 +23,9 @@ use super::{
     builders::NeutronTestAppBuilder,
     helpers::{
         instantiate_and_set_verification_gateway,
-        store_and_instantiate_authorization_with_processor_contract, ARTIFACTS_DIR,
+        store_and_instantiate_authorization_with_processor_contract,
     },
 };
-use base64::prelude::*;
 
 #[test]
 fn disabled() {
@@ -757,37 +759,131 @@ fn invalid_messages() {
 fn pause_and_resume_processor_using_zk_authorizations() {
     let setup = NeutronTestAppBuilder::new().build().unwrap();
 
-    let _wasm = Wasm::new(&setup.app);
+    let wasm = Wasm::new(&setup.app);
 
-    let (authorization, _processor) = store_and_instantiate_authorization_with_processor_contract(
+    let (authorization, processor) = store_and_instantiate_authorization_with_processor_contract(
         &setup.app,
         &setup.owner_accounts[0],
         setup.owner_addr.to_string(),
         vec![],
     );
 
-    let _wasm_byte_code_verification_gateway = std::fs::read(format!(
-        "{}/valence_verification_gateway.wasm",
-        ARTIFACTS_DIR
-    ))
-    .unwrap();
-
-    instantiate_and_set_verification_gateway(&setup.app, &setup.owner_accounts[0], authorization);
+    instantiate_and_set_verification_gateway(
+        &setup.app,
+        &setup.owner_accounts[0],
+        authorization.clone(),
+    );
 
     // VK of the program that accepts 2 registry values and creates a message to pause the processor for registry 1 and
     // creates a message to resume it for registry 2
-    let program_vk = "g1hLP6VhA141lA1LH4CjAKaYnzUr+KxrqmDyc6Sp7k04vyAAuiGlNpW+IGlt4RBoPrXgOjgxOEKvoiVpNzK5WbQj/VcAiH0cXasCXqq75V5XYypD0Ps4AJrw1CcCAAAAAAAAAAcAAAAAAAAAUHJvZ3JhbRMAAAAAAAAAAQAAAA4AAAAAAAAAAAAIAAAAAAAEAAAAAAAAAEJ5dGUQAAAAAAAAAAEAAAALAAAAAAAAAAAAAQAAAAAAAgAAAAAAAAAHAAAAAAAAAFByb2dyYW0AAAAAAAAAAAQAAAAAAAAAQnl0ZQEAAAAAAAAA";
-    let full_proof_pause = "AAAAAAAAAAAAAAAAhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHsicmVnaXN0cnkiOjEsImJsb2NrX251bWJlciI6MSwiZG9tYWluIjoibWFpbiIsImF1dGhvcml6YXRpb25fY29udHJhY3QiOm51bGwsIm1lc3NhZ2UiOnsicGF1c2UiOnt9fX0LAAAAAAAAAHY0LjAuMC1yYy4zAA==";
-    let full_proof_resume = "AAAAAAAAAAAAAAAAhQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHsicmVnaXN0cnkiOjIsImJsb2NrX251bWJlciI6MSwiZG9tYWluIjoibWFpbiIsImF1dGhvcml6YXRpb25fY29udHJhY3QiOm51bGwsIm1lc3NhZ2UiOnsicmVzdW1lIjp7fX19CwAAAAAAAAB2NC4wLjAtcmMuMwA=";
+    let program_vk = "BYX3ESvOAQq9cdkc9IPbbYXpg2qdHHgX5xNkEiM0TlJUvSAAU4EVAprBNkOrsRsoMlyiE/qesXJCKaQi59g8Lxwb5k0upNZO/WR5UfCodBbxY6MSiVl5SlBHfykCAAAAAAAAAAcAAAAAAAAAUHJvZ3JhbRMAAAAAAAAAAQAAAA4AAAAAAAAAAAAIAAAAAAAEAAAAAAAAAEJ5dGUQAAAAAAAAAAEAAAALAAAAAAAAAAAAAQAAAAAAAgAAAAAAAAAEAAAAAAAAAEJ5dGUBAAAAAAAAAAcAAAAAAAAAUHJvZ3JhbQAAAAAAAAAA";
+    let full_proof_pause = "2gFcRWJhZ25SaUI1VUh5UXgzc3dRY0U1WGRvRFZ3Z1pad1Z2T0szdW1xK3h0b1NEWTRhRGQzdEV6eTRsTnR5b3ErWHg3ZjFYVG8yelMvOVp2MTRleklER3F4UkIrZ1hPOWhaL3dPakpmSjdTWkVMQnAxdGQ1RFlqc21pYXM0VTFkWFQzd01KY3hGS3dnY2JBOWFnUEcyRzduY2s5YVJRaEVpUTdpdnNZam9QMnZFTGZZWHdLZWhYSHk5MFMvMFlVbzZkd1RmeWpwZ1REYndhUzdjc3N3czJzNXJhekV3Y0N6YUh6OUtWUUpSTFliZXpubTV4eHJxM0RENEhNQjhrdTJMbFdyOWpnaTF0Z2gwN3hRbXlnNEU5dXloRlUwTnBFVnlRQzBxNHNwbmNqZGhZMHVkWUZWaTlxME1paXpxc1pNeVl2NjNIVnZHZzd4MEJkbXZvQ0VJS21qWElaaTA92bBBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFCN0luSmxaMmx6ZEhKNUlqb3hMQ0ppYkc5amExOXVkVzFpWlhJaU9qRXNJbVJ2YldGcGJpSTZJbTFoYVc0aUxDSmhkWFJvYjNKcGVtRjBhVzl1WDJOdmJuUnlZV04wSWpwdWRXeHNMQ0p0WlhOellXZGxJanA3SW5CaGRYTmxJanA3ZlgxOQ==";
+    let full_proof_resume = "2gFcRWJhZ25SY3RxU21SZit4VVdPR2JrQTlWQU90cTRScmlMSTdBS1hPeDhmWm9HdTRuQVByRGVsajlnT3ZJVE5iaWdVQldlc1E3b3BUZTBycmc1NDJidWFZSmVoc0FKem5GdHZSRUFHVUVXeWw0OW1qbDdsNVVYZjVLZDJEa1dJd0dNQXUxcWcyOXovaHhzdEhlbk9BV0NzVkVKQ0JKRU8xSFR5N1lEVkIwRGFRajlyRWlBZ2d4cG02QU1neitkQzN5Mk9HZ3lMZDhQNzRSNFd6b0pPUG5GU0I2VUtRYjlIdGdRcHRMTXU1dlZNYjYvdUYxS3g2YnRpRTNPQnJjRXBjTmJ0YXNRU3BEaGsxZUNENkFKRmRZQjZ0M3k5eGw0K20vWGN0cGtNUSsvYUtLdWM4RUt6Rit0ZnZBODlwa0tRZjZzbGZyZ0gvaFEwUTNudkF4RmtBNFdQSzlsdlE92bRBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFCN0luSmxaMmx6ZEhKNUlqb3lMQ0ppYkc5amExOXVkVzFpWlhJaU9qRXNJbVJ2YldGcGJpSTZJbTFoYVc0aUxDSmhkWFJvYjNKcGVtRjBhVzl1WDJOdmJuUnlZV04wSWpwdWRXeHNMQ0p0WlhOellXZGxJanA3SW5KbGMzVnRaU0k2ZTMxOWZRPT0=";
+    let decoded_vk = BASE64_STANDARD.decode(program_vk).unwrap();
 
-    let _vk_decoded = BASE64_STANDARD.decode(program_vk).unwrap();
-    let full_proof_pause_decoded = BASE64_STANDARD.decode(full_proof_pause).unwrap();
-    let _full_proof_resume_decoded = BASE64_STANDARD.decode(full_proof_resume).unwrap();
+    let sp1_vk: SP1VerifyingKey = bincode::deserialize(&decoded_vk).unwrap();
+    let proof_pause = valence_coprocessor::Proof::try_from_base64(full_proof_pause).unwrap();
+    let proof_resume = valence_coprocessor::Proof::try_from_base64(full_proof_resume).unwrap();
 
-    let sp1_proof: SP1ProofWithPublicValues =
-        bincode::deserialize(&full_proof_pause_decoded).unwrap();
+    // Sanity check that verification works
+    let (proof_pause_bytes, proof_pause_inputs) = proof_pause.decode().unwrap();
+    let (proof_resume_bytes, proof_resume_inputs) = proof_resume.decode().unwrap();
+    // Sanity check that verification works
+    Groth16Verifier::verify(
+        &proof_pause_bytes,
+        &proof_pause_inputs,
+        &sp1_vk.bytes32(),
+        &GROTH16_VK_BYTES,
+    )
+    .unwrap();
 
-    println!("sp1_proof: {:?}", sp1_proof);
+    // Let's create two zk authorizations, one to pause the processor and another to resume it, pause will have registry 1 and resume will have registry 2
+    let zk_autorization_pause = ZkAuthorizationInfo {
+        label: "pause".to_string(),
+        mode: AuthorizationModeInfo::Permissionless,
+        registry: 1,
+        vk: Binary::from(sp1_vk.bytes32().as_bytes()),
+        validate_last_block_execution: false,
+    };
+    let zk_autorization_resume = ZkAuthorizationInfo {
+        label: "resume".to_string(),
+        mode: AuthorizationModeInfo::Permissionless,
+        registry: 2,
+        vk: Binary::from(sp1_vk.bytes32().as_bytes()),
+        validate_last_block_execution: false,
+    };
+    let zk_authorizations = vec![zk_autorization_pause, zk_autorization_resume];
 
-    // TODO: Once we can generate valid groth 16 proofs we can finish this test
+    wasm.execute::<ExecuteMsg>(
+        &authorization,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::CreateZkAuthorizations {
+            zk_authorizations,
+        }),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    // Check that authorizations were created
+    let query_authorizations = wasm
+        .query::<QueryMsg, Vec<ZkAuthorization>>(
+            &authorization,
+            &QueryMsg::ZkAuthorizations {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+    assert_eq!(query_authorizations.len(), 2);
+
+    // Execute the pause processor authorization
+    wasm.execute::<ExecuteMsg>(
+        &authorization,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::ExecuteZkAuthorization {
+            label: "pause".to_string(),
+            message: Binary::from(proof_pause_inputs),
+            proof: Binary::from(proof_pause_bytes),
+        }),
+        &[],
+        &setup.user_accounts[0],
+    )
+    .unwrap();
+
+    // Check that the processor is paused
+    let processor_config = wasm
+        .query::<valence_processor_utils::msg::QueryMsg, valence_processor_utils::processor::Config>(
+            &processor,
+            &valence_processor_utils::msg::QueryMsg::Config {},
+        )
+        .unwrap();
+
+    assert_eq!(
+        processor_config.state,
+        valence_processor_utils::processor::State::Paused
+    );
+
+    // Execute the resume processor authorization
+    wasm.execute::<ExecuteMsg>(
+        &authorization,
+        &ExecuteMsg::PermissionlessAction(PermissionlessMsg::ExecuteZkAuthorization {
+            label: "resume".to_string(),
+            message: Binary::from(proof_resume_inputs),
+            proof: Binary::from(proof_resume_bytes),
+        }),
+        &[],
+        &setup.user_accounts[0],
+    )
+    .unwrap();
+
+    // Check that the processor is resumed
+    let processor_config = wasm
+        .query::<valence_processor_utils::msg::QueryMsg, valence_processor_utils::processor::Config>(
+            &processor,
+            &valence_processor_utils::msg::QueryMsg::Config {},
+        )
+        .unwrap();
+    assert_eq!(
+        processor_config.state,
+        valence_processor_utils::processor::State::Active
+    );
 }

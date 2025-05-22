@@ -2046,7 +2046,6 @@
       "ZkAuthorizationInfo": {
         "type": "object",
         "required": [
-          "domain",
           "label",
           "mode",
           "registry",
@@ -2054,9 +2053,6 @@
           "vk"
         ],
         "properties": {
-          "domain": {
-            "$ref": "#/definitions/Domain"
-          },
           "label": {
             "type": "string"
           },
