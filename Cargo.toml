@@ -90,6 +90,7 @@ valence-drop-liquid-unstaker         = { path = "contracts/libraries/drop-liquid
 valence-ica-cctp-transfer            = { path = "contracts/libraries/ica-cctp-transfer", features = ["library"] }
 valence-ica-ibc-transfer             = { path = "contracts/libraries/ica-ibc-transfer", features = ["library"] }
 valence-supervaults-lper             = { path = "contracts/libraries/supervaults-lper", features = ["library"] }
+valence-supervaults-withdrawer       = { path = "contracts/libraries/supervaults-withdrawer", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
@@ -118,6 +119,7 @@ valence-verification-gateway   = { path = "contracts/verification-gateway", feat
 valence-middleware-utils       = { path = "packages/middleware-utils" }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 valence-lending-utils          = { path = "packages/lending-utils" }
+valence-supervaults-utils      = { path = "packages/supervaults-utils" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
