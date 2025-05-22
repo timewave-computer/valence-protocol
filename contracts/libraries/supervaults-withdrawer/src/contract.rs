@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult,
+    ensure, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Reply, Response, StdResult,
 };
 use valence_library_utils::{
     error::LibraryError,
@@ -15,7 +15,7 @@ use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, Query
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const LP_REPLY_ID: u64 = 314;
+const LW_REPLY_ID: u64 = 1414;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -63,15 +63,14 @@ mod execute {
 mod functions {
 
     use cosmwasm_std::{
-        ensure, to_json_binary, to_json_string, Coin, CosmosMsg, DepsMut, Env, MessageInfo,
-        Response, SubMsg, WasmMsg,
+        ensure, to_json_binary, to_json_string, DepsMut, Env, MessageInfo, Response, SubMsg,
+        WasmMsg,
     };
-
     use valence_library_utils::{error::LibraryError, execute_submsgs_on_behalf_of};
     use valence_supervaults_utils::prec_dec_range::PrecDecimalRange;
 
     use crate::{
-        contract::LP_REPLY_ID,
+        contract::LW_REPLY_ID,
         msg::{Config, FunctionMsgs},
     };
 
@@ -83,36 +82,27 @@ mod functions {
         cfg: Config,
     ) -> Result<Response, LibraryError> {
         match msg {
-            FunctionMsgs::ProvideLiquidity {
+            FunctionMsgs::WithdrawLiquidity {
                 expected_vault_ratio_range,
-            } => try_provide_liquidity(deps, cfg, expected_vault_ratio_range),
+            } => try_withdraw_liquidity(deps, cfg, expected_vault_ratio_range),
         }
     }
 
-    fn try_provide_liquidity(
+    fn try_withdraw_liquidity(
         deps: DepsMut,
         cfg: Config,
         expected_vault_ratio_range: Option<PrecDecimalRange>,
     ) -> Result<Response, LibraryError> {
-        // query the input account pool asset balances
-        let balance_asset1 = deps
-            .querier
-            .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset1)?;
-        let balance_asset2 = deps
-            .querier
-            .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset2)?;
+        // assert that the input account has available lp shares in their balance
+        let input_acc_lp_bal = deps.querier.query_balance(
+            cfg.input_addr.to_string(),
+            cfg.lw_config.lp_denom.to_string(),
+        )?;
 
-        // filter out zero-amount balances
-        let provision_assets: Vec<Coin> = [balance_asset1, balance_asset2]
-            .into_iter()
-            .filter(|c| !c.amount.is_zero())
-            .collect();
-
-        // ensure that the input account has the necessary funds for liquidity provision
         ensure!(
-            !provision_assets.is_empty(),
+            !input_acc_lp_bal.amount.is_zero(),
             LibraryError::ExecutionError(
-                "liquidity provision requires at least one input denom".to_string()
+                "input account must have lp shares in order to withdraw".to_string()
             )
         );
 
@@ -127,27 +117,26 @@ mod functions {
             range.ensure_contains(vault_price)?;
         }
 
-        // construct lp message
-        let provide_liquidity_msg: CosmosMsg = WasmMsg::Execute {
+        // construct the supervaults withdraw message
+        let withdraw_msg = WasmMsg::Execute {
             contract_addr: cfg.vault_addr.to_string(),
-            msg: to_json_binary(&valence_supervaults_utils::msg::get_mmvault_deposit_msg())?,
-            funds: provision_assets,
-        }
-        .into();
+            msg: to_json_binary(&valence_supervaults_utils::msg::get_mmvault_withdraw_msg(
+                input_acc_lp_bal.amount,
+            ))?,
+            funds: vec![input_acc_lp_bal],
+        };
 
-        // delegate the LP submessage to the input account because supervault LP
-        // shares get issued at an unknown rate.
-        // to deal with that, we LP as a submessage and handle the resulting share
-        // transfer from input acc to output acc in the response
+        // delegate the supervaults withdraw request to the input account
+        // as a submessage
         let delegated_input_account_submsgs = execute_submsgs_on_behalf_of(
-            vec![SubMsg::reply_on_success(provide_liquidity_msg, LP_REPLY_ID)],
+            vec![SubMsg::reply_on_success(withdraw_msg, LW_REPLY_ID)],
             Some(to_json_string(&cfg)?),
             &cfg.input_addr,
         )?;
 
         Ok(Response::new().add_submessage(SubMsg::reply_on_success(
             delegated_input_account_submsgs,
-            LP_REPLY_ID,
+            LW_REPLY_ID,
         )))
     }
 }
@@ -155,28 +144,39 @@ mod functions {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryError> {
     match msg.id {
-        LP_REPLY_ID => {
+        LW_REPLY_ID => {
             // extract configuration from the reply payload
             let cfg: Config = valence_account_utils::msg::parse_valence_payload(&msg.result)?;
 
-            // query account resulting LP balance
-            let balance = deps
+            // query the input account resulting asset balance after withdrawal
+            let asset1_balance = deps
                 .querier
-                .query_balance(&cfg.input_addr, &cfg.lp_config.lp_denom)?;
+                .query_balance(&cfg.input_addr, &cfg.lw_config.asset_data.asset1)?;
+            let asset2_balance = deps
+                .querier
+                .query_balance(&cfg.input_addr, &cfg.lw_config.asset_data.asset2)?;
+
+            // filter out zero-amount balances
+            let available_assets: Vec<Coin> = [asset1_balance, asset2_balance]
+                .into_iter()
+                .filter(|c| !c.amount.is_zero())
+                .collect();
 
             ensure!(
-                !balance.amount.is_zero(),
-                LibraryError::ExecutionError("input account shares balance is zero".to_string())
+                !available_assets.is_empty(),
+                LibraryError::ExecutionError(
+                    "supervaults liquidity withdrawal resulted in no expected assets".to_string()
+                )
             );
 
-            // construct the resulting share transfer message to the output account
-            let lp_share_transfer_msg = BankMsg::Send {
+            // construct the resulting asset transfer message to the output account
+            let asset_transfer_msg: CosmosMsg = BankMsg::Send {
                 to_address: cfg.output_addr.to_string(),
-                amount: vec![balance],
-            };
+                amount: available_assets,
+            }
+            .into();
 
-            let delegated_msg =
-                execute_on_behalf_of(vec![lp_share_transfer_msg.into()], &cfg.input_addr)?;
+            let delegated_msg = execute_on_behalf_of(vec![asset_transfer_msg], &cfg.input_addr)?;
 
             Ok(Response::default().add_message(delegated_msg))
         }

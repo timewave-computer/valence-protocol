@@ -1,0 +1,18 @@
+[package]
+name        = "valence-supervaults-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = { workspace = true }
+description = "Utils for Neutron supervaults"
+
+[features]
+default = []
+
+[dependencies]
+cosmwasm-std          = { workspace = true }
+cosmwasm-schema       = { workspace = true }
+valence-account-utils = { workspace = true }
+valence-library-utils = { workspace = true }
+# TODO: update these to point to respective releases once cut
+neutron-std           = { git = "https://github.com/neutron-org/neutron-std", branch = "temp/pd_and_sod" }
+mmvault               = { git = "https://github.com/neutron-org/slinky-vault", package = "mmvault" }

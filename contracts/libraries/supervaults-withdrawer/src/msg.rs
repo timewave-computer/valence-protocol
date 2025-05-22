@@ -14,7 +14,7 @@ pub struct Config {
     pub input_addr: Addr,
     pub output_addr: Addr,
     pub vault_addr: Addr,
-    pub lp_config: LiquidityProviderConfig,
+    pub lw_config: LiquidityWithdrawerConfig,
 }
 
 #[cw_serde]
@@ -23,7 +23,7 @@ pub struct LibraryConfig {
     pub input_addr: LibraryAccountType,
     pub output_addr: LibraryAccountType,
     pub vault_addr: String,
-    pub lp_config: LiquidityProviderConfig,
+    pub lw_config: LiquidityWithdrawerConfig,
 }
 
 impl LibraryConfig {
@@ -31,13 +31,13 @@ impl LibraryConfig {
         input_addr: impl Into<LibraryAccountType>,
         output_addr: impl Into<LibraryAccountType>,
         vault_addr: String,
-        lp_config: LiquidityProviderConfig,
+        lw_config: LiquidityWithdrawerConfig,
     ) -> Self {
         LibraryConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
             vault_addr,
-            lp_config,
+            lw_config,
         }
     }
 
@@ -52,7 +52,7 @@ impl LibraryConfig {
 
 #[cw_serde]
 pub enum FunctionMsgs {
-    ProvideLiquidity {
+    WithdrawLiquidity {
         expected_vault_ratio_range: Option<PrecDecimalRange>,
     },
 }
@@ -64,7 +64,7 @@ pub enum FunctionMsgs {
 pub enum QueryMsg {}
 
 #[cw_serde]
-pub struct LiquidityProviderConfig {
+pub struct LiquidityWithdrawerConfig {
     pub asset_data: AssetData,
     pub lp_denom: String,
 }
@@ -82,15 +82,15 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
         ensure_correct_vault(
             deps,
             vault_addr.to_string(),
-            &self.lp_config.asset_data,
-            &self.lp_config.lp_denom,
+            &self.lw_config.asset_data,
+            &self.lw_config.lp_denom,
         )?;
 
         Ok(Config {
             input_addr,
             output_addr,
             vault_addr,
-            lp_config: self.lp_config.clone(),
+            lw_config: self.lw_config.clone(),
         })
     }
 }
@@ -111,15 +111,15 @@ impl LibraryConfigUpdate {
             config.vault_addr = deps.api.addr_validate(&vault_addr)?;
         }
 
-        if let Some(lp_config) = self.lp_config {
-            config.lp_config = lp_config;
+        if let Some(lw_config) = self.lw_config {
+            config.lw_config = lw_config;
         }
 
         ensure_correct_vault(
             deps.as_ref(),
             config.vault_addr.to_string(),
-            &config.lp_config.asset_data,
-            &config.lp_config.lp_denom,
+            &config.lw_config.asset_data,
+            &config.lw_config.lp_denom,
         )?;
 
         valence_library_base::save_config(deps.storage, &config)?;
