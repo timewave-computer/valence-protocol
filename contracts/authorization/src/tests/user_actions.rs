@@ -798,21 +798,21 @@ fn pause_and_resume_processor_using_zk_authorizations() {
     .unwrap();
 
     // Let's create two zk authorizations, one to pause the processor and another to resume it, pause will have registry 1 and resume will have registry 2
-    let zk_autorization_pause = ZkAuthorizationInfo {
+    let zk_authorization_pause = ZkAuthorizationInfo {
         label: "pause".to_string(),
         mode: AuthorizationModeInfo::Permissionless,
         registry: 1,
-        vk: Binary::from(sp1_vk.bytes32().as_bytes()),
+        vk: Binary::from(sp1_vk.bytes32().into_bytes()),
         validate_last_block_execution: false,
     };
-    let zk_autorization_resume = ZkAuthorizationInfo {
+    let zk_authorization_resume = ZkAuthorizationInfo {
         label: "resume".to_string(),
         mode: AuthorizationModeInfo::Permissionless,
         registry: 2,
-        vk: Binary::from(sp1_vk.bytes32().as_bytes()),
+        vk: Binary::from(sp1_vk.bytes32().into_bytes()),
         validate_last_block_execution: false,
     };
-    let zk_authorizations = vec![zk_autorization_pause, zk_autorization_resume];
+    let zk_authorizations = vec![zk_authorization_pause, zk_authorization_resume];
 
     wasm.execute::<ExecuteMsg>(
         &authorization,
