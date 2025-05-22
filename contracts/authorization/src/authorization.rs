@@ -46,12 +46,6 @@ pub trait Validate {
     fn ensure_enabled(&self) -> Result<(), ContractError>;
     fn ensure_active(&self, block: &BlockInfo) -> Result<(), ContractError>;
     fn ensure_not_expired(&self, block: &BlockInfo) -> Result<(), ContractError>;
-    fn validate_permission(
-        &self,
-        querier: QuerierWrapper,
-        contract_address: &str,
-        info: &MessageInfo,
-    ) -> Result<(), ContractError>;
     fn validate_messages(&self, messages: &[ProcessorMessage]) -> Result<(), ContractError>;
     fn validate_messages_generic<T: Function>(
         messages: &[ProcessorMessage],
@@ -296,41 +290,6 @@ impl Validate for Authorization {
         Ok(())
     }
 
-    fn validate_permission(
-        &self,
-        querier: QuerierWrapper,
-        contract_address: &str,
-        info: &MessageInfo,
-    ) -> Result<(), ContractError> {
-        let token_factory_denom = build_tokenfactory_denom(contract_address, &self.label);
-        match self.mode {
-            // If the authorization is permissionless, it's always valid
-            AuthorizationMode::Permissionless => (),
-            // If the authorization is permissioned without call limit, we check that the sender has the token corresponding to that authorization in his wallet
-            AuthorizationMode::Permissioned(PermissionType::WithoutCallLimit(_)) => {
-                let balance = querier.query_balance(info.sender.clone(), token_factory_denom)?;
-                if balance.amount.is_zero() {
-                    return Err(ContractError::Unauthorized(
-                        UnauthorizedReason::NotAllowed {},
-                    ));
-                }
-            }
-            // If the authorization is permissioned with call limit, the sender must pay one token to execute the authorization, which will be burned
-            // if it executes (or partially executes) and will be refunded if it doesn't.
-            AuthorizationMode::Permissioned(PermissionType::WithCallLimit(_)) => {
-                let funds = must_pay(info, &token_factory_denom)
-                    .map_err(|_| ContractError::Unauthorized(UnauthorizedReason::NotAllowed {}))?;
-
-                if funds.ne(&Uint128::one()) {
-                    return Err(ContractError::Unauthorized(
-                        UnauthorizedReason::RequiresOneToken {},
-                    ));
-                }
-            }
-        }
-        Ok(())
-    }
-
     fn validate_messages(&self, messages: &[ProcessorMessage]) -> Result<(), ContractError> {
         match &self.subroutine {
             Subroutine::Atomic(config) => {
@@ -423,7 +382,7 @@ impl Validate for Authorization {
         self.ensure_enabled()?;
         self.ensure_active(block)?;
         self.ensure_not_expired(block)?;
-        self.validate_permission(querier, contract_address, info)?;
+        validate_permission(&self.label, &self.mode, querier, contract_address, info)?;
         self.validate_messages(messages)?;
 
         Ok(())
@@ -502,6 +461,42 @@ fn check_bytes_restriction(
         }
         // We should never get here because we validate authorizations to not have these restrictions for raw bytes messages
         _ => return Err(ContractError::Message(MessageErrorReason::InvalidType {})),
+    }
+    Ok(())
+}
+
+pub fn validate_permission(
+    label: &str,
+    authorization_mode: &AuthorizationMode,
+    querier: QuerierWrapper,
+    contract_address: &str,
+    info: &MessageInfo,
+) -> Result<(), ContractError> {
+    let token_factory_denom = build_tokenfactory_denom(contract_address, label);
+    match authorization_mode {
+        // If the authorization is permissionless, it's always valid
+        AuthorizationMode::Permissionless => (),
+        // If the authorization is permissioned without call limit, we check that the sender has the token corresponding to that authorization in his wallet
+        AuthorizationMode::Permissioned(PermissionType::WithoutCallLimit(_)) => {
+            let balance = querier.query_balance(info.sender.clone(), token_factory_denom)?;
+            if balance.amount.is_zero() {
+                return Err(ContractError::Unauthorized(
+                    UnauthorizedReason::NotAllowed {},
+                ));
+            }
+        }
+        // If the authorization is permissioned with call limit, the sender must pay one token to execute the authorization, which will be burned
+        // if it executes (or partially executes) and will be refunded if it doesn't.
+        AuthorizationMode::Permissioned(PermissionType::WithCallLimit(_)) => {
+            let funds = must_pay(info, &token_factory_denom)
+                .map_err(|_| ContractError::Unauthorized(UnauthorizedReason::NotAllowed {}))?;
+
+            if funds.ne(&Uint128::one()) {
+                return Err(ContractError::Unauthorized(
+                    UnauthorizedReason::RequiresOneToken {},
+                ));
+            }
+        }
     }
     Ok(())
 }
