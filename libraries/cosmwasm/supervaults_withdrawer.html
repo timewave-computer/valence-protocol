@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Supervaults LPer - Valence Protocol Documentation</title>
+        <title>Supervaults Withdrawer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -160,27 +160,27 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="supervaults-liquidity-provider-library"><a class="header" href="#supervaults-liquidity-provider-library">Supervaults Liquidity Provider library</a></h1>
-<p>The <strong>Valence Supervaults LPer library</strong> library allows to <strong>provide liquidity</strong> into <strong>Neutron Supervaults</strong> from an <strong>input account</strong> and deposit the <strong>LP tokens</strong> into an <strong>output account</strong>.</p>
+                        <h1 id="supervaults-liquidity-withdrawer-library"><a class="header" href="#supervaults-liquidity-withdrawer-library">Supervaults Liquidity Withdrawer library</a></h1>
+<p>The <strong>Valence Supervaults Withdrawer library</strong> library allows to <strong>liquidate Supervault LP shares</strong> via <strong>Neutron Supervaults</strong> from an <strong>input account</strong> and deposit the <strong>resulting underlying assets</strong> into an <strong>output account</strong>.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Supervaults Liquidity Provider
+title: Supervaults Liquidity Withdrawer
 ---
 graph LR
   IA((Input Account))
   OA((Output Account))
   P[Processor]
-  S[Supervaults&lt;br&gt;Liquidity&lt;br&gt;Provider]
+  S[Supervaults&lt;br&gt;Liquidity&lt;br&gt;Withdrawer]
   SV[Supervault]
-  P -- 1/Provide Liquidity --&gt; S
-  S -- 2/Query balances --&gt; IA
-  S -- 3/Try Provide Liquidity --&gt; IA
-  IA -- 4/Provide Liquidity [Tokens] --&gt; SV
-  IA -- 4'/Transfer LP Tokens --&gt; OA
+  P -- 1/Withdraw Liquidity --&gt; S
+  S -- 2/Query LP balance --&gt; IA
+  S -- 3/Try Withdraw Liquidity --&gt; IA
+  IA -- 4/Withdraw Liquidity&lt;br&gt;[LP shares] --&gt; SV
+  IA -- 4'/Transfer underlying tokens --&gt; OA
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>ProvideLiquidity</strong></td><td><code>expected_vault_ratio_range: Option&lt;PrecDecimalRange&gt;</code></td><td>Provide liquidity to the pre-configured <strong>Supervault</strong> from the <strong>input account</strong>, using available balances of both assets, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>. Abort if the vault price ratio is not within the <code>expected_vault_ratio_range</code> (if specified). <em>Note</em>: <code>PrecDec</code> is a 27 decimal precision value.</td></tr>
+<tr><td><strong>WithdrawLiquidity</strong></td><td><code>expected_vault_ratio_range: Option&lt;PrecDecimalRange&gt;</code></td><td>Withdraw liquidity from the pre-configured <strong>Supervault</strong> from the <strong>input account</strong>, using available LP shares, and deposit the resulting <strong>underlying assets</strong> into the <strong>output account</strong>. Abort if the vault price ratio is not within the <code>expected_vault_ratio_range</code> (if specified). <em>Note</em>: <code>PrecDec</code> is a 27 decimal precision value.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
@@ -188,18 +188,19 @@ graph LR
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct LibraryConfig {
-    // Account from which the funds are LPed
+    // Account from which the LP shares are liquidated
     pub input_addr: LibraryAccountType,
-    // Account to which the LP tokens are forwarded
+    // Account to which the resulting underlying tokens are forwarded
     pub output_addr: LibraryAccountType,
     // Supervault address
     pub vault_addr: String,
-    // LP configuration
-    pub lp_config: LiquidityProviderConfig,
+    // Liquidity withdrawal configuration
+    pub lw_config: LiquidityWithdrawerConfig,
 }
 
-pub struct LiquidityProviderConfig {
-    // Denoms of both native assets we are going to provide liquidity for
+pub struct LiquidityWithdrawerConfig {
+    // Denoms of both underlying native assets we are
+    // expecting to receive upon withdrawal
     pub asset_data: AssetData,
     // LP token denom for the supervault
     pub lp_denom: String,
@@ -220,11 +221,11 @@ pub struct AssetData {
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/splitter.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/supervaults_lper.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/cosmwasm/supervaults_withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/cosmwasm/neutron_ic_querier.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -234,11 +235,11 @@ pub struct AssetData {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/splitter.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/supervaults_lper.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/cosmwasm/supervaults_withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/cosmwasm/neutron_ic_querier.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
