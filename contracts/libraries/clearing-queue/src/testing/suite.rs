@@ -5,21 +5,19 @@ use valence_library_utils::{
     testing::{LibraryTestSuite, LibraryTestSuiteBase},
 };
 
-use crate::msg::{FunctionMsgs, LibraryConfig, LibraryConfigUpdate};
+use crate::msg::{
+    FunctionMsgs, LibraryConfig, LibraryConfigUpdate, ObligationsResponse, QueryMsg,
+    QueueInfoResponse,
+};
 
 pub(crate) const DENOM_1: &str = "DENOM_1";
 pub(crate) const DENOM_2: &str = "DENOM_2";
-
-pub(crate) const USER_1: &str = "USER_1";
-pub(crate) const USER_2: &str = "USER_2";
-pub(crate) const USER_3: &str = "USER_3";
 
 pub struct ClearingQueueTestingSuite {
     pub inner: LibraryTestSuiteBase,
     pub clearing_queue: Addr,
     pub input_addr: Addr,
     pub processor: Addr,
-    pub owner: Addr,
     pub user_1: Addr,
     pub user_2: Addr,
     pub user_3: Addr,
@@ -63,18 +61,16 @@ impl ClearingQueueTestingSuite {
         )
     }
 
-    pub fn update_config(
-        &mut self,
-        addr: Addr,
-        new_config: LibraryConfig,
-    ) -> AnyResult<AppResponse> {
+    pub fn update_clearing_config(&mut self, new_config: LibraryConfig) -> AnyResult<AppResponse> {
         let owner = self.owner().clone();
+        let clearing_lib = self.clearing_queue.clone();
+
         let updated_config = LibraryConfigUpdate {
             input_addr: Some(new_config.input_addr),
         };
         self.app_mut().execute_contract(
             owner,
-            addr,
+            clearing_lib,
             &ExecuteMsg::<FunctionMsgs, LibraryConfigUpdate>::UpdateConfig {
                 new_config: updated_config,
             },
@@ -90,6 +86,16 @@ impl ClearingQueueTestingSuite {
 
     pub fn query_user_bal(&self, user: &str, denom: &str) -> Coin {
         self.inner.query_balance(&Addr::unchecked(user), denom)
+    }
+
+    pub fn query_queue_info(&self) -> QueueInfoResponse {
+        self.inner
+            .query_wasm(&self.clearing_queue, &QueryMsg::QueueInfo {})
+    }
+
+    pub fn query_obligations(&self, from: Option<u64>, to: Option<u64>) -> ObligationsResponse {
+        self.inner
+            .query_wasm(&self.clearing_queue, &QueryMsg::Obligations { from, to })
     }
 }
 

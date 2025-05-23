@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Addr, Coin, Empty};
+use cosmwasm_std::{Addr, Coin, Empty};
 use cw_multi_test::{App, ContractWrapper};
 use valence_library_utils::{
     msg::InstantiateMsg,
@@ -17,7 +17,6 @@ pub struct ClearingQueueTestingSuiteBuilder {
     pub inner: LibraryTestSuiteBase,
     pub input_balances: Vec<Coin>,
     pub input_addr: Addr,
-    pub owner: Addr,
     pub processor: Addr,
     pub code_id: u64,
 }
@@ -65,7 +64,6 @@ impl Default for ClearingQueueTestingSuiteBuilder {
             .app_mut()
             .store_code(Box::new(clearing_contract_wrapper));
 
-        let owner = inner.owner().clone();
         let processor = inner.processor().clone();
 
         Self {
@@ -73,7 +71,6 @@ impl Default for ClearingQueueTestingSuiteBuilder {
             input_balances: vec![],
             input_addr,
             code_id: clearing_code_id,
-            owner,
             processor,
         }
     }
@@ -83,6 +80,11 @@ impl ClearingQueueTestingSuiteBuilder {
     pub fn with_input_balances(mut self, input_coins: Vec<Coin>) -> Self {
         self.input_balances = input_coins;
         println!("input balances = {:?}", self.input_balances);
+        self
+    }
+
+    pub fn with_input_acc(mut self, input_addr: &str) -> Self {
+        self.input_addr = Addr::unchecked(input_addr);
         self
     }
 
@@ -119,7 +121,6 @@ impl ClearingQueueTestingSuiteBuilder {
             clearing_queue: addr,
             input_addr,
             processor: self.processor,
-            owner: self.owner,
             user_1: user_1_addr,
             user_2: user_2_addr,
             user_3: user_3_addr,

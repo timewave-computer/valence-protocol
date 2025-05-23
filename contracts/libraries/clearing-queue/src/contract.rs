@@ -59,10 +59,7 @@ mod execute {
 mod functions {
     use cosmwasm_std::{ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint64};
 
-    use valence_library_utils::{
-        error::{LibraryError},
-        execute_on_behalf_of,
-    };
+    use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
     use crate::{
         msg::{Config, FunctionMsgs},
@@ -81,9 +78,7 @@ mod functions {
                 recipient,
                 payout_coins,
                 id,
-            } => {
-                try_register_withdraw_obligation(deps, env, cfg, recipient, payout_coins, id)
-            }
+            } => try_register_withdraw_obligation(deps, env, cfg, recipient, payout_coins, id),
             FunctionMsgs::SettleNextObligation {} => try_settle_next_obligation(deps, cfg),
         }
     }
@@ -99,7 +94,9 @@ mod functions {
         // validate that this obligation is not registered yet
         ensure!(
             !REGISTERED_OBLIGATION_IDS.has(deps.storage, id.u64()),
-            LibraryError::ExecutionError(format!("obligation with #{id} is already registered in the queue"))
+            LibraryError::ExecutionError(format!(
+                "obligation #{id} is already registered in the queue"
+            ))
         );
 
         let withdraw_obligation = WithdrawalObligation {
@@ -126,7 +123,11 @@ mod functions {
 
         let obligation = match obligations_head {
             Some(o) => o,
-            None => return Err(LibraryError::ExecutionError("no pending obligations".to_string())),
+            None => {
+                return Err(LibraryError::ExecutionError(
+                    "no pending obligations".to_string(),
+                ))
+            }
         };
 
         let mut transfer_coins = vec![];
