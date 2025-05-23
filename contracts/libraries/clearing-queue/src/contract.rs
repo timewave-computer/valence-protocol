@@ -57,7 +57,7 @@ mod execute {
 }
 
 mod functions {
-    use cosmwasm_std::{ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint64};
+    use cosmwasm_std::{ensure, BankMsg, Coin, DepsMut, Empty, Env, MessageInfo, Response, Uint64};
 
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
@@ -128,16 +128,16 @@ mod functions {
         // push the obligation to the back of the fifo queue
         CLEARING_QUEUE.push_back(deps.storage, &withdraw_obligation)?;
 
-        // get the obligation position in the queue
-        let obligation_queue_position = CLEARING_QUEUE.len(deps.storage)?;
-
-        // associate the obligation id with the queue position in a map
-        REGISTERED_OBLIGATION_IDS.save(deps.storage, id.u64(), &obligation_queue_position)?;
+        // store the id of the registered obligation in the map which functions
+        // as a set. this is to prevent any obligation from being filled more
+        // than once. after obligation is settled, this entry remains.
+        REGISTERED_OBLIGATION_IDS.save(deps.storage, id.u64(), &Empty {})?;
 
         Ok(Response::new())
     }
 
     fn try_settle_next_obligation(deps: DepsMut, cfg: Config) -> Result<Response, LibraryError> {
+        // pop the head of the queue (oldest obligation)
         let obligations_head = CLEARING_QUEUE.pop_front(deps.storage)?;
 
         let obligation = match obligations_head {
@@ -176,9 +176,6 @@ mod functions {
         };
 
         let input_account_msg = execute_on_behalf_of(vec![fill_msg.into()], &cfg.input_addr)?;
-
-        // remove the registered obligation from the map
-        REGISTERED_OBLIGATION_IDS.remove(deps.storage, obligation.id.u64());
 
         Ok(Response::new().add_message(input_account_msg))
     }

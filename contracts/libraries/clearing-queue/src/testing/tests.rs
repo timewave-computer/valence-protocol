@@ -183,6 +183,24 @@ fn test_double_accounting_errors() {
 }
 
 #[test]
+#[should_panic(expected = "obligation #10 is already registered in the queue")]
+fn test_double_accounting_errors_after_obligation_settlement() {
+    let mut suite = ClearingQueueTestingSuiteBuilder::default()
+        .with_input_balances(vec![coin(1_000, DENOM_1), coin(1_000, DENOM_2)])
+        .build();
+
+    suite
+        .register_new_obligation(suite.user_1.to_string(), coins(100, DENOM_1), 10)
+        .unwrap();
+
+    suite.settle_next_obligation().unwrap();
+
+    suite
+        .register_new_obligation(suite.user_1.to_string(), coins(200, DENOM_1), 10)
+        .unwrap();
+}
+
+#[test]
 fn test_user_obligation_with_multiple_denoms() {
     let mut suite = ClearingQueueTestingSuiteBuilder::default()
         .with_input_balances(vec![coin(100, DENOM_1), coin(100, DENOM_2)])
