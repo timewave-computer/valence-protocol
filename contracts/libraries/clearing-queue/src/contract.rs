@@ -99,6 +99,25 @@ mod functions {
             ))
         );
 
+        // obligation payouts cannot be empty
+        ensure!(
+            !payout_coins.is_empty(),
+            LibraryError::ExecutionError(
+                "obligation must have payout coins in order to be registered".to_string()
+            )
+        );
+
+        // each coin in the obligation to be paid out must have non-zero amount
+        for payout_coin in &payout_coins {
+            ensure!(
+                !payout_coin.amount.is_zero(),
+                LibraryError::ExecutionError(format!(
+                    "obligation payout coin {} amount cannot be zero",
+                    payout_coin.denom
+                ))
+            );
+        }
+
         let withdraw_obligation = WithdrawalObligation {
             recipient,
             payout_coins,

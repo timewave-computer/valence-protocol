@@ -62,6 +62,26 @@ fn test_settling_obligations_requires_funded_settlement_account() {
 }
 
 #[test]
+#[should_panic(expected = "obligation must have payout coins in order to be registered")]
+fn test_registering_obligation_validates_payout_coins_len() {
+    let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
+
+    suite
+        .register_new_obligation(suite.user_1.to_string(), vec![], 1)
+        .unwrap();
+}
+
+#[test]
+#[should_panic(expected = "obligation payout coin DENOM_1 amount cannot be zero")]
+fn test_registering_obligation_validates_payout_coins_nonzero_amounts() {
+    let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
+
+    suite
+        .register_new_obligation(suite.user_1.to_string(), coins(0, DENOM_1), 1)
+        .unwrap();
+}
+
+#[test]
 fn test_register_withdraw_obligation_happy() {
     let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
 
