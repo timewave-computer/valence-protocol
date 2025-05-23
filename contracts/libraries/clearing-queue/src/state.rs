@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{BlockInfo, Coin, Uint256};
+use cosmwasm_std::{BlockInfo, Coin, Uint64};
 use valence_processor_utils::queue::QueueMap;
 
 /// fifo queue storing the pending obligations
@@ -17,7 +17,7 @@ pub struct WithdrawalObligation {
     /// what is owed to the recipient
     pub payout_coins: Vec<Coin>,
     /// some unique identifier for the request
-    pub id: Uint256,
+    pub id: Uint64,
     /// block when registration was enqueued
     pub enque_block: BlockInfo,
 }

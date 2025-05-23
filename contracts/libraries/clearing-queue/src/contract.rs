@@ -57,10 +57,10 @@ mod execute {
 }
 
 mod functions {
-    use cosmwasm_std::{ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint256};
+    use cosmwasm_std::{ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint64};
 
     use valence_library_utils::{
-        error::{LibraryError, UnauthorizedReason},
+        error::{LibraryError},
         execute_on_behalf_of,
     };
 
@@ -72,7 +72,7 @@ mod functions {
     pub fn process_function(
         deps: DepsMut,
         env: Env,
-        info: MessageInfo,
+        _info: MessageInfo,
         msg: FunctionMsgs,
         cfg: Config,
     ) -> Result<Response, LibraryError> {
@@ -82,7 +82,7 @@ mod functions {
                 payout_coins,
                 id,
             } => {
-                try_register_withdraw_obligation(deps, env, info, cfg, recipient, payout_coins, id)
+                try_register_withdraw_obligation(deps, env, cfg, recipient, payout_coins, id)
             }
             FunctionMsgs::SettleNextObligation {} => try_settle_next_obligation(deps, cfg),
         }
@@ -91,18 +91,11 @@ mod functions {
     fn try_register_withdraw_obligation(
         deps: DepsMut,
         env: Env,
-        info: MessageInfo,
-        cfg: Config,
+        _cfg: Config,
         recipient: String,
         payout_coins: Vec<Coin>,
-        id: Uint256,
+        id: Uint64,
     ) -> Result<Response, LibraryError> {
-        // only the approved strategist can register new obligations
-        ensure!(
-            cfg.strategist == info.sender,
-            LibraryError::Unauthorized(UnauthorizedReason::NotAllowed {})
-        );
-
         let withdraw_obligation = WithdrawalObligation {
             recipient,
             payout_coins,
