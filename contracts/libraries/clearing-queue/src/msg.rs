@@ -6,33 +6,41 @@ use valence_library_utils::{
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
-#[valence_library_query]
-#[cw_ownable_query]
-#[cw_serde]
-#[derive(QueryResponses)]
-pub enum QueryMsg {}
+use crate::state::WithdrawalObligation;
 
 #[cw_serde]
-pub enum FunctionMsgs {
-    /// validates and enqueues a new withdrawal obligation
-    RegisterObligation(WithdrawalObligation),
-    /// settles the oldest withdrawal obligation
-    SettleNextObligation {},
-}
-
-/// unsettled liability sitting in the clearing queue
-#[cw_serde]
-pub struct WithdrawalObligation {
-    pub recipient: String,       // where the payout is to be routed
-    pub payout_coins: Vec<Coin>, // what is owed to the recipient
-    pub id: Uint256,             // some unique identifier for the request
+/// Validated library configuration
+pub struct Config {
+    /// settlement input account which we tap into in order
+    /// to settle the obligations
+    pub input_addr: Addr,
+    /// authorized strategist
+    pub strategist: Addr,
 }
 
 #[cw_serde]
 #[derive(ValenceLibraryInterface)]
 pub struct LibraryConfig {
+    /// settlement input account which we tap into in order
+    /// to settle the obligations
     pub input_addr: LibraryAccountType,
+    /// authorized strategist
     pub strategist: String,
+}
+
+#[cw_serde]
+pub enum FunctionMsgs {
+    /// validates and enqueues a new withdrawal obligation
+    RegisterObligation {
+        /// where the payout is to be routed
+        recipient: String,
+        /// what is owed to the recipient
+        payout_coins: Vec<Coin>,
+        /// some unique identifier for the request
+        id: Uint256,
+    },
+    /// settles the oldest withdrawal obligation
+    SettleNextObligation {},
 }
 
 impl LibraryConfig {
@@ -44,19 +52,13 @@ impl LibraryConfig {
     }
 
     fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr), LibraryError> {
+        // validate the input account
         let input_addr = self.input_addr.to_addr(api)?;
-
+        // validate the strategist address
         let strategist_addr = api.addr_validate(&self.strategist)?;
 
         Ok((input_addr, strategist_addr))
     }
-}
-
-#[cw_serde]
-/// Validated library configuration
-pub struct Config {
-    pub input_addr: Addr,
-    pub strategist: Addr,
 }
 
 impl LibraryConfigValidation<Config> for LibraryConfig {
@@ -91,4 +93,37 @@ impl LibraryConfigUpdate {
 
         Ok(())
     }
+}
+
+#[valence_library_query]
+#[cw_ownable_query]
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum QueryMsg {
+    /// returns the total number of obligations in the queue
+    #[returns(QueueInfoResponse)]
+    QueueInfo {},
+    /// returns a list of obligations in the queue starting from the given index
+    #[returns(ObligationsResponse)]
+    Obligations {
+        /// starting index
+        from: Option<u64>,
+        /// end index
+        to: Option<u64>,
+    },
+}
+
+#[cw_serde]
+pub struct QueueInfoResponse {
+    /// total number of obligations in the queue
+    pub count: u64,
+    /// starting index of the queue (pagination)
+    pub start_index: u64,
+    /// ending index of the queue (pagination)
+    pub end_index: u64,
+}
+
+#[cw_serde]
+pub struct ObligationsResponse {
+    pub obligations: Vec<WithdrawalObligation>,
 }
