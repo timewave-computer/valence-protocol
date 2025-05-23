@@ -124,10 +124,14 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @notice Structure representing the data for the authorization label
      * @dev This structure contains the contract address and the function signature hash
      * @param contractAddress The address of the contract that is authorized to be called
+     * @param useFunctionSelector Boolean indicating if the function selector should be used instead of callHash
+     * @param functionSelector The function selector of the function that is authorized to be called
      * @param callHash The function signature hash of the function that is authorized to be called
      */
     struct AuthorizationData {
         address contractAddress;
+        bool useFunctionSelector;
+        bytes4 functionSelector;
         bytes32 callHash;
     }
 
@@ -416,10 +420,11 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         for (uint256 i = 0; i < atomicSubroutine.functions.length; i++) {
             // Get the contract address and function signature hash
             address contractAddress = atomicSubroutine.functions[i].contractAddress;
+            bytes4 functionSelector = bytes4(sendMsgs.messages[i]); // Takes first 4 bytes of the message
             bytes32 callHash = keccak256(sendMsgs.messages[i]);
 
             // Add the authorization data to the array
-            authorizationData[i] = AuthorizationData(contractAddress, callHash);
+            authorizationData[i] = AuthorizationData(contractAddress, true, functionSelector, callHash);
         }
 
         // Check if address is authorized to execute this subroutine
@@ -453,10 +458,11 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         for (uint256 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
             // Get the contract address and function signature hash
             address contractAddress = nonAtomicSubroutine.functions[i].contractAddress;
+            bytes4 functionSelector = bytes4(sendMsgs.messages[i]); // Takes first 4 bytes of the message
             bytes32 callHash = keccak256(sendMsgs.messages[i]);
 
             // Add the authorization data to the array
-            authorizationData[i] = AuthorizationData(contractAddress, callHash);
+            authorizationData[i] = AuthorizationData(contractAddress, true, functionSelector, callHash);
         }
         // Check if address is authorized to execute this subroutine
         if (!_checkAddressIsAuthorized(msg.sender, label, authorizationData)) {
@@ -503,7 +509,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
             return false;
         }
 
-        // Check if the authorization data matches the order
+        // Load the authorization data for this label
         AuthorizationData[] memory labelAuthorizationData = authorizationsData[label];
 
         // Check that the lengths are the same
@@ -513,11 +519,21 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
 
         // Check that each element is the same
         for (uint256 i = 0; i < labelAuthorizationData.length; i++) {
-            if (
-                labelAuthorizationData[i].contractAddress != _authorizationData[i].contractAddress
-                    || labelAuthorizationData[i].callHash != _authorizationData[i].callHash
-            ) {
+            // Check that the contract address is the same
+            if (labelAuthorizationData[i].contractAddress != _authorizationData[i].contractAddress) {
                 return false;
+            }
+
+            // If we need to check the function selector, check that it's the same
+            if (labelAuthorizationData[i].useFunctionSelector) {
+                if (labelAuthorizationData[i].functionSelector != _authorizationData[i].functionSelector) {
+                    return false;
+                }
+            } else {
+                // If we don't need to check the function selector, check that the call hash is the same
+                if (labelAuthorizationData[i].callHash != _authorizationData[i].callHash) {
+                    return false;
+                }
             }
         }
 
