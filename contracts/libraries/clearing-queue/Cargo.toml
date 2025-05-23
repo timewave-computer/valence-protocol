@@ -28,3 +28,8 @@ valence-macros          = { workspace = true }
 valence-library-utils   = { workspace = true }
 valence-library-base    = { workspace = true }
 valence-processor-utils = { workspace = true }
+
+[dev-dependencies]
+cw-multi-test         = { workspace = true }
+valence-account-utils = { workspace = true }
+valence-library-utils = { workspace = true, features = ["testing"] }

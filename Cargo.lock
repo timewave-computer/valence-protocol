@@ -8599,6 +8599,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
+ "cw-multi-test",
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
@@ -8607,6 +8608,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror 1.0.69",
+ "valence-account-utils",
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
