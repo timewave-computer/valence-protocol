@@ -119,7 +119,7 @@ mod functions {
         }
 
         let withdraw_obligation = WithdrawalObligation {
-            recipient,
+            recipient: deps.api.addr_validate(&recipient)?,
             payout_coins,
             id,
             enque_block: env.block,
@@ -171,7 +171,7 @@ mod functions {
         }
 
         let fill_msg = BankMsg::Send {
-            to_address: obligation.recipient,
+            to_address: obligation.recipient.to_string(),
             amount: transfer_coins,
         };
 

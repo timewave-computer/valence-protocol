@@ -72,6 +72,20 @@ fn test_registering_obligation_validates_payout_coins_len() {
 }
 
 #[test]
+#[should_panic(expected = "Error decoding bech32")]
+fn test_registering_obligation_validates_recipient_addr() {
+    let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
+
+    suite
+        .register_new_obligation(
+            "invalid_addr".to_string(),
+            vec![coin(100, DENOM_1), coin(150, DENOM_2)],
+            1,
+        )
+        .unwrap();
+}
+
+#[test]
 #[should_panic(expected = "obligation payout coin DENOM_1 amount cannot be zero")]
 fn test_registering_obligation_validates_payout_coins_nonzero_amounts() {
     let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
@@ -133,20 +147,11 @@ fn test_queue_operates_in_fifo_manner() {
     assert_eq!(queue_resp.obligations.len(), 3);
 
     // first obligation was user_1
-    assert_eq!(
-        queue_resp.obligations[0].recipient,
-        suite.user_1.to_string()
-    );
+    assert_eq!(queue_resp.obligations[0].recipient, suite.user_1);
     // second obligation was user_3
-    assert_eq!(
-        queue_resp.obligations[1].recipient,
-        suite.user_3.to_string()
-    );
+    assert_eq!(queue_resp.obligations[1].recipient, suite.user_3);
     // third obligation was user_2
-    assert_eq!(
-        queue_resp.obligations[2].recipient,
-        suite.user_2.to_string()
-    );
+    assert_eq!(queue_resp.obligations[2].recipient, suite.user_2);
 
     // we settle an obligation in order to assert that queue is processed fifo
     suite.settle_next_obligation().unwrap();
@@ -159,15 +164,9 @@ fn test_queue_operates_in_fifo_manner() {
     assert_eq!(queue_resp.obligations.len(), 2);
 
     // user_3 should be the oldest
-    assert_eq!(
-        queue_resp.obligations[0].recipient,
-        suite.user_3.to_string()
-    );
+    assert_eq!(queue_resp.obligations[0].recipient, suite.user_3);
     // user_2 should be the latest
-    assert_eq!(
-        queue_resp.obligations[1].recipient,
-        suite.user_2.to_string()
-    );
+    assert_eq!(queue_resp.obligations[1].recipient, suite.user_2);
 }
 
 #[test]

@@ -26,7 +26,7 @@ graph LR
 
 | Function               | Parameters                                          | Description                                                                                                                                            |
 |------------------------|-----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **RegisterObligation** | `recipient: String`<br>`payout_coins: Vec<Coin>`<br>`id: Uint64` | Registers a new withdrawal obligation in the queue with the specified recipient, payout coins, and unique ID. Each obligation must have non-zero payout amounts. |
+| **RegisterObligation** | `recipient: String`<br>`payout_coins: Vec<Coin>`<br>`id: Uint64` | Registers a new withdrawal obligation in the queue with the specified recipient, payout coins, and unique ID. Each obligation must have non-zero payout amounts. Recipient must be a valid bech32 address. |
 | **SettleNextObligation** | -                                                   | Settles the oldest withdrawal obligation in the queue by transferring funds from the **settlement input account** to the specified recipient. Fails if there are no pending obligations or if the input account has insufficient balance. |
 
 ## Configuration
