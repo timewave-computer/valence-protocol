@@ -536,6 +536,10 @@ contract AuthorizationStandardTest is Test {
         // Verify executionId was incremented
         assertEq(auth.executionId(), 1, "Execution ID should be incremented");
 
+        // Verify that Forwarder config was updated
+        (, BaseAccount updatedOutputAccount,,) = forwarder.config();
+        assertEq(address(updatedOutputAccount), address(0x99), "Output account should be updated");
+
         vm.stopPrank();
     }
 
