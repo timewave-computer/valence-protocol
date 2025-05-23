@@ -66,7 +66,7 @@ mod functions {
 
     use crate::{
         msg::{Config, FunctionMsgs},
-        state::{WithdrawalObligation, CLEARING_QUEUE},
+        state::{WithdrawalObligation, CLEARING_QUEUE, REGISTERED_OBLIGATION_IDS},
     };
 
     pub fn process_function(
@@ -96,6 +96,12 @@ mod functions {
         payout_coins: Vec<Coin>,
         id: Uint64,
     ) -> Result<Response, LibraryError> {
+        // validate that this obligation is not registered yet
+        ensure!(
+            !REGISTERED_OBLIGATION_IDS.has(deps.storage, id.u64()),
+            LibraryError::ExecutionError(format!("obligation with #{id} is already registered in the queue"))
+        );
+
         let withdraw_obligation = WithdrawalObligation {
             recipient,
             payout_coins,
@@ -106,14 +112,22 @@ mod functions {
         // push the obligation to the back of the fifo queue
         CLEARING_QUEUE.push_back(deps.storage, &withdraw_obligation)?;
 
+        // get the obligation position in the queue
+        let obligation_queue_position = CLEARING_QUEUE.len(deps.storage)?;
+
+        // associate the obligation id with the queue position in a map
+        REGISTERED_OBLIGATION_IDS.save(deps.storage, id.u64(), &obligation_queue_position)?;
+
         Ok(Response::new())
     }
 
     fn try_settle_next_obligation(deps: DepsMut, cfg: Config) -> Result<Response, LibraryError> {
         let obligations_head = CLEARING_QUEUE.pop_front(deps.storage)?;
 
-        let obligation = obligations_head
-            .ok_or_else(|| LibraryError::ExecutionError("no pending obligations".to_string()))?;
+        let obligation = match obligations_head {
+            Some(o) => o,
+            None => return Err(LibraryError::ExecutionError("no pending obligations".to_string())),
+        };
 
         let mut transfer_coins = vec![];
 
@@ -142,6 +156,9 @@ mod functions {
         };
 
         let input_account_msg = execute_on_behalf_of(vec![fill_msg.into()], &cfg.input_addr)?;
+
+        // remove the registered obligation from the map
+        REGISTERED_OBLIGATION_IDS.remove(deps.storage, obligation.id.u64());
 
         Ok(Response::new().add_message(input_account_msg))
     }
