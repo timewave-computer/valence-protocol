@@ -2,6 +2,9 @@
 
 The **Valence Clearing Queue** library allows **registration and settlement of withdrawal obligations** in a FIFO (First-In-First-Out) manner. It maintains a queue of pending withdrawal obligations, with each obligation containing recipient information, payout amounts, and a unique identifier. When settling obligations, funds are pulled from a **settlement input account** and sent to the specified recipients.
 
+> [!IMPORTANT]
+> This library functions solely as a settlement engine. The settlement account funding (liquidity-management) flow is outside of its scope and is managed by a strategist. This management process likely involves monitoring both the settlement account balance and the obligation queue in order to ensure the settlement account maintains sufficient liquidity for obligation settlements.
+
 ## High-level flow
 
 ```mermaid
