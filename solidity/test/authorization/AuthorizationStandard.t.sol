@@ -626,9 +626,6 @@ contract AuthorizationStandardTest is Test {
         assertEq(uint256(result), uint256(IProcessor.ExecutionResult.Rejected), "Execution should have failed");
         assertEq(executionCount, 0, "Execution count should be 0 for failed execution");
 
-        // Data might contain error information
-        // Note: The exact content of data depends on the processor implementation
-
         vm.stopPrank();
     }
 
