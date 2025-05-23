@@ -42,6 +42,10 @@ contract AuthorizationStandardTest is Test {
     bytes forwardCall;
 
     function setUp() public {
+        // Set initial block timestamp and height
+        vm.warp(5000);
+        vm.roll(100);
+
         vm.startPrank(owner);
 
         // Deploy main contracts
@@ -586,7 +590,7 @@ contract AuthorizationStandardTest is Test {
     /**
      * @notice Test that failed execution returns proper callback with failure result
      */
-    function testSendProcessorMessageWithFailedExecution() public {
+    function testSendProcessorMessageWithFailedExecutionNoFunds() public {
         // Create authorization for forward function on forwarder
         string[] memory forwardLabels = new string[](1);
         forwardLabels[0] = "forward";
@@ -632,7 +636,7 @@ contract AuthorizationStandardTest is Test {
     /**
      * @notice Test that execution with revert and returns proper callback
      */
-    function testSendProcessorMessageThatReverts() public {
+    function testSendProcessorMessageNonExistentFunction() public {
         // Create authorization for a function that will revert
         string[] memory revertLabels = new string[](1);
         revertLabels[0] = "revertFunction";
