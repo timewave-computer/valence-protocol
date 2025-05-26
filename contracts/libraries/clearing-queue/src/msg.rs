@@ -99,12 +99,26 @@ pub enum QueryMsg {
         /// end index
         to: Option<u64>,
     },
+    /// constant time status check for a specific obligation.
+    /// if status of more than one obligations will be relevant,
+    /// this information can be inferred from the `Obligations` query
+    /// (if obligation is in the queue then it is not yet settled).
+    #[returns(ObligationStatusResponse)]
+    ObligationStatus { id: u64 },
 }
 
 #[cw_serde]
 pub struct QueueInfoResponse {
     /// total number of obligations in the queue
     pub len: u64,
+}
+
+#[cw_serde]
+pub struct ObligationStatusResponse {
+    /// boolean status of a given obligation where
+    /// `false` indicates that the obligation is registered,
+    /// and `true` indicates that the obligation is settled.
+    pub settled: bool,
 }
 
 #[cw_serde]

@@ -111,9 +111,11 @@ fn test_register_withdraw_obligation_happy() {
 
     let queue_len = suite.query_queue_info().len;
     let queue_resp = suite.query_obligations(None, None);
+    let obligation_status = suite.query_obligation_status(10);
 
     assert_eq!(queue_len, 1);
     assert_eq!(queue_resp.obligations.len(), 1);
+    assert!(!obligation_status.settled);
 }
 
 #[test]
@@ -224,7 +226,13 @@ fn test_user_obligation_with_multiple_denoms() {
         )
         .unwrap();
 
+    let obligation_status = suite.query_obligation_status(1);
+    assert!(!obligation_status.settled);
+
     suite.settle_next_obligation().unwrap();
+
+    let obligation_status = suite.query_obligation_status(1);
+    assert!(obligation_status.settled);
 
     let input_acc_d1_bal = suite.query_input_acc_bal(DENOM_1);
     let input_acc_d2_bal = suite.query_input_acc_bal(DENOM_2);
@@ -264,6 +272,10 @@ fn test_multi_user_settlement() {
     assert!(u2_d1_bal.amount.is_zero());
     assert!(u3_d1_bal.amount.is_zero());
 
+    assert!(!suite.query_obligation_status(1).settled);
+    assert!(!suite.query_obligation_status(2).settled);
+    assert!(!suite.query_obligation_status(3).settled);
+
     // settle all existing obligations
     suite.settle_next_obligation().unwrap();
     suite.settle_next_obligation().unwrap();
@@ -273,6 +285,11 @@ fn test_multi_user_settlement() {
     let u1_d1_bal = suite.query_user_bal(suite.user_1.as_str(), DENOM_1);
     let u2_d1_bal = suite.query_user_bal(suite.user_2.as_str(), DENOM_1);
     let u3_d1_bal = suite.query_user_bal(suite.user_3.as_str(), DENOM_1);
+
+    // assert that the obligations are now considered as settled
+    assert!(suite.query_obligation_status(1).settled);
+    assert!(suite.query_obligation_status(2).settled);
+    assert!(suite.query_obligation_status(3).settled);
 
     // assert that the settlement account balance is decreased as expected
     assert_eq!(input_acc_d1_bal.amount.u128(), 1_000 - 100 - 300 - 400);

@@ -7,7 +7,13 @@ use valence_library_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
-use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg};
+use crate::{
+    msg::{
+        Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, ObligationStatusResponse,
+        QueryMsg,
+    },
+    state::REGISTERED_OBLIGATION_IDS,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -57,7 +63,7 @@ mod execute {
 }
 
 mod functions {
-    use cosmwasm_std::{ensure, BankMsg, Coin, DepsMut, Empty, Env, MessageInfo, Response, Uint64};
+    use cosmwasm_std::{ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint64};
 
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
@@ -128,10 +134,13 @@ mod functions {
         // push the obligation to the back of the fifo queue
         CLEARING_QUEUE.push_back(deps.storage, &withdraw_obligation)?;
 
-        // store the id of the registered obligation in the map which functions
-        // as a set. this is to prevent any obligation from being filled more
-        // than once. after obligation is settled, this entry remains.
-        REGISTERED_OBLIGATION_IDS.save(deps.storage, id.u64(), &Empty {})?;
+        // store the id of the registered obligation in the map with
+        // value `false` to indicate that this obligation is not yet
+        // settled/complete.
+        // this map also serves as a check to prevent registering (and
+        // thus settling) the same obligation twice. because of this,
+        // upon settlement, the key remains - only the value is updated.
+        REGISTERED_OBLIGATION_IDS.save(deps.storage, id.u64(), &false)?;
 
         Ok(Response::new())
     }
@@ -178,6 +187,10 @@ mod functions {
 
         let input_account_msg =
             execute_on_behalf_of(vec![fill_msg.into()], &cfg.settlement_acc_addr)?;
+
+        // update the registered obligation entry value to `true` to indicate that
+        // this obligation had been settled.
+        REGISTERED_OBLIGATION_IDS.save(deps.storage, obligation.id.u64(), &true)?;
 
         Ok(Response::new().add_message(input_account_msg))
     }
@@ -229,6 +242,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::QueueInfo {} => to_json_binary(&query::get_queue_info(deps)?),
         QueryMsg::Obligations { from, to } => {
             to_json_binary(&query::get_obligations(deps, from, to)?)
+        }
+        QueryMsg::ObligationStatus { id } => {
+            let settled = REGISTERED_OBLIGATION_IDS.load(deps.storage, id)?;
+            to_json_binary(&ObligationStatusResponse { settled })
         }
     }
 }
