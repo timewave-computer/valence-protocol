@@ -88,6 +88,7 @@ valence-drop-liquid-staker           = { path = "contracts/libraries/drop-liquid
 valence-drop-liquid-unstaker         = { path = "contracts/libraries/drop-liquid-unstaker", features = ["library"] }
 valence-ica-cctp-transfer            = { path = "contracts/libraries/ica-cctp-transfer", features = ["library"] }
 valence-ica-ibc-transfer             = { path = "contracts/libraries/ica-ibc-transfer", features = ["library"] }
+valence-union-transfer               = { path = "contracts/libraries/union-transfer", features = ["library"] }
 valence-supervaults-lper             = { path = "contracts/libraries/supervaults-lper", features = ["library"] }
 valence-supervaults-withdrawer       = { path = "contracts/libraries/supervaults-withdrawer", features = ["library"] }
 valence-clearing-queue               = { path = "contracts/libraries/clearing-queue", features = ["library"] }
