@@ -154,9 +154,10 @@ mod functions {
         // ensure that the settlement account is sufficiently topped up
         // to fulfill the obligation
         for obligation_coin in obligation.payout_coins {
-            let settlement_acc_bal = deps
-                .querier
-                .query_balance(cfg.settlement_acc_addr.as_str(), obligation_coin.denom.to_string())?;
+            let settlement_acc_bal = deps.querier.query_balance(
+                cfg.settlement_acc_addr.as_str(),
+                obligation_coin.denom.to_string(),
+            )?;
 
             ensure!(
                 settlement_acc_bal.amount >= obligation_coin.amount,
@@ -175,7 +176,8 @@ mod functions {
             amount: transfer_coins,
         };
 
-        let input_account_msg = execute_on_behalf_of(vec![fill_msg.into()], &cfg.settlement_acc_addr)?;
+        let input_account_msg =
+            execute_on_behalf_of(vec![fill_msg.into()], &cfg.settlement_acc_addr)?;
 
         Ok(Response::new().add_message(input_account_msg))
     }
@@ -191,9 +193,7 @@ mod query {
     pub fn get_queue_info(deps: Deps) -> StdResult<QueueInfoResponse> {
         let queue_length = CLEARING_QUEUE.len(deps.storage)?;
 
-        Ok(QueueInfoResponse {
-            len: queue_length,
-        })
+        Ok(QueueInfoResponse { len: queue_length })
     }
 
     pub fn get_obligations(

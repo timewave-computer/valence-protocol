@@ -63,7 +63,9 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
         let settlement_acc_addr = self.do_validate(deps.api)?;
-        Ok(Config { settlement_acc_addr })
+        Ok(Config {
+            settlement_acc_addr,
+        })
     }
 }
 
