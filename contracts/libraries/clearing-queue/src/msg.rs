@@ -102,11 +102,7 @@ pub enum QueryMsg {
 #[cw_serde]
 pub struct QueueInfoResponse {
     /// total number of obligations in the queue
-    pub count: u64,
-    /// starting index of the queue (pagination)
-    pub start_index: u64,
-    /// ending index of the queue (pagination)
-    pub end_index: u64,
+    pub len: u64,
 }
 
 #[cw_serde]

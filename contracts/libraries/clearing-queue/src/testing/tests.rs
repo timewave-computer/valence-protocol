@@ -99,7 +99,7 @@ fn test_registering_obligation_validates_payout_coins_nonzero_amounts() {
 fn test_register_withdraw_obligation_happy() {
     let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
 
-    let queue_len_0 = suite.query_queue_info().count;
+    let queue_len_0 = suite.query_queue_info().len;
     let queue_resp_0 = suite.query_obligations(None, None);
 
     assert_eq!(queue_len_0, 0);
@@ -109,7 +109,7 @@ fn test_register_withdraw_obligation_happy() {
         .register_new_obligation(suite.user_1.to_string(), coins(100, DENOM_1), 10)
         .unwrap();
 
-    let queue_len = suite.query_queue_info().count;
+    let queue_len = suite.query_queue_info().len;
     let queue_resp = suite.query_obligations(None, None);
 
     assert_eq!(queue_len, 1);
@@ -122,7 +122,7 @@ fn test_queue_operates_in_fifo_manner() {
         .with_input_balances(vec![coin(1_000, DENOM_1), coin(1_000, DENOM_2)])
         .build();
 
-    let queue_len_0 = suite.query_queue_info().count;
+    let queue_len_0 = suite.query_queue_info().len;
     let queue_resp_0 = suite.query_obligations(None, None);
 
     assert_eq!(queue_len_0, 0);
@@ -139,7 +139,7 @@ fn test_queue_operates_in_fifo_manner() {
         .register_new_obligation(suite.user_2.to_string(), coins(420, DENOM_1), 3)
         .unwrap();
 
-    let queue_len = suite.query_queue_info().count;
+    let queue_len = suite.query_queue_info().len;
     let queue_resp = suite.query_obligations(None, None);
 
     // first we assert that there is the expected number of obligations in the queue
@@ -156,7 +156,7 @@ fn test_queue_operates_in_fifo_manner() {
     // we settle an obligation in order to assert that queue is processed fifo
     suite.settle_next_obligation().unwrap();
 
-    let queue_len = suite.query_queue_info().count;
+    let queue_len = suite.query_queue_info().len;
     let queue_resp = suite.query_obligations(None, None);
 
     // first we assert that there is one less obligation in the queue

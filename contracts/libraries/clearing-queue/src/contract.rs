@@ -192,9 +192,7 @@ mod query {
         let queue_length = CLEARING_QUEUE.len(deps.storage)?;
 
         Ok(QueueInfoResponse {
-            count: queue_length,
-            start_index: 0,
-            end_index: queue_length,
+            len: queue_length,
         })
     }
 
