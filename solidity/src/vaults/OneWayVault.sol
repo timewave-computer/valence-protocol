@@ -536,14 +536,14 @@ contract OneWayVault is
         uint256 sharesToBurn = previewWithdraw(assets);
 
         // Calculate shares for request based on NET assets (what will be processed)
-        uint256 sharesForRequest = previewWithdraw(netAssets);
+        uint256 postFeeShares = previewWithdraw(netAssets);
 
         // Track fee for later distribution
         if (withdrawalFee > 0) {
             feesAccruedInAsset += withdrawalFee;
         }
 
-        _withdraw(sharesToBurn, sharesForRequest, receiver, owner);
+        _withdraw(sharesToBurn, postFeeShares, receiver, owner);
     }
 
     /**
@@ -576,7 +576,7 @@ contract OneWayVault is
         uint256 netAssets = grossAssets - withdrawalFee;
 
         // Calculate shares for request based on net assets (what will be processed)
-        uint256 sharesForRequest = _convertToShares(netAssets, Math.Rounding.Ceil);
+        uint256 postFeeShares = _convertToShares(netAssets, Math.Rounding.Ceil);
 
         // Track fee for later distribution
         if (withdrawalFee > 0) {
@@ -584,19 +584,17 @@ contract OneWayVault is
         }
 
         // Burn the full shares amount specified by user, store net shares in request
-        _withdraw(shares, sharesForRequest, receiver, owner);
+        _withdraw(shares, postFeeShares, receiver, owner);
     }
 
     /**
      * @dev Internal function to handle withdrawal/redemption request creation
      * @param sharesToBurn Amount of shares to burn from user's balance
-     * @param sharesForRequest Amount of shares to store in withdrawal request (net after fees)
+     * @param postFeeShares Amount of shares to store in withdrawal request (net after fees)
      * @param receiver Address to receive the assets on the destination domain (as string)
      * @param owner Address that owns the shares
      */
-    function _withdraw(uint256 sharesToBurn, uint256 sharesForRequest, string calldata receiver, address owner)
-        internal
-    {
+    function _withdraw(uint256 sharesToBurn, uint256 postFeeShares, string calldata receiver, address owner) internal {
         // Burn shares first (CEI pattern - Checks, Effects, Interactions)
         if (msg.sender != owner) {
             uint256 allowed = allowance(owner, msg.sender);
@@ -610,7 +608,7 @@ contract OneWayVault is
         WithdrawRequest memory request = WithdrawRequest({
             id: currentWithdrawRequestId,
             owner: owner,
-            sharesAmount: sharesForRequest, // Net shares that will be processed
+            sharesAmount: postFeeShares, // Net shares that will be processed
             redemptionRate: redemptionRate,
             receiver: receiver
         });
@@ -618,8 +616,8 @@ contract OneWayVault is
         // Store the request
         withdrawRequests[currentWithdrawRequestId] = request;
 
-        // Emit the event with the shares that were burned
-        emit WithdrawRequested(currentWithdrawRequestId, owner, receiver, sharesToBurn);
+        // Emit the event with the shares post fee that are being withdrawn
+        emit WithdrawRequested(currentWithdrawRequestId, owner, receiver, postFeeShares);
 
         // Increment the request ID for the next request
         currentWithdrawRequestId++;

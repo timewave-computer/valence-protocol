@@ -614,8 +614,8 @@ contract OneWayVaultTest is Test {
 
         vm.prank(user1);
         vm.expectEmit(true, true, false, true);
-        // Event should emit the shares that were burned (redeemShares), not net shares
-        emit WithdrawRequested(0, user1, receiverAddress, redeemShares);
+        // Event should emit the net shares
+        emit WithdrawRequested(0, user1, receiverAddress, expectedNetShares);
         vault.redeem(redeemShares, receiverAddress, user1);
 
         // Check that correct shares were burned (the full redeemShares amount)
@@ -707,13 +707,10 @@ contract OneWayVaultTest is Test {
         uint256 netAssets = withdrawAssets - expectedWithdrawFee;
         uint256 expectedNetShares = (netAssets * 10 ** vault.decimals()) / initialRate;
 
-        // Calculate shares to burn (for full withdraw amount including fee)
-        uint256 expectedSharesToBurn = vault.previewWithdraw(withdrawAssets);
-
         vm.prank(user1);
         vm.expectEmit(true, true, false, true);
-        // Event should emit the shares that were burned
-        emit WithdrawRequested(0, user1, receiverAddress, expectedSharesToBurn);
+        // Event should emit the shares that were withdrawn
+        emit WithdrawRequested(0, user1, receiverAddress, expectedNetShares);
         vault.withdraw(withdrawAssets, receiverAddress, user1);
 
         // Check that withdrawal fee was added to fees owed
