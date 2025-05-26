@@ -91,6 +91,7 @@ valence-ica-cctp-transfer            = { path = "contracts/libraries/ica-cctp-tr
 valence-ica-ibc-transfer             = { path = "contracts/libraries/ica-ibc-transfer", features = ["library"] }
 valence-supervaults-lper             = { path = "contracts/libraries/supervaults-lper", features = ["library"] }
 valence-supervaults-withdrawer       = { path = "contracts/libraries/supervaults-withdrawer", features = ["library"] }
+valence-clearing-queue               = { path = "contracts/libraries/clearing-queue", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
