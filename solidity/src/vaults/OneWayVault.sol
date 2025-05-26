@@ -176,7 +176,7 @@ contract OneWayVault is
     /**
      * @dev Total fees collected but not yet distributed, denominated in asset
      */
-    uint256 public feesOwedInAsset;
+    uint256 public feesAccruedInAsset;
 
     /**
      * @dev Mapping from request ID to withdrawal request details
@@ -354,7 +354,7 @@ contract OneWayVault is
         assetsAfterFee = assets - depositFee;
 
         if (depositFee > 0) {
-            feesOwedInAsset += depositFee;
+            feesAccruedInAsset += depositFee;
         }
 
         uint256 shares = previewDeposit(assetsAfterFee);
@@ -379,7 +379,7 @@ contract OneWayVault is
         (uint256 grossAssets, uint256 fee) = calculateMintFee(shares);
 
         if (fee > 0) {
-            feesOwedInAsset += fee;
+            feesAccruedInAsset += fee;
         }
 
         _deposit(_msgSender(), receiver, grossAssets, shares);
@@ -540,7 +540,7 @@ contract OneWayVault is
 
         // Track fee for later distribution
         if (withdrawalFee > 0) {
-            feesOwedInAsset += withdrawalFee;
+            feesAccruedInAsset += withdrawalFee;
         }
 
         _withdraw(sharesToBurn, sharesForRequest, receiver, owner);
@@ -580,7 +580,7 @@ contract OneWayVault is
 
         // Track fee for later distribution
         if (withdrawalFee > 0) {
-            feesOwedInAsset += withdrawalFee;
+            feesAccruedInAsset += withdrawalFee;
         }
 
         // Burn the full shares amount specified by user, store net shares in request
@@ -665,22 +665,22 @@ contract OneWayVault is
      * @param feeDistribution Fee distribution configuration
      */
     function _distributeFees(FeeDistributionConfig memory feeDistribution) internal {
-        uint256 _feesOwedInAsset = feesOwedInAsset;
-        if (_feesOwedInAsset == 0) return;
+        uint256 _feesAccruedInAsset = feesAccruedInAsset;
+        if (_feesAccruedInAsset == 0) return;
 
         // Calculate fee shares for strategist
         uint256 strategistAssets =
-            _feesOwedInAsset.mulDiv(feeDistribution.strategistRatioBps, BASIS_POINTS, Math.Rounding.Floor);
+            _feesAccruedInAsset.mulDiv(feeDistribution.strategistRatioBps, BASIS_POINTS, Math.Rounding.Floor);
 
         // Calculate platform's share as the remainder
-        uint256 platformAssets = _feesOwedInAsset - strategistAssets;
+        uint256 platformAssets = _feesAccruedInAsset - strategistAssets;
 
         // Convert assets to shares
         uint256 strategistShares = _convertToShares(strategistAssets, Math.Rounding.Floor);
         uint256 platformShares = _convertToShares(platformAssets, Math.Rounding.Floor);
 
-        // Reset fees owed
-        feesOwedInAsset = 0;
+        // Reset fees accrued
+        feesAccruedInAsset = 0;
 
         // Mint shares to respective accounts
         if (strategistShares > 0) {

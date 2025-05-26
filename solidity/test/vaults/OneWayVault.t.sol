@@ -330,7 +330,7 @@ contract OneWayVaultTest is Test {
 
         // Check total assets and fees
         assertEq(vault.totalAssets(), depositAfterFee);
-        assertEq(vault.feesOwedInAsset(), fee);
+        assertEq(vault.feesAccruedInAsset(), fee);
     }
 
     function test_DepositWithZeroFee() public {
@@ -373,7 +373,7 @@ contract OneWayVaultTest is Test {
 
         // Check total assets and fees
         assertEq(vault.totalAssets(), depositAmount);
-        assertEq(vault.feesOwedInAsset(), 0);
+        assertEq(vault.feesAccruedInAsset(), 0);
     }
 
     function test_DepositWithCap() public {
@@ -438,7 +438,7 @@ contract OneWayVaultTest is Test {
 
         // Check total assets and fees
         assertEq(vault.totalAssets(), baseAssets);
-        assertEq(vault.feesOwedInAsset(), fee);
+        assertEq(vault.feesAccruedInAsset(), fee);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -543,7 +543,7 @@ contract OneWayVaultTest is Test {
 
         // Calculate expected fee
         uint256 expectedFee = (depositAmount * depositFeeBps) / BASIS_POINTS;
-        assertEq(vault.feesOwedInAsset(), expectedFee);
+        assertEq(vault.feesAccruedInAsset(), expectedFee);
 
         // Update rate - should distribute fees
         uint256 newRate = initialRate * 11 / 10; // Increase by 10%
@@ -554,7 +554,7 @@ contract OneWayVaultTest is Test {
         vault.update(newRate);
 
         // Check that fees were distributed
-        assertEq(vault.feesOwedInAsset(), 0);
+        assertEq(vault.feesAccruedInAsset(), 0);
 
         // Check that strategist and platform received their shares
         assertTrue(vault.balanceOf(strategistFeeReceiver) > 0);
@@ -622,7 +622,7 @@ contract OneWayVaultTest is Test {
         assertEq(vault.balanceOf(user1), expectedShares - redeemShares);
 
         // Check that withdrawal fee was added to fees owed
-        assertEq(vault.feesOwedInAsset(), depositFee + expectedWithdrawFee);
+        assertEq(vault.feesAccruedInAsset(), depositFee + expectedWithdrawFee);
 
         // Check that withdraw request was created
         (uint64 id, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
@@ -668,7 +668,7 @@ contract OneWayVaultTest is Test {
         uint256 redeemShares = userShares / 2;
         string memory receiverAddress = "neutron1abcdef123456789";
 
-        uint256 feesOwedBefore = vault.feesOwedInAsset();
+        uint256 feesAccruedBefore = vault.feesAccruedInAsset();
 
         vm.prank(user1);
         vm.expectEmit(true, true, false, true);
@@ -677,7 +677,7 @@ contract OneWayVaultTest is Test {
         vault.redeem(redeemShares, receiverAddress, user1);
 
         // Check that no additional fees were added
-        assertEq(vault.feesOwedInAsset(), feesOwedBefore);
+        assertEq(vault.feesAccruedInAsset(), feesAccruedBefore);
 
         // Check that exact shares were burned (no fee deduction)
         assertEq(vault.balanceOf(user1), userShares - redeemShares);
@@ -717,7 +717,7 @@ contract OneWayVaultTest is Test {
         vault.withdraw(withdrawAssets, receiverAddress, user1);
 
         // Check that withdrawal fee was added to fees owed
-        assertEq(vault.feesOwedInAsset(), depositFee + expectedWithdrawFee);
+        assertEq(vault.feesAccruedInAsset(), depositFee + expectedWithdrawFee);
 
         // Check that withdraw request was created
         (, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
@@ -867,7 +867,7 @@ contract OneWayVaultTest is Test {
         uint256 expectedWithdrawFee = (grossAssets * withdrawRateBps) / BASIS_POINTS;
         uint256 totalExpectedFees = expectedDepositFee + expectedWithdrawFee;
 
-        assertEq(vault.feesOwedInAsset(), totalExpectedFees);
+        assertEq(vault.feesAccruedInAsset(), totalExpectedFees);
 
         // Update rate to trigger fee distribution
         uint256 newRate = initialRate * 11 / 10; // 10% increase
@@ -875,7 +875,7 @@ contract OneWayVaultTest is Test {
         vault.update(newRate);
 
         // Check that fees were distributed
-        assertEq(vault.feesOwedInAsset(), 0);
+        assertEq(vault.feesAccruedInAsset(), 0);
 
         // Check that both deposit and withdrawal fees were distributed
         assertTrue(vault.balanceOf(strategistFeeReceiver) > 0);
@@ -914,7 +914,7 @@ contract OneWayVaultTest is Test {
 
         // Check total fees accumulated
         uint256 totalFees = depositFee + expectedWithdrawFee;
-        assertEq(vault.feesOwedInAsset(), totalFees);
+        assertEq(vault.feesAccruedInAsset(), totalFees);
 
         // User should have zero shares left
         assertEq(vault.balanceOf(user1), 0);
@@ -1419,6 +1419,6 @@ contract OneWayVaultTest is Test {
         }
 
         // Verify fee accumulation (should have both deposit and withdrawal fees)
-        assertTrue(vault.feesOwedInAsset() > 0, "Should have accumulated fees from deposits and withdrawals");
+        assertTrue(vault.feesAccruedInAsset() > 0, "Should have accumulated fees from deposits and withdrawals");
     }
 }
