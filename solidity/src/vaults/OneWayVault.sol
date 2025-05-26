@@ -18,6 +18,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
  *
  * This vault handles:
  * - Deposits with fee collection
+ * - Withdrawals with fee collection
  * - Strategist-controlled redemption rate updates
  * - Cross-domain withdrawal requests (one-way from source to destination)
  * - Fee distribution between platform and strategist
@@ -110,6 +111,7 @@ contract OneWayVault is
      * @param depositAccount Account where deposits are held
      * @param strategist Address of the vault strategist
      * @param depositFeeBps Fee charged on deposits in basis points (1 BPS = 0.01%)
+     * @param withdrawRateBps Fee charged on withdrawals in basis points (1 BPS = 0.01%)
      * @param depositCap Maximum assets that can be deposited (0 means no cap)
      * @param feeDistribution Configuration for fee distribution between platform and strategist
      */
@@ -117,6 +119,7 @@ contract OneWayVault is
         BaseAccount depositAccount;
         address strategist;
         uint32 depositFeeBps;
+        uint32 withdrawRateBps;
         uint256 depositCap;
         FeeDistributionConfig feeDistribution;
     }
@@ -173,7 +176,7 @@ contract OneWayVault is
     /**
      * @dev Total fees collected but not yet distributed, denominated in asset
      */
-    uint256 public feesOwedInAsset;
+    uint256 public feesAccruedInAsset;
 
     /**
      * @dev Mapping from request ID to withdrawal request details
@@ -269,6 +272,10 @@ contract OneWayVault is
             revert("Deposit fee cannot exceed 100%");
         }
 
+        if (decodedConfig.withdrawRateBps > BASIS_POINTS) {
+            revert("Withdraw fee cannot exceed 100%");
+        }
+
         if (decodedConfig.feeDistribution.strategistRatioBps > BASIS_POINTS) {
             revert("Strategist account fee distribution ratio cannot exceed 100%");
         }
@@ -347,7 +354,7 @@ contract OneWayVault is
         assetsAfterFee = assets - depositFee;
 
         if (depositFee > 0) {
-            feesOwedInAsset += depositFee;
+            feesAccruedInAsset += depositFee;
         }
 
         uint256 shares = previewDeposit(assetsAfterFee);
@@ -372,7 +379,7 @@ contract OneWayVault is
         (uint256 grossAssets, uint256 fee) = calculateMintFee(shares);
 
         if (fee > 0) {
-            feesOwedInAsset += fee;
+            feesAccruedInAsset += fee;
         }
 
         _deposit(_msgSender(), receiver, grossAssets, shares);
@@ -482,9 +489,26 @@ contract OneWayVault is
     }
 
     /**
+     * @notice Calculates the withdrawal fee for a given amount of assets
+     * @dev Uses basis points (BPS) for fee calculation where 1 BPS = 0.01%
+     *      The fee is rounded up to ensure the protocol doesn't lose dust amounts
+     *      If the withdraw rate BPS is set to 0, returns 0 to optimize gas
+     * @param assets The amount of assets being withdrawn
+     * @return The withdrawal fee amount in the same decimals as the asset
+     */
+    function calculateWithdrawalFee(uint256 assets) public view returns (uint256) {
+        uint32 feeBps = config.withdrawRateBps;
+        if (feeBps == 0) return 0;
+
+        uint256 fee = assets.mulDiv(feeBps, BASIS_POINTS, Math.Rounding.Ceil);
+
+        return fee;
+    }
+
+    /**
      * @notice Creates a withdrawal request for assets to be processed on destination domain
      * @dev Assets are calculated from shares based on current redemption rate
-     * @param assets Amount of assets to withdraw
+     * @param assets Amount of assets to withdraw (gross amount including fee)
      * @param receiver Address to receive the withdrawn assets on the destination domain (as string)
      * @param owner Address that owns the shares
      */
@@ -502,12 +526,29 @@ contract OneWayVault is
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
 
-        _withdraw(previewWithdraw(assets), receiver, owner);
+        // Calculate withdrawal fee
+        uint256 withdrawalFee = calculateWithdrawalFee(assets);
+
+        // Calculate net assets after fee
+        uint256 netAssets = assets - withdrawalFee;
+
+        // Calculate shares to burn based on FULL asset amount (including fee)
+        uint256 sharesToBurn = previewWithdraw(assets);
+
+        // Calculate shares for request based on NET assets (what will be processed)
+        uint256 postFeeShares = previewWithdraw(netAssets);
+
+        // Track fee for later distribution
+        if (withdrawalFee > 0) {
+            feesAccruedInAsset += withdrawalFee;
+        }
+
+        _withdraw(sharesToBurn, postFeeShares, receiver, owner);
     }
 
     /**
      * @notice Creates a redemption request for shares to be processed on destination domain
-     * @param shares Amount of shares to redeem
+     * @param shares Amount of shares to redeem (gross amount)
      * @param receiver Address to receive the redeemed assets on destination domain (as string)
      * @param owner Address that owns the shares
      */
@@ -525,30 +566,49 @@ contract OneWayVault is
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
         }
 
-        _withdraw(shares, receiver, owner);
+        // Calculate gross assets from shares
+        uint256 grossAssets = _convertToAssets(shares, Math.Rounding.Floor);
+
+        // Calculate withdrawal fee
+        uint256 withdrawalFee = calculateWithdrawalFee(grossAssets);
+
+        // Calculate net assets after fee
+        uint256 netAssets = grossAssets - withdrawalFee;
+
+        // Calculate shares for request based on net assets (what will be processed)
+        uint256 postFeeShares = _convertToShares(netAssets, Math.Rounding.Ceil);
+
+        // Track fee for later distribution
+        if (withdrawalFee > 0) {
+            feesAccruedInAsset += withdrawalFee;
+        }
+
+        // Burn the full shares amount specified by user, store net shares in request
+        _withdraw(shares, postFeeShares, receiver, owner);
     }
 
     /**
      * @dev Internal function to handle withdrawal/redemption request creation
-     * @param shares Amount of shares to withdraw
+     * @param sharesToBurn Amount of shares to burn from user's balance
+     * @param postFeeShares Amount of shares to store in withdrawal request (net after fees)
      * @param receiver Address to receive the assets on the destination domain (as string)
      * @param owner Address that owns the shares
      */
-    function _withdraw(uint256 shares, string calldata receiver, address owner) internal {
+    function _withdraw(uint256 sharesToBurn, uint256 postFeeShares, string calldata receiver, address owner) internal {
         // Burn shares first (CEI pattern - Checks, Effects, Interactions)
         if (msg.sender != owner) {
             uint256 allowed = allowance(owner, msg.sender);
-            if (allowed < shares) {
+            if (allowed < sharesToBurn) {
                 revert("Insufficient allowance");
             }
-            _spendAllowance(owner, msg.sender, shares);
+            _spendAllowance(owner, msg.sender, sharesToBurn);
         }
-        _burn(owner, shares);
+        _burn(owner, sharesToBurn);
 
         WithdrawRequest memory request = WithdrawRequest({
             id: currentWithdrawRequestId,
             owner: owner,
-            sharesAmount: shares,
+            sharesAmount: postFeeShares, // Net shares that will be processed
             redemptionRate: redemptionRate,
             receiver: receiver
         });
@@ -556,8 +616,8 @@ contract OneWayVault is
         // Store the request
         withdrawRequests[currentWithdrawRequestId] = request;
 
-        // Emit the event
-        emit WithdrawRequested(currentWithdrawRequestId, owner, receiver, shares);
+        // Emit the event with the shares post fee that are being withdrawn
+        emit WithdrawRequested(currentWithdrawRequestId, owner, receiver, postFeeShares);
 
         // Increment the request ID for the next request
         currentWithdrawRequestId++;
@@ -603,22 +663,22 @@ contract OneWayVault is
      * @param feeDistribution Fee distribution configuration
      */
     function _distributeFees(FeeDistributionConfig memory feeDistribution) internal {
-        uint256 _feesOwedInAsset = feesOwedInAsset;
-        if (_feesOwedInAsset == 0) return;
+        uint256 _feesAccruedInAsset = feesAccruedInAsset;
+        if (_feesAccruedInAsset == 0) return;
 
         // Calculate fee shares for strategist
         uint256 strategistAssets =
-            _feesOwedInAsset.mulDiv(feeDistribution.strategistRatioBps, BASIS_POINTS, Math.Rounding.Floor);
+            _feesAccruedInAsset.mulDiv(feeDistribution.strategistRatioBps, BASIS_POINTS, Math.Rounding.Floor);
 
         // Calculate platform's share as the remainder
-        uint256 platformAssets = _feesOwedInAsset - strategistAssets;
+        uint256 platformAssets = _feesAccruedInAsset - strategistAssets;
 
         // Convert assets to shares
         uint256 strategistShares = _convertToShares(strategistAssets, Math.Rounding.Floor);
         uint256 platformShares = _convertToShares(platformAssets, Math.Rounding.Floor);
 
-        // Reset fees owed
-        feesOwedInAsset = 0;
+        // Reset fees accrued
+        feesAccruedInAsset = 0;
 
         // Mint shares to respective accounts
         if (strategistShares > 0) {
