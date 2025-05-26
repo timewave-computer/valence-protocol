@@ -240,7 +240,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&raw_config)
         }
         QueryMsg::QueueInfo {} => to_json_binary(&query::get_queue_info(deps)?),
-        QueryMsg::Obligations { from, to } => {
+        QueryMsg::PendingObligations { from, to } => {
             to_json_binary(&query::get_obligations(deps, from, to)?)
         }
         QueryMsg::ObligationStatus { id } => {

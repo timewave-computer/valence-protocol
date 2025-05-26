@@ -93,7 +93,7 @@ pub enum QueryMsg {
     QueueInfo {},
     /// returns a list of obligations in the queue starting from the given index
     #[returns(ObligationsResponse)]
-    Obligations {
+    PendingObligations {
         /// starting index
         from: Option<u64>,
         /// end index

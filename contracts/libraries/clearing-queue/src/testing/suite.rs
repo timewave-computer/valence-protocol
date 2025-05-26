@@ -101,8 +101,10 @@ impl ClearingQueueTestingSuite {
     }
 
     pub fn query_obligations(&self, from: Option<u64>, to: Option<u64>) -> ObligationsResponse {
-        self.inner
-            .query_wasm(&self.clearing_queue, &QueryMsg::Obligations { from, to })
+        self.inner.query_wasm(
+            &self.clearing_queue,
+            &QueryMsg::PendingObligations { from, to },
+        )
     }
 }
 
