@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Storage Accounts - Valence Protocol Documentation</title>
+        <title>Clearing Queue - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -12,21 +12,21 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon.svg">
-        <link rel="shortcut icon" href="../favicon.png">
-        <link rel="stylesheet" href="../css/variables.css">
-        <link rel="stylesheet" href="../css/general.css">
-        <link rel="stylesheet" href="../css/chrome.css">
-        <link rel="stylesheet" href="../css/print.css" media="print">
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../fonts/fonts.css">
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
-        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
-        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="../../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -35,12 +35,12 @@
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../";
+            const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "ayu";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc.js"></script>
+        <script src="../../toc.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -104,7 +104,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -139,7 +139,7 @@
                     <h1 class="menu-title">Valence Protocol Documentation</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/timewave-computer/valence-protocol" title="Git repository" aria-label="Git repository">
@@ -171,58 +171,55 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-storage-account"><a class="header" href="#valence-storage-account">Valence Storage Account</a></h1>
-<p>The Valence Storage Account is a type of Valence account that can store Valence Type data
-objects.</p>
-<p>Like all other accounts, Storage Accounts follow the same pattern of approving and revoking
-authorized libraries from being able to post Valence Types into a given account.</p>
-<p>While regular Valence (Base) accounts are meant for storage of fungible tokens, Valence Storage
-accounts are meant for storage of non-fungible objects.</p>
-<h2 id="api"><a class="header" href="#api">API</a></h2>
-<h3 id="execute-methods"><a class="header" href="#execute-methods">Execute Methods</a></h3>
-<p>Storage Account is a simple component exposing the following execute methods:</p>
+                        <h1 id="valence-clearing-queue-library"><a class="header" href="#valence-clearing-queue-library">Valence Clearing Queue Library</a></h1>
+<p>The <strong>Valence Clearing Queue</strong> library allows <strong>registration and settlement of withdrawal obligations</strong> in a FIFO (First-In-First-Out) manner. It maintains a queue of pending withdrawal obligations, with each obligation containing recipient information, payout amounts, and a unique identifier. When settling obligations, funds are pulled from a <strong>settlement input account</strong> and sent to the specified recipients.</p>
+<blockquote>
+<p>[!IMPORTANT]
+This library functions solely as a settlement engine. The settlement account funding (liquidity-management) flow is outside of its scope and is managed by a strategist. This management process likely involves monitoring both the settlement account balance and the obligation queue in order to ensure the settlement account maintains sufficient liquidity for obligation settlements.</p>
+</blockquote>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Clearing Queue Library
+---
+graph LR
+  IA((Settlement&lt;br&gt;Account))
+  R((Recipient))
+  P[Processor]
+  CQ[Clearing&lt;br&gt;Queue&lt;br&gt;Library]
+  P -- 1/Register&lt;br&gt;Obligation --&gt; CQ
+  CQ -- 2/Store&lt;br&gt;Obligation --&gt; CQ
+  P -- 3/Settle&lt;br&gt;Next&lt;br&gt;Obligation --&gt; CQ
+  CQ -- 4/Query Settlement&lt;br&gt;Account Balance --&gt; IA
+  CQ -- 5/Validate &amp; Execute Transfer --&gt; IA
+  IA -- 6/Send Funds --&gt; R
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>RegisterObligation</strong></td><td><code>recipient: String</code><br><code>payout_coins: Vec&lt;Coin&gt;</code><br><code>id: Uint64</code></td><td>Registers a new withdrawal obligation in the queue with the specified recipient, payout coins, and unique ID. Each obligation must have non-zero payout amounts. Recipient must be a valid bech32 address.</td></tr>
+<tr><td><strong>SettleNextObligation</strong></td><td>-</td><td>Settles the oldest withdrawal obligation in the queue by transferring funds from the <strong>settlement input account</strong> to the specified recipient. Fails if there are no pending obligations or if the input account has insufficient balance.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub enum ExecuteMsg {
-    // Add library to approved list (only admin)
-    ApproveLibrary { library: String },
-    // Remove library from approved list (only admin)
-    RemoveLibrary { library: String },
-    // stores the given `ValenceType` variant under storage key `key`
-    StoreValenceType { key: String, variant: ValenceType },
+</span>pub struct LibraryConfig {
+    /// settlement input account which we tap into in order
+    /// to settle the obligations
+    pub settlement_acc_addr: LibraryAccountType,
 }
 <span class="boring">}</span></code></pre></pre>
-<p>Library approval and removal follow the same implementation as that of the fund accounts.</p>
-<p><code>StoreValenceType</code> is the key method of this contract. It takes in a <em>key</em> of type <code>String</code>, and its
-associated value of type <code>ValenceType</code>.</p>
-<p>If <code>StoreValenceType</code> is called by the owner or an approved library, it will persist the <em>key-value</em>
-mapping in its state. Storage here works in an overriding manner, meaning that posting data
-for a key that already exists will override its previous value and act as an update method.</p>
-<h3 id="query-methods"><a class="header" href="#query-methods">Query Methods</a></h3>
-<p>Once a given type has been posted into the storage account using <code>StoreValenceType</code> call, it becomes available
-for querying.</p>
-<p>Storage account exposes the following <code>QueryMsg</code>:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub enum QueryMsg {
-    // Get list of approved libraries
-    #[returns(Vec&lt;String&gt;)]
-    ListApprovedLibraries {},
-    // Get Valence type variant from storage
-    #[returns(ValenceType)]
-    QueryValenceType { key: String },
-}
-<span class="boring">}</span></code></pre></pre>
+<p>The <code>settlement_acc_addr</code> specifies the account from which funds will be pulled to fulfill settlement obligations. The library will check that this account has sufficient balance before attempting to settle each obligation.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../accounts/base_accounts.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/astroport_withdrawer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../accounts/interchain_accounts.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/cosmwasm/forwarder.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -232,11 +229,11 @@ for querying.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../accounts/base_accounts.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/astroport_withdrawer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../accounts/interchain_accounts.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/cosmwasm/forwarder.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -251,17 +248,17 @@ for querying.</p>
         </script>
 
 
-        <script src="../elasticlunr.min.js"></script>
-        <script src="../mark.min.js"></script>
-        <script src="../searcher.js"></script>
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
 
-        <script src="../clipboard.min.js"></script>
-        <script src="../highlight.js"></script>
-        <script src="../book.js"></script>
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
 
         <!-- Custom JS scripts -->
-        <script src="../mermaid.min.js"></script>
-        <script src="../mermaid-init.js"></script>
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
 
 
     </div>
