@@ -16,7 +16,7 @@ graph LR
   P -- 1/Register<br>Obligation --> CQ
   CQ -- 2/Store<br>Obligation --> CQ
   P -- 3/Settle<br>Next<br>Obligation --> CQ
-  CQ -- 4/Query Input<br>Account Balance --> IA
+  CQ -- 4/Query Settlement<br>Account Balance --> IA
   CQ -- 5/Validate & Execute Transfer --> IA
   IA -- 6/Send Funds --> R
 ```
@@ -29,8 +29,8 @@ The library is configured on instantiation via the `LibraryConfig` type.
 pub struct LibraryConfig {
     /// settlement input account which we tap into in order
     /// to settle the obligations
-    pub input_addr: LibraryAccountType,
+    pub settlement_acc_addr: LibraryAccountType,
 }
 ```
 
-The `input_addr` specifies the account from which funds will be pulled to fulfill settlement obligations. The library will check that this account has sufficient balance before attempting to settle each obligation.
+The `settlement_acc_addr` specifies the account from which funds will be pulled to fulfill settlement obligations. The library will check that this account has sufficient balance before attempting to settle each obligation.

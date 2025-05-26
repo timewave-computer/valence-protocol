@@ -13,7 +13,7 @@ use crate::state::WithdrawalObligation;
 pub struct Config {
     /// settlement input account which we tap into in order
     /// to settle the obligations
-    pub input_addr: Addr,
+    pub settlement_acc_addr: Addr,
 }
 
 #[cw_serde]
@@ -21,7 +21,7 @@ pub struct Config {
 pub struct LibraryConfig {
     /// settlement input account which we tap into in order
     /// to settle the obligations
-    pub input_addr: LibraryAccountType,
+    pub settlement_acc_addr: LibraryAccountType,
 }
 
 #[cw_serde]
@@ -40,17 +40,17 @@ pub enum FunctionMsgs {
 }
 
 impl LibraryConfig {
-    pub fn new(input_addr: impl Into<LibraryAccountType>) -> Self {
+    pub fn new(settlement_acc_addr: impl Into<LibraryAccountType>) -> Self {
         LibraryConfig {
-            input_addr: input_addr.into(),
+            settlement_acc_addr: settlement_acc_addr.into(),
         }
     }
 
     fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<Addr, LibraryError> {
         // validate the input account
-        let input_addr = self.input_addr.to_addr(api)?;
+        let settlement_acc_addr = self.settlement_acc_addr.to_addr(api)?;
 
-        Ok(input_addr)
+        Ok(settlement_acc_addr)
     }
 }
 
@@ -62,8 +62,8 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
-        let input_addr = self.do_validate(deps.api)?;
-        Ok(Config { input_addr })
+        let settlement_acc_addr = self.do_validate(deps.api)?;
+        Ok(Config { settlement_acc_addr })
     }
 }
 
@@ -71,8 +71,8 @@ impl LibraryConfigUpdate {
     pub fn update_config(self, deps: DepsMut) -> Result<(), LibraryError> {
         let mut config: Config = valence_library_base::load_config(deps.storage)?;
 
-        if let Some(input_addr) = self.input_addr {
-            config.input_addr = input_addr.to_addr(deps.api)?;
+        if let Some(settlement_acc_addr) = self.settlement_acc_addr {
+            config.settlement_acc_addr = settlement_acc_addr.to_addr(deps.api)?;
         }
 
         valence_library_base::save_config(deps.storage, &config)?;

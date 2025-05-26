@@ -66,7 +66,7 @@ impl ClearingQueueTestingSuite {
         let clearing_lib = self.clearing_queue.clone();
 
         let updated_config = LibraryConfigUpdate {
-            input_addr: Some(new_config.input_addr),
+            settlement_acc_addr: Some(new_config.settlement_acc_addr),
         };
         self.app_mut().execute_contract(
             owner,

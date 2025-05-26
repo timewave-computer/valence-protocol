@@ -24,11 +24,11 @@ fn test_instantiate_validates_input_acc() {
 fn test_update_validates_input_acc() {
     let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
 
-    let new_input_addr = LibraryAccountType::Addr(INVALID_ADDR.to_string());
+    let new_settlement_acc_addr = LibraryAccountType::Addr(INVALID_ADDR.to_string());
 
     suite
         .update_clearing_config(LibraryConfig {
-            input_addr: new_input_addr,
+            settlement_acc_addr: new_settlement_acc_addr,
         })
         .unwrap();
 }

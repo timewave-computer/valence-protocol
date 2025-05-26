@@ -154,15 +154,15 @@ mod functions {
         // ensure that the settlement account is sufficiently topped up
         // to fulfill the obligation
         for obligation_coin in obligation.payout_coins {
-            let input_acc_bal = deps
+            let settlement_acc_bal = deps
                 .querier
-                .query_balance(cfg.input_addr.as_str(), obligation_coin.denom.to_string())?;
+                .query_balance(cfg.settlement_acc_addr.as_str(), obligation_coin.denom.to_string())?;
 
             ensure!(
-                input_acc_bal.amount >= obligation_coin.amount,
+                settlement_acc_bal.amount >= obligation_coin.amount,
                 LibraryError::ExecutionError(format!(
                     "insufficient settlement acc balance to fulfill obligation: {} < {}",
-                    input_acc_bal, obligation_coin
+                    settlement_acc_bal, obligation_coin
                 ))
             );
 
@@ -175,7 +175,7 @@ mod functions {
             amount: transfer_coins,
         };
 
-        let input_account_msg = execute_on_behalf_of(vec![fill_msg.into()], &cfg.input_addr)?;
+        let input_account_msg = execute_on_behalf_of(vec![fill_msg.into()], &cfg.settlement_acc_addr)?;
 
         Ok(Response::new().add_message(input_account_msg))
     }
