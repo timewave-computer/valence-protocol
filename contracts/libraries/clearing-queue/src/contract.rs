@@ -128,7 +128,7 @@ mod functions {
             recipient: deps.api.addr_validate(&recipient)?,
             payout_coins,
             id,
-            enque_block: env.block,
+            enqueue_block: env.block,
         };
 
         // push the obligation to the back of the fifo queue

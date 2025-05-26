@@ -28,5 +28,5 @@ pub struct WithdrawalObligation {
     /// some unique identifier for the request
     pub id: Uint64,
     /// block when registration was enqueued
-    pub enque_block: BlockInfo,
+    pub enqueue_block: BlockInfo,
 }
