@@ -92,6 +92,13 @@ sol!(
     "../solidity/out/ValenceVault.sol/ValenceVault.json",
 );
 
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    OneWayVault,
+    "../solidity/out/OneWayVault.sol/OneWayVault.json",
+);
+
 // Proxy contract
 sol!(
     #[sol(rpc)]
