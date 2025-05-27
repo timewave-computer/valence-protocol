@@ -10555,6 +10555,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-elys-lending"
+version = "0.2.0"
+dependencies = [
+ "cosmos-sdk-proto 0.20.0",
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-account-utils",
+ "valence-lending-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-encoder-broker"
 version = "0.2.0"
 dependencies = [
@@ -10729,6 +10748,9 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
+ "prost 0.12.6",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -11087,6 +11109,7 @@ dependencies = [
  "valence-authorization-utils",
  "valence-drop-liquid-staker",
  "valence-drop-liquid-unstaker",
+ "valence-elys-lending",
  "valence-forwarder-library",
  "valence-generic-ibc-transfer-library",
  "valence-library-base",

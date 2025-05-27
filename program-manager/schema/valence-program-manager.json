@@ -926,6 +926,18 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceElysLending"
+            ],
+            "properties": {
+              "ValenceElysLending": {
+                "$ref": "#/definitions/LibraryConfig15"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -1048,6 +1060,41 @@
             "allOf": [
               {
                 "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfig15": {
+        "type": "object",
+        "required": [
+          "input_addr",
+          "output_addr",
+          "pool_id"
+        ],
+        "properties": {
+          "input_addr": {
+            "description": "Address of the input account",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
+          },
+          "output_addr": {
+            "description": "Address of the output account",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
+          },
+          "pool_id": {
+            "description": "ID of the pool we are going to lend to",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint64"
               }
             ]
           }
@@ -1450,6 +1497,18 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceElysLending"
+            ],
+            "properties": {
+              "ValenceElysLending": {
+                "$ref": "#/definitions/LibraryConfigUpdate15"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -1642,6 +1701,42 @@
             "anyOf": [
               {
                 "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfigUpdate15": {
+        "type": "object",
+        "properties": {
+          "input_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pool_id": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Uint64"
               },
               {
                 "type": "null"
