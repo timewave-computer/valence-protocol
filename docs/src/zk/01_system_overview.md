@@ -2,7 +2,7 @@
 
 The Valence Zero-Knowledge (ZK) system facilitates the execution of complex or private computations off-chain, with their correctness verified on-chain through cryptographic proofs. This overview describes the primary components and the general flow of information and operations within this system. The foundational concepts of ZK proofs in Valence are introduced in [Introduction to Valence ZK](./_overview.md).
 
-At its core, the system integrates an off-chain ZK Coprocessor service with on-chain smart contracts, primarily the `Authorization` and `VerificationGateway` contracts. A key technical challenge is encoding blockchain state into formats suitable for zero-knowledge proofs, enabling pure functions to operate on committed state transitions. For detailed information on state encoding mechanisms and cross-chain coordination, see [State Encoding and Encoders](./07_state_encoding_and_encoders.md).
+At its core, the system integrates an off-chain ZK Coprocessor Service with on-chain smart contracts, primarily the `Authorization` and `VerificationGateway` contracts. A key technical challenge is encoding blockchain state into formats suitable for zero-knowledge proofs, enabling pure functions to operate on committed state transitions. For detailed information on state encoding mechanisms and cross-chain coordination, see [State Encoding and Encoders](./07_state_encoding_and_encoders.md).
 
 ### Component Roles
 
@@ -22,7 +22,7 @@ The following diagrams illustrate the key workflows in the Valence ZK system:
 
 #### Deployment Flow
 
-Developers prepare and register their ZK applications, initializing the application prior to execution. They build guest program components, deploy them to the coprocessor service, and register verification keys on-chain.
+Developers prepare and register their ZK applications, initializing the application before execution. They build guest program components, deploy them to the coprocessor service, and register verification keys on-chain.
 
 ```mermaid
 graph TD

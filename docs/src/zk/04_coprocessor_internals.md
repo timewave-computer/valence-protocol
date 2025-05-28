@@ -1,6 +1,6 @@
 # ZK Coprocessor Internals
 
-This document provides a deeper look into the internal architecture and operational mechanics of the Valence ZK Coprocessor service. It is intended for those who wish to understand more about the Coprocessor's design beyond the scope of typical application development. Familiarity with [Valence ZK System Overview](./01_system_overview.md) is assumed.
+This document provides a deeper look into the internal architecture and operational mechanics of the Valence ZK Coprocessor service. It is intended for those who wish to understand more about the Coprocessor's design beyond the scope of typical application development. Familiarity with [Valence ZK Architecture Overview](./01_system_overview.md) is assumed.
 
 The Valence ZK Coprocessor is designed as a persistent off-chain service that registers and execute Zero-Knowledge (ZK) guest applications.
 
