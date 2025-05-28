@@ -1,0 +1,29 @@
+[neutron]
+grpc_url = "https://0.0.0.0"
+grpc_port = "12345"
+chain_id = "neutron-1"
+mnemonic = "racoon racoon racoon"
+authorization = "neutron1..."
+processor = "neutron1"
+
+[neutron.libraries]
+clearing_lib = "neutron1..."
+mars_lending_lib = "neutron1..."
+supervaults_depositor_lib = "neutron1..."
+deposit_forwarder_lib = "neutron1..."
+ica_ibc_transfer_lib = "neutron1..."
+
+[neutron.accounts]
+deposit_acc = "neutron1..."
+mars_acc = "neutron1..."
+supervaults_acc = "neutron1..."
+settlement_acc = "neutron1..."
+
+[neutron.accounts.deposit_ica]
+library_account = "neutron1..."
+remote_addr = "cosmos1..."
+
+[neutron.denoms]
+wbtc = "ibc/..."
+supervault_lp = "tokenfactory/..."
+neutron = "untrn"

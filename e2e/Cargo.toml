@@ -17,6 +17,10 @@ path = "examples/eth_eureka_vault/vault.rs"
 name = "eth_to_base_vault_pancake"
 path = "examples/eth_to_base_vault_pancake/vault.rs"
 
+[[example]]
+name = "eth_btc_vault"
+path = "examples/eth_btc_vault/runner.rs"
+
 [dependencies]
 localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
 localic-utils                        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
