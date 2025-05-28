@@ -282,7 +282,9 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
             require(users.length > 0, "Users array cannot be empty");
             AuthorizationData[] memory authorizationData = _authorizationData[i];
             // Check that the authorization data is not empty
-            require(authorizationData.length > 0, "Authorization data array cannot be empty");
+            require(
+                authorizationData.length > 0, string.concat("Authorization data array cannot be empty for: ", label)
+            );
 
             // Add the label to the mapping
             authorizations[label] = users;
@@ -324,9 +326,9 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
 
         // Process message based on type
         if (decodedMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.SendMsgs) {
-            message = _handleSendMsgsMessage(label, decodedMessage);
+            message = _handleSendMsgsRequest(label, decodedMessage);
         } else if (decodedMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.InsertMsgs) {
-            message = _handleInsertMsgsMessage(decodedMessage);
+            message = _handleInsertMsgsRequest(decodedMessage);
         } else {
             _requireAdminAccess();
         }
@@ -344,7 +346,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @param decodedMessage The decoded InsertMsgs message
      * @return The encoded processor message with the updated execution ID
      */
-    function _handleInsertMsgsMessage(IProcessorMessageTypes.ProcessorMessage memory decodedMessage)
+    function _handleInsertMsgsRequest(IProcessorMessageTypes.ProcessorMessage memory decodedMessage)
         private
         view
         returns (bytes memory)
@@ -371,7 +373,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @param decodedMessage The decoded SendMsgs message
      * @return The encoded processor message with the updated execution ID
      */
-    function _handleSendMsgsMessage(
+    function _handleSendMsgsRequest(
         string calldata label,
         IProcessorMessageTypes.ProcessorMessage memory decodedMessage
     ) private view returns (bytes memory) {
