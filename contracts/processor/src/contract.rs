@@ -8,7 +8,7 @@ use cosmwasm_std::{
 
 use cw_storage_plus::Bound;
 use valence_authorization_utils::{
-    authorization::{Priority, Subroutine},
+    authorization::{AuthorizationMsg, Priority, Subroutine},
     callback::ExecutionResult,
     domain::PolytoneProxyState,
     msg::ProcessorMessage,
@@ -18,10 +18,7 @@ use valence_processor_utils::{
     callback::{
         PendingCallback, PendingPolytoneCallbackInfo, PolytoneCallbackMsg, PolytoneCallbackState,
     },
-    msg::{
-        AuthorizationMsg, ExecuteMsg, InstantiateMsg, InternalProcessorMsg, PermissionlessMsg,
-        QueryMsg,
-    },
+    msg::{ExecuteMsg, InstantiateMsg, InternalProcessorMsg, PermissionlessMsg, QueryMsg},
     processor::{Config, MessageBatch, Polytone, ProcessorDomain, State},
 };
 

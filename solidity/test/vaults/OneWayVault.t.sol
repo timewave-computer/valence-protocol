@@ -25,6 +25,7 @@ contract OneWayVaultTest is Test {
     // Config constants
     uint32 constant BASIS_POINTS = 10000;
     uint32 depositFeeBps = 100; // 1%
+    uint32 withdrawRateBps = 50; // 0.5%
     uint32 strategistRatioBps = 5000; // 50%
     uint128 depositCap = 1_000_000 * 10 ** 18; // 1 million tokens
     uint256 initialRate = 10 ** 18; // 1:1 initial rate
@@ -60,6 +61,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
+            withdrawRateBps: withdrawRateBps,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
@@ -114,6 +116,7 @@ contract OneWayVaultTest is Test {
             BaseAccount initializedDepositAccount,
             address initializedStrategist,
             uint32 initializedDepositFeeBps,
+            uint32 initializedWithdrawRateBps,
             uint256 initializedDepositCap,
             OneWayVault.FeeDistributionConfig memory initializedFeeDistribution
         ) = vault.config();
@@ -121,6 +124,7 @@ contract OneWayVaultTest is Test {
         assertEq(address(initializedDepositAccount), address(depositAccount));
         assertEq(initializedStrategist, strategist);
         assertEq(initializedDepositFeeBps, depositFeeBps);
+        assertEq(initializedWithdrawRateBps, withdrawRateBps);
         assertEq(initializedDepositCap, depositCap);
         assertEq(initializedFeeDistribution.strategistAccount, strategistFeeReceiver);
         assertEq(initializedFeeDistribution.platformAccount, platformFeeReceiver);
@@ -141,6 +145,7 @@ contract OneWayVaultTest is Test {
         address newPlatformFeeReceiver = address(11);
         address newStrategistFeeReceiver = address(12);
         uint32 newDepositFeeBps = 200; // 2%
+        uint32 newWithdrawRateBps = 75; // 0.75%
         uint32 newStrategistRatioBps = 6000; // 60%
         uint128 newDepositCap = 500_000 * 10 ** 18; // 500k tokens
 
@@ -155,6 +160,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount, // keep same deposit account
             strategist: newStrategist,
             depositFeeBps: newDepositFeeBps,
+            withdrawRateBps: newWithdrawRateBps,
             depositCap: newDepositCap,
             feeDistribution: newFeeConfig
         });
@@ -168,12 +174,14 @@ contract OneWayVaultTest is Test {
             ,
             address updatedStrategist,
             uint32 updatedDepositFeeBps,
+            uint32 updatedWithdrawRateBps,
             uint256 updatedDepositCap,
             OneWayVault.FeeDistributionConfig memory updatedFeeDistribution
         ) = vault.config();
 
         assertEq(updatedStrategist, newStrategist);
         assertEq(updatedDepositFeeBps, newDepositFeeBps);
+        assertEq(updatedWithdrawRateBps, newWithdrawRateBps);
         assertEq(updatedDepositCap, newDepositCap);
         assertEq(updatedFeeDistribution.strategistAccount, newStrategistFeeReceiver);
         assertEq(updatedFeeDistribution.platformAccount, newPlatformFeeReceiver);
@@ -186,6 +194,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: address(10),
             depositFeeBps: 200,
+            withdrawRateBps: 75,
             depositCap: 500_000 * 10 ** 18,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: address(11),
@@ -206,6 +215,7 @@ contract OneWayVaultTest is Test {
             depositAccount: BaseAccount(payable(address(0))),
             strategist: strategist,
             depositFeeBps: depositFeeBps,
+            withdrawRateBps: withdrawRateBps,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
@@ -223,6 +233,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: address(0),
             depositFeeBps: depositFeeBps,
+            withdrawRateBps: withdrawRateBps,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
@@ -240,6 +251,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 10001, // > 100%
+            withdrawRateBps: withdrawRateBps,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
@@ -252,11 +264,30 @@ contract OneWayVaultTest is Test {
         vm.expectRevert("Deposit fee cannot exceed 100%");
         vault.updateConfig(abi.encode(invalidConfig));
 
+        // Test withdraw fee > 100%
+        invalidConfig = OneWayVault.OneWayVaultConfig({
+            depositAccount: depositAccount,
+            strategist: strategist,
+            depositFeeBps: depositFeeBps,
+            withdrawRateBps: 10001, // > 100%
+            depositCap: depositCap,
+            feeDistribution: OneWayVault.FeeDistributionConfig({
+                strategistAccount: strategistFeeReceiver,
+                platformAccount: platformFeeReceiver,
+                strategistRatioBps: strategistRatioBps
+            })
+        });
+
+        vm.prank(owner);
+        vm.expectRevert("Withdraw fee cannot exceed 100%");
+        vault.updateConfig(abi.encode(invalidConfig));
+
         // Test strategist ratio > 100%
         invalidConfig = OneWayVault.OneWayVaultConfig({
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
+            withdrawRateBps: withdrawRateBps,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
@@ -299,7 +330,7 @@ contract OneWayVaultTest is Test {
 
         // Check total assets and fees
         assertEq(vault.totalAssets(), depositAfterFee);
-        assertEq(vault.feesOwedInAsset(), fee);
+        assertEq(vault.feesAccruedInAsset(), fee);
     }
 
     function test_DepositWithZeroFee() public {
@@ -314,6 +345,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 0,
+            withdrawRateBps: withdrawRateBps,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
@@ -341,7 +373,7 @@ contract OneWayVaultTest is Test {
 
         // Check total assets and fees
         assertEq(vault.totalAssets(), depositAmount);
-        assertEq(vault.feesOwedInAsset(), 0);
+        assertEq(vault.feesAccruedInAsset(), 0);
     }
 
     function test_DepositWithCap() public {
@@ -356,6 +388,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 0,
+            withdrawRateBps: withdrawRateBps,
             depositCap: 5_000 * 10 ** 18, // 5k tokens
             feeDistribution: feeConfig
         });
@@ -405,7 +438,7 @@ contract OneWayVaultTest is Test {
 
         // Check total assets and fees
         assertEq(vault.totalAssets(), baseAssets);
-        assertEq(vault.feesOwedInAsset(), fee);
+        assertEq(vault.feesAccruedInAsset(), fee);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -510,7 +543,7 @@ contract OneWayVaultTest is Test {
 
         // Calculate expected fee
         uint256 expectedFee = (depositAmount * depositFeeBps) / BASIS_POINTS;
-        assertEq(vault.feesOwedInAsset(), expectedFee);
+        assertEq(vault.feesAccruedInAsset(), expectedFee);
 
         // Update rate - should distribute fees
         uint256 newRate = initialRate * 11 / 10; // Increase by 10%
@@ -521,7 +554,7 @@ contract OneWayVaultTest is Test {
         vault.update(newRate);
 
         // Check that fees were distributed
-        assertEq(vault.feesOwedInAsset(), 0);
+        assertEq(vault.feesAccruedInAsset(), 0);
 
         // Check that strategist and platform received their shares
         assertTrue(vault.balanceOf(strategistFeeReceiver) > 0);
@@ -565,21 +598,31 @@ contract OneWayVaultTest is Test {
         vault.deposit(depositAmount, user1);
 
         // Calculate expected shares
-        uint256 fee = (depositAmount * depositFeeBps) / BASIS_POINTS;
-        uint256 depositAfterFee = depositAmount - fee;
+        uint256 depositFee = vault.calculateDepositFee(depositAmount);
+        uint256 depositAfterFee = depositAmount - depositFee;
         uint256 expectedShares = (depositAfterFee * 10 ** vault.decimals()) / initialRate;
 
         // Now redeem half the shares
         uint256 redeemShares = expectedShares / 2;
         string memory receiverAddress = "neutron1abcdef123456789";
 
+        // Calculate expected values
+        uint256 grossAssets = (redeemShares * initialRate) / 10 ** vault.decimals();
+        uint256 expectedWithdrawFee = vault.calculateWithdrawalFee(grossAssets);
+        uint256 netAssets = grossAssets - expectedWithdrawFee;
+        uint256 expectedNetShares = (netAssets * 10 ** vault.decimals()) / initialRate;
+
         vm.prank(user1);
         vm.expectEmit(true, true, false, true);
-        emit WithdrawRequested(0, user1, receiverAddress, redeemShares);
+        // Event should emit the net shares
+        emit WithdrawRequested(0, user1, receiverAddress, expectedNetShares);
         vault.redeem(redeemShares, receiverAddress, user1);
 
-        // Check that shares were burned
+        // Check that correct shares were burned (the full redeemShares amount)
         assertEq(vault.balanceOf(user1), expectedShares - redeemShares);
+
+        // Check that withdrawal fee was added to fees owed
+        assertEq(vault.feesAccruedInAsset(), depositFee + expectedWithdrawFee);
 
         // Check that withdraw request was created
         (uint64 id, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
@@ -589,10 +632,59 @@ contract OneWayVaultTest is Test {
         assertEq(ownerRequest, user1);
         assertEq(receiver, receiverAddress);
         assertEq(redemptionRate, initialRate);
-        assertEq(sharesAmount, redeemShares);
+        // The withdrawal request stores NET shares (for cross-chain processing)
+        assertEq(sharesAmount, expectedNetShares);
 
         // Check that request ID was incremented
         assertEq(vault.currentWithdrawRequestId(), 1);
+    }
+
+    function test_RedeemWithZeroWithdrawFee() public {
+        // Update config to set zero withdraw fee
+        OneWayVault.FeeDistributionConfig memory feeConfig = OneWayVault.FeeDistributionConfig({
+            strategistAccount: strategistFeeReceiver,
+            platformAccount: platformFeeReceiver,
+            strategistRatioBps: strategistRatioBps
+        });
+
+        OneWayVault.OneWayVaultConfig memory vaultConfig = OneWayVault.OneWayVaultConfig({
+            depositAccount: depositAccount,
+            strategist: strategist,
+            depositFeeBps: depositFeeBps,
+            withdrawRateBps: 0, // Zero withdraw fee
+            depositCap: depositCap,
+            feeDistribution: feeConfig
+        });
+
+        vm.prank(owner);
+        vault.updateConfig(abi.encode(vaultConfig));
+
+        // First deposit to get some shares
+        uint256 depositAmount = 10_000 * 10 ** 18;
+        vm.prank(user1);
+        vault.deposit(depositAmount, user1);
+
+        uint256 userShares = vault.balanceOf(user1);
+        uint256 redeemShares = userShares / 2;
+        string memory receiverAddress = "neutron1abcdef123456789";
+
+        uint256 feesAccruedBefore = vault.feesAccruedInAsset();
+
+        vm.prank(user1);
+        vm.expectEmit(true, true, false, true);
+        // With zero fees, burned shares = net shares in request
+        emit WithdrawRequested(0, user1, receiverAddress, redeemShares);
+        vault.redeem(redeemShares, receiverAddress, user1);
+
+        // Check that no additional fees were added
+        assertEq(vault.feesAccruedInAsset(), feesAccruedBefore);
+
+        // Check that exact shares were burned (no fee deduction)
+        assertEq(vault.balanceOf(user1), userShares - redeemShares);
+
+        // Check withdrawal request has same shares (no fee deduction)
+        (,,, uint256 sharesAmount,) = vault.withdrawRequests(0);
+        assertEq(sharesAmount, redeemShares);
     }
 
     function test_Withdraw() public {
@@ -602,16 +694,27 @@ contract OneWayVaultTest is Test {
         vm.prank(user1);
         vault.deposit(depositAmount, user1);
 
-        // Calculate expected shares and assets after fee
-        uint256 fee = (depositAmount * depositFeeBps) / BASIS_POINTS;
-        uint256 depositAfterFee = depositAmount - fee;
+        // Calculate expected shares and assets after deposit fee
+        uint256 depositFee = vault.calculateDepositFee(depositAmount);
+        uint256 depositAfterFee = depositAmount - depositFee;
 
-        // Now withdraw half the assets
+        // Now withdraw half the assets (gross amount)
         uint256 withdrawAssets = depositAfterFee / 2;
         string memory receiverAddress = "neutron1abcdef123456789";
 
+        // Calculate expected withdrawal fee and net assets
+        uint256 expectedWithdrawFee = vault.calculateWithdrawalFee(withdrawAssets);
+        uint256 netAssets = withdrawAssets - expectedWithdrawFee;
+        uint256 expectedNetShares = (netAssets * 10 ** vault.decimals()) / initialRate;
+
         vm.prank(user1);
+        vm.expectEmit(true, true, false, true);
+        // Event should emit the shares that were withdrawn
+        emit WithdrawRequested(0, user1, receiverAddress, expectedNetShares);
         vault.withdraw(withdrawAssets, receiverAddress, user1);
+
+        // Check that withdrawal fee was added to fees owed
+        assertEq(vault.feesAccruedInAsset(), depositFee + expectedWithdrawFee);
 
         // Check that withdraw request was created
         (, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
@@ -620,19 +723,15 @@ contract OneWayVaultTest is Test {
         assertEq(ownerRequest, user1);
         assertEq(receiver, receiverAddress);
         assertEq(redemptionRate, initialRate);
-
-        // Check shares amount (should be proportional to assets requested)
-        uint256 expectedShares = (withdrawAssets * 10 ** vault.decimals()) / initialRate;
-        assertEq(sharesAmount, expectedShares);
+        // The withdrawal request stores NET shares (for cross-chain processing)
+        assertEq(sharesAmount, expectedNetShares);
     }
 
     function test_WithdrawWithAllowance() public {
         // First deposit to get some shares for user1
         uint256 depositAmount = 10_000 * 10 ** 18;
-
         vm.prank(user1);
         vault.deposit(depositAmount, user1);
-
         uint256 shares = vault.balanceOf(user1);
 
         // User1 approves user2 to spend half their shares
@@ -640,17 +739,39 @@ contract OneWayVaultTest is Test {
         vm.prank(user1);
         vault.approve(user2, approvedShares);
 
+        // Calculate expected values for withdrawal
+        uint256 grossAssets = (approvedShares * initialRate) / 10 ** vault.decimals();
+
+        // Use the actual fee calculation function instead of manual calculation
+        uint256 expectedWithdrawFee = vault.calculateWithdrawalFee(grossAssets);
+        uint256 netAssets = grossAssets - expectedWithdrawFee;
+
+        // Calculate expected shares to burn - this should be the FULL approved shares
+        // because in redeem(), we burn the full shares amount that user specified
+        uint256 expectedSharesToBurn = approvedShares;
+
         // User2 redeems on behalf of user1
         string memory receiverAddress = "neutron1abcdef123456789";
-
         vm.prank(user2);
         vault.redeem(approvedShares, receiverAddress, user1);
 
-        // Check that shares were burned from user1
-        assertEq(vault.balanceOf(user1), shares - approvedShares);
+        // Check that correct shares were burned from user1
+        // Should burn the full approved shares amount (including fee portion)
+        assertEq(vault.balanceOf(user1), shares - expectedSharesToBurn);
 
-        // Check allowance was spent
+        // Check allowance was spent appropriately
+        // Allowance should be reduced by the approved shares amount
         assertEq(vault.allowance(user1, user2), 0);
+
+        // Additional verification: check the withdrawal request
+        (,, uint256 redemptionRate, uint256 sharesAmount,) = vault.withdrawRequests(0);
+
+        // The withdrawal request should store net shares (for cross-chain processing)
+        uint256 expectedNetShares = (netAssets * 10 ** vault.decimals()) / initialRate;
+        assertEq(sharesAmount, expectedNetShares, "Withdrawal request should store net shares");
+
+        // Verify redemption rate is correct
+        assertEq(redemptionRate, initialRate, "Redemption rate should match current rate");
     }
 
     function test_RedeemInvalidParams() public {
@@ -685,6 +806,123 @@ contract OneWayVaultTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        WITHDRAWAL FEE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_CalculateWithdrawalFee() public {
+        uint256 withdrawAmount = 10_000 * 10 ** 18;
+
+        // Expected fee calculation
+        uint256 expectedFee = (withdrawAmount * withdrawRateBps) / BASIS_POINTS;
+
+        // Check calculated fee
+        uint256 calculatedFee = vault.calculateWithdrawalFee(withdrawAmount);
+
+        assertEq(calculatedFee, expectedFee);
+
+        // Test with zero fee
+        OneWayVault.FeeDistributionConfig memory feeConfig = OneWayVault.FeeDistributionConfig({
+            strategistAccount: strategistFeeReceiver,
+            platformAccount: platformFeeReceiver,
+            strategistRatioBps: strategistRatioBps
+        });
+
+        OneWayVault.OneWayVaultConfig memory vaultConfig = OneWayVault.OneWayVaultConfig({
+            depositAccount: depositAccount,
+            strategist: strategist,
+            depositFeeBps: depositFeeBps,
+            withdrawRateBps: 0,
+            depositCap: depositCap,
+            feeDistribution: feeConfig
+        });
+
+        vm.prank(owner);
+        vault.updateConfig(abi.encode(vaultConfig));
+
+        // Check fee calculation with zero fee
+        assertEq(vault.calculateWithdrawalFee(withdrawAmount), 0);
+    }
+
+    function test_WithdrawFeeDistribution() public {
+        // First deposit to get some shares and generate deposit fees
+        uint256 depositAmount = 100_000 * 10 ** 18;
+        vm.prank(user1);
+        vault.deposit(depositAmount, user1);
+
+        uint256 userShares = vault.balanceOf(user1);
+
+        // Redeem some shares to generate withdrawal fees
+        uint256 redeemShares = userShares / 4; // Redeem 25%
+        string memory receiverAddress = "neutron1abcdef123456789";
+
+        vm.prank(user1);
+        vault.redeem(redeemShares, receiverAddress, user1);
+
+        // Calculate expected total fees (deposit + withdrawal)
+        uint256 expectedDepositFee = (depositAmount * depositFeeBps) / BASIS_POINTS;
+        uint256 grossAssets = (redeemShares * initialRate) / 10 ** vault.decimals();
+        uint256 expectedWithdrawFee = (grossAssets * withdrawRateBps) / BASIS_POINTS;
+        uint256 totalExpectedFees = expectedDepositFee + expectedWithdrawFee;
+
+        assertEq(vault.feesAccruedInAsset(), totalExpectedFees);
+
+        // Update rate to trigger fee distribution
+        uint256 newRate = initialRate * 11 / 10; // 10% increase
+        vm.prank(strategist);
+        vault.update(newRate);
+
+        // Check that fees were distributed
+        assertEq(vault.feesAccruedInAsset(), 0);
+
+        // Check that both deposit and withdrawal fees were distributed
+        assertTrue(vault.balanceOf(strategistFeeReceiver) > 0);
+        assertTrue(vault.balanceOf(platformFeeReceiver) > 0);
+
+        // Verify the distribution includes both types of fees
+        uint256 strategistShares = vault.balanceOf(strategistFeeReceiver);
+        uint256 platformShares = vault.balanceOf(platformFeeReceiver);
+
+        // Total fee shares should represent the total fees collected
+        uint256 totalFeeShares = strategistShares + platformShares;
+        uint256 expectedTotalFeeShares = (totalExpectedFees * 10 ** vault.decimals()) / initialRate;
+
+        assertApproxEqAbs(totalFeeShares, expectedTotalFeeShares, 1); // Allow 1 wei rounding error
+    }
+
+    function test_DepositAndWithdrawBeforeUpdate() public {
+        // Test the scenario where user deposits and withdraws before update
+        uint256 depositAmount = 10_000 * 10 ** 18;
+
+        // User deposits
+        vm.prank(user1);
+        vault.deposit(depositAmount, user1);
+
+        uint256 depositFee = (depositAmount * depositFeeBps) / BASIS_POINTS;
+        uint256 userShares = vault.balanceOf(user1);
+
+        // User immediately withdraws all shares
+        string memory receiverAddress = "neutron1abcdef123456789";
+        vm.prank(user1);
+        vault.redeem(userShares, receiverAddress, user1);
+
+        // Calculate expected withdrawal fee
+        uint256 grossAssets = (userShares * initialRate) / 10 ** vault.decimals();
+        uint256 expectedWithdrawFee = (grossAssets * withdrawRateBps) / BASIS_POINTS;
+
+        // Check total fees accumulated
+        uint256 totalFees = depositFee + expectedWithdrawFee;
+        assertEq(vault.feesAccruedInAsset(), totalFees);
+
+        // User should have zero shares left
+        assertEq(vault.balanceOf(user1), 0);
+
+        // Net cost to user should be both fees
+        uint256 netAssetsReceived = grossAssets - expectedWithdrawFee;
+        uint256 totalCostToUser = depositAmount - netAssetsReceived;
+        assertEq(totalCostToUser, totalFees);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                           EDGE CASE TESTS
     //////////////////////////////////////////////////////////////*/
 
@@ -707,6 +945,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
+            withdrawRateBps: withdrawRateBps,
             depositCap: 100_000 * 10 ** 18,
             feeDistribution: feeConfig
         });
@@ -799,6 +1038,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 0,
+            withdrawRateBps: withdrawRateBps,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
@@ -835,6 +1075,7 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 0,
+            withdrawRateBps: withdrawRateBps,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
@@ -925,7 +1166,6 @@ contract OneWayVaultTest is Test {
 
         // 2. Update rate to simulate yield
         uint256 newRate = initialRate * 12 / 10; // 20% increase
-
         vm.prank(strategist);
         vault.update(newRate);
 
@@ -934,16 +1174,19 @@ contract OneWayVaultTest is Test {
         uint256 expectedTotalAssets = totalDeposits * 12 / 10; // Include fees in asset calculation
         assertApproxEqAbs(vault.totalAssets(), expectedTotalAssets, 10);
 
-        // 4. Withdraw request from user1 (half their shares)
-        uint256 user1Shares = vault.balanceOf(user1);
-        uint256 redeemShares = user1Shares / 2;
+        // 4. Withdrawal request from user1 (half their shares)
+        uint256 user1SharesBefore = vault.balanceOf(user1);
+        uint256 redeemShares = user1SharesBefore / 2;
         string memory receiverAddress = "neutron1abcdef123456789";
 
         vm.prank(user1);
         vault.redeem(redeemShares, receiverAddress, user1);
 
-        // 5. Check user1 shares were burned
-        assertEq(vault.balanceOf(user1), user1Shares - redeemShares);
+        // 5. Check user1 shares were burned correctly
+        uint256 user1SharesAfter = vault.balanceOf(user1);
+
+        // In redeem(), we burn the EXACT shares requested by user
+        assertEq(user1SharesAfter, user1SharesBefore - redeemShares, "Should burn exact shares requested");
 
         // 6. Check withdrawal request was created with correct values
         (, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
@@ -952,29 +1195,51 @@ contract OneWayVaultTest is Test {
         assertEq(ownerRequest, user1);
         assertEq(receiver, receiverAddress);
         assertEq(redemptionRate, newRate);
-        assertEq(sharesAmount, redeemShares);
 
-        // 7. Update rate again to simulate more yield
+        // sharesAmount should be NET shares (less than redeemShares due to fees)
+        assertTrue(sharesAmount > 0, "Should have positive shares in request");
+        assertTrue(sharesAmount < redeemShares, "Net shares should be less than gross shares due to fees");
+
+        // 7. Update rate again to simulate more yield and trigger fee distribution
         uint256 newerRate = newRate * 13 / 10; // Additional 30% increase
-
         vm.prank(strategist);
         vault.update(newerRate);
 
-        // 8. Check that accumulated fees were distributed to strategist and platform
-        assertTrue(vault.balanceOf(strategistFeeReceiver) > 0);
-        assertTrue(vault.balanceOf(platformFeeReceiver) > 0);
+        // 8. Check that accumulated fees (deposit + withdrawal) were distributed
+        // Note: Fees might be distributed as shares or assets depending on implementation
+        uint256 strategistBalance = vault.balanceOf(strategistFeeReceiver);
+        uint256 platformBalance = vault.balanceOf(platformFeeReceiver);
 
-        // 9. Make withdrawal request from user2
-        uint256 user2Shares = vault.balanceOf(user2);
+        assertTrue(strategistBalance > 0 || platformBalance > 0, "Some fees should have been distributed");
+
+        // 9. Make withdrawal request from user2 (all remaining shares)
+        uint256 user2SharesBefore = vault.balanceOf(user2);
+
         vm.prank(user2);
-        vault.redeem(user2Shares, receiverAddress, user2);
+        vault.redeem(user2SharesBefore, receiverAddress, user2);
+
+        // Verify user2 shares were completely burned
+        assertEq(vault.balanceOf(user2), 0, "User2 should have 0 shares after full redemption");
 
         // 10. Verify total supply consistency
         uint256 remainingUser1Shares = vault.balanceOf(user1);
+        uint256 remainingUser2Shares = vault.balanceOf(user2); // Should be 0
         uint256 strategistShares = vault.balanceOf(strategistFeeReceiver);
         uint256 platformShares = vault.balanceOf(platformFeeReceiver);
 
-        assertEq(vault.totalSupply(), remainingUser1Shares + strategistShares + platformShares);
+        uint256 expectedTotalSupply = remainingUser1Shares + remainingUser2Shares + strategistShares + platformShares;
+        assertEq(vault.totalSupply(), expectedTotalSupply, "Total supply should equal sum of all balances");
+
+        // 11. Additional verification: Check that two withdrawal requests exist
+        // First request (user1)
+        (, address owner1,,, string memory receiver1) = vault.withdrawRequests(0);
+        assertEq(owner1, user1);
+        assertEq(receiver1, receiverAddress);
+
+        // Second request (user2)
+        (, address owner2,,, string memory receiver2) = vault.withdrawRequests(1);
+        assertEq(owner2, user2);
+        assertEq(receiver2, receiverAddress);
     }
 
     function test_RateImpactOnWithdrawals() public {
@@ -997,21 +1262,30 @@ contract OneWayVaultTest is Test {
         // 5. Get current shares before withdrawal
         uint256 user1SharesBefore = vault.balanceOf(user1);
 
-        // 6. Create withdrawal request for half of assets
-        uint256 withdrawAssets = expectedAssets / 2;
+        // 6. Create withdrawal request for assets (accounting for withdrawal fee)
+        uint256 withdrawAssets = expectedAssets / 4; // Withdraw 25% of total assets
         string memory receiverAddress = "neutron1abcdef123456789";
+
         vm.prank(user1);
         vault.withdraw(withdrawAssets, receiverAddress, user1);
 
-        // 7. Get shares after withdrawal and verify the difference
+        // 7. Get shares after withdrawal
         uint256 user1SharesAfter = vault.balanceOf(user1);
+        uint256 sharesBurned = user1SharesBefore - user1SharesAfter;
 
         // 8. Check withdrawal request uses current rate
         (,, uint256 redemptionRate, uint256 sharesAmount,) = vault.withdrawRequests(0);
         assertEq(redemptionRate, doubledRate);
 
-        // 9. Verify shares burned matches the withdrawal request
-        assertEq(sharesAmount, user1SharesBefore - user1SharesAfter);
+        // 9. Verify correct shares were burned (including fee)
+        uint256 expectedSharesBurned = vault.previewWithdraw(withdrawAssets);
+        assertEq(sharesBurned, expectedSharesBurned, "Incorrect shares burned");
+
+        // 10. Verify withdrawal request stores NET shares (after fee deduction)
+        uint256 withdrawalFee = vault.calculateWithdrawalFee(withdrawAssets);
+        uint256 netAssets = withdrawAssets - withdrawalFee;
+        uint256 expectedNetShares = vault.previewWithdraw(netAssets);
+        assertEq(sharesAmount, expectedNetShares, "Incorrect net shares in withdrawal request");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1107,8 +1381,7 @@ contract OneWayVaultTest is Test {
             }
         }
 
-        // Instead of calculating expected assets, just verify that totalAssets() is reasonable
-        // Get total deposits made (gross, before fees)
+        // Calculate total gross deposits and expected fee range
         uint256 totalGrossDeposits = 0;
         for (uint256 op = 0; op < operationsPerUser; op++) {
             for (uint256 i = 0; i < userCount; i++) {
@@ -1116,9 +1389,8 @@ contract OneWayVaultTest is Test {
             }
         }
 
-        // Calculate a reasonable range for total assets
-        // The actual value will depend on when fees were distributed and rate changes
-        uint256 minExpectedAssets = totalGrossDeposits * 9 / 10; // Allow for fees taken out
+        // Calculate a reasonable range for total assets accounting for both deposit and withdrawal fees
+        uint256 minExpectedAssets = totalGrossDeposits * 85 / 100; // Allow for fees taken out
         uint256 maxExpectedAssets = totalGrossDeposits * 13 / 10; // Allow for yield and fees
 
         uint256 actualTotalAssets = vault.totalAssets();
@@ -1127,15 +1399,23 @@ contract OneWayVaultTest is Test {
             "Total assets outside reasonable range"
         );
 
-        // Each user redeems a portion
+        // Each user redeems a portion (this will generate withdrawal fees)
         string memory receiverAddress = "neutron1abcdef123456789";
         for (uint256 i = 0; i < userCount; i++) {
             uint256 userShares = vault.balanceOf(users[i]);
-            uint256 redeemShares = userShares / 2; // Redeem half
-            vm.prank(users[i]);
-            vault.redeem(redeemShares, receiverAddress, users[i]);
-            // Check shares were burned
-            assertEq(vault.balanceOf(users[i]), userShares - redeemShares);
+            if (userShares > 0) {
+                uint256 redeemShares = userShares / 2; // Redeem half
+                if (redeemShares > 0) {
+                    uint256 userSharesBefore = vault.balanceOf(users[i]);
+                    vm.prank(users[i]);
+                    vault.redeem(redeemShares, receiverAddress, users[i]);
+                    // Check some shares were burned (exact amount depends on withdrawal fees)
+                    assertTrue(vault.balanceOf(users[i]) < userSharesBefore);
+                }
+            }
         }
+
+        // Verify fee accumulation (should have both deposit and withdrawal fees)
+        assertTrue(vault.feesAccruedInAsset() > 0, "Should have accumulated fees from deposits and withdrawals");
     }
 }

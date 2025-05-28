@@ -2,7 +2,10 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Api, BlockInfo, Uint128};
 use cw_utils::Expiration;
 
-use crate::function::{AtomicFunction, Function, NonAtomicFunction, RetryLogic};
+use crate::{
+    function::{AtomicFunction, Function, NonAtomicFunction, RetryLogic},
+    msg::ProcessorMessage,
+};
 
 #[cw_serde]
 // What an owner or subowner can pass to the contract to create an authorization
@@ -180,4 +183,30 @@ pub enum Priority {
 pub enum AuthorizationState {
     Enabled,
     Disabled,
+}
+
+#[cw_serde]
+pub enum AuthorizationMsg {
+    EnqueueMsgs {
+        // Used for the callback or to remove the messages
+        id: u64,
+        msgs: Vec<ProcessorMessage>,
+        subroutine: Subroutine,
+        priority: Priority,
+        expiration_time: Option<u64>,
+    },
+    EvictMsgs {
+        queue_position: u64,
+        priority: Priority,
+    },
+    InsertMsgs {
+        queue_position: u64,
+        id: u64,
+        msgs: Vec<ProcessorMessage>,
+        subroutine: Subroutine,
+        priority: Priority,
+        expiration_time: Option<u64>,
+    },
+    Pause {},
+    Resume {},
 }
