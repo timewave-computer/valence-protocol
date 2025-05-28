@@ -16,10 +16,10 @@ use valence_e2e::utils::solidity_contracts::{
     ERC20,
 };
 
-//const ETH_ENDPOINT: &str = "https://eth-mainnet.public.blastapi.io";
-//const MNEMONIC: &str = "test test test test test test test test test test test junk";
+const ETH_ENDPOINT: &str = "https://eth-mainnet.public.blastapi.io";
+const MNEMONIC: &str = "test test test test test test test test test test test junk";
 //const ETH_ENDPOINT: &str = "http://127.0.0.1:8545";
-const ETH_ENDPOINT: &str = "https://eth-sepolia.public.blastapi.io";
+//const ETH_ENDPOINT: &str = "https://eth-sepolia.public.blastapi.io";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -52,8 +52,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .contract_address
         .unwrap();
 
-    /*let deposit_account_address =
-    Address::from_str("0xe7e31c0E1F94d94b4a113592e7a9Cff8bDCA84Be").unwrap();*/
     println!("Deposit account deployed at: {deposit_account_address}");
 
     let fee_distribution_config = FeeDistributionConfig {
@@ -109,9 +107,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Vault deployed at: {proxy_address}");
 
-    //let wbtc_address = Address::from_str("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599").unwrap();
+    let wbtc_address = Address::from_str("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599").unwrap();
 
-    let nonce = rp.get_transaction_count(my_address).await?;
+    /*let nonce = rp.get_transaction_count(my_address).await?;
 
     let token_1_tx = MockERC20::deploy_builder(&rp, "WBTC".to_string(), "WBTC".to_string(), 8)
         .into_transaction_request()
@@ -142,9 +140,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await?
         .get_receipt()
         .await?;
-    println!("Minted {} WBTC to {}", mint_amount, my_address);
+    println!("Minted {} WBTC to {}", mint_amount, my_address);*/
 
     // Check my balance
+    let wbtc = ERC20::new(wbtc_address, &rp);
     let balance_call = wbtc.balanceOf(my_address).call().await?._0;
     println!("My WBTC balance: {balance_call}");
 
@@ -170,7 +169,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .get_receipt()
         .await?;
 
-    println!("Vault initialized with WBTC at address: {wbtc_address}");
+    println!("Vault initialized with WBTC address: {wbtc_address}");
 
     // Let's deposit and withdraw some WBTC into the vault
     //let wbtc = ERC20::new(wbtc_address, &rp);
@@ -231,6 +230,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Check the withdraw request for ID 0
     let withdraw_request = vault.withdrawRequests(0).call().await?;
     println!("Withdraw request: {:?}", withdraw_request);
+
+    /*let wbtc_address = Address::from_str("0x425De7D367027beA8896631e69bF0606d7D7CE6F").unwrap();
+    let lena_address = Address::from_str("0x766571faCC16b3cFE8a109cac461Ab3A3344e1D4").unwrap();
+    let wbtc = MockERC20::new(wbtc_address, &rp);
+    let mint_amount = U256::from(1000000000);
+    let nonce = rp.get_transaction_count(my_address).await?;
+    let mint_tx = wbtc
+        .mint(lena_address, mint_amount)
+        .into_transaction_request()
+        .with_nonce(nonce);
+    let tx_request = rp.fill(mint_tx).await?.as_builder().unwrap().clone();
+    let tx_envelope = tx_request.build(&wallet).await?;
+    rp.send_tx_envelope(tx_envelope)
+        .await?
+        .get_receipt()
+        .await?;
+    println!("Minted {} WBTC to {}", mint_amount, lena_address);*/
 
     Ok(())
 }
