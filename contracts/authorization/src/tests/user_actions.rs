@@ -841,8 +841,8 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         &authorization,
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::ExecuteZkAuthorization {
             label: "pause".to_string(),
-            message: Binary::from(proof_pause_inputs),
-            proof: Binary::from(proof_pause_bytes),
+            message: Binary::from(proof_pause_inputs.clone()),
+            proof: Binary::from(proof_pause_bytes.clone()),
         }),
         &[],
         &setup.user_accounts[0],
@@ -886,4 +886,34 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         processor_config.state,
         valence_processor_utils::processor::State::Active
     );
+
+    // Check that if we disable the authorization, we can't execute it anymore
+    wasm.execute::<ExecuteMsg>(
+        &authorization,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::DisableAuthorization {
+            label: "pause".to_string(),
+        }),
+        &[],
+        &setup.owner_accounts[0],
+    )
+    .unwrap();
+
+    let error = wasm
+        .execute::<ExecuteMsg>(
+            &authorization,
+            &ExecuteMsg::PermissionlessAction(PermissionlessMsg::ExecuteZkAuthorization {
+                label: "pause".to_string(),
+                message: Binary::from(proof_pause_inputs),
+                proof: Binary::from(proof_pause_bytes),
+            }),
+            &[],
+            &setup.user_accounts[0],
+        )
+        .unwrap_err();
+
+    assert!(error.to_string().contains(
+        ContractError::Unauthorized(UnauthorizedReason::NotEnabled {})
+            .to_string()
+            .as_str()
+    ));
 }
