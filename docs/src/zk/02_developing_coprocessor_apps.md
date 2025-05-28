@@ -1,6 +1,6 @@
 # Developing Valence Coprocessor Apps
 
-This guide is designed for developers looking to build Zero-Knowledge (ZK) applications, or "guest programs," for the Valence ZK Coprocessor. It focuses on using the `valence-coprocessor-app` template as a foundation. Before diving in, it is beneficial to have a grasp of the concepts presented in [Introduction to Valence ZK](./00_introduction.md) and [Valence ZK System Overview](./01_system_overview.md).
+This guide is designed for developers looking to build Zero-Knowledge (ZK) applications, or "guest programs," for the Valence ZK Coprocessor. It focuses on using the `valence-coprocessor-app` template as a foundation. Before diving in, it is beneficial to have a grasp of the concepts presented in [Introduction to Valence ZK](./_overview.md) and [Valence ZK System Overview](./01_system_overview.md).
 
 The [valence-coprocessor-app template repository](https://github.com/timewave-computer/valence-coprocessor-app) serves as the primary starting point and practical reference for this guide.
 
