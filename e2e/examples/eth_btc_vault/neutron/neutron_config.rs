@@ -1,5 +1,6 @@
 use cosmwasm_std::Uint128;
 use serde::{Deserialize, Serialize};
+use valence_e2e::utils::worker::ValenceWorkerTomlSerde;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NeutronStrategyConfig {
@@ -11,6 +12,8 @@ pub struct NeutronStrategyConfig {
     pub chain_id: String,
     /// strategist mnemonic
     pub mnemonic: String,
+    /// total amount of untrn required to initiate an ibc transfer from neutron
+    pub min_ibc_fee: Uint128,
 
     /// Mars protocol wbtc contract
     pub mars_pool: String,
@@ -23,10 +26,10 @@ pub struct NeutronStrategyConfig {
     pub accounts: NeutronAccounts,
     /// all libraries relevant to the neutron-side of strategy
     pub libraries: NeutronLibraries,
-
-    // total amount of untrn required to initiate an ibc transfer from neutron
-    pub min_ibc_fee: Uint128,
 }
+
+// default impl serde trait to enable toml config file parsing
+impl ValenceWorkerTomlSerde for NeutronStrategyConfig {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NeutronDenoms {
