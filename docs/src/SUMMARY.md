@@ -78,6 +78,7 @@
   - [Token Swap](./examples/token_swap.md)
   - [Crosschain Vaults](./examples/crosschain_vaults.md)
     - [Vault Strategist](./examples/vault_strategist.md)
+    - [EVM One-Way Vault](./examples/evm_oneway_vault.md)
 - [Testing](./testing/_overview.md)
   - [Initial Testing Set Up](./testing/setup.md)
   - [Example without Program Manager](./testing/without_program_manager.md)
