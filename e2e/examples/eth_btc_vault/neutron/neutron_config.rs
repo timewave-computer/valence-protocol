@@ -20,6 +20,11 @@ pub struct NeutronStrategyConfig {
     /// Supervaults vault address
     pub supervault: String,
 
+    /// authorizations module
+    pub authorizations: String,
+    /// processor coupled with the authorizations
+    pub processor: String,
+
     /// all denoms relevant to the neutron-side of strategy
     pub denoms: NeutronDenoms,
     /// all accounts relevant to the neutron-side of strategy

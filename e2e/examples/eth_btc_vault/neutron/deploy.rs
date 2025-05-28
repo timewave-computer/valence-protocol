@@ -49,6 +49,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         accounts,
         libraries,
         min_ibc_fee: Uint128::one(),
+        authorizations: "neutron1authorizations...".to_string(),
+        processor: "neutron1processor...".to_string(),
     };
 
     let temp_path = Path::new("./e2e/examples/eth_btc_vault/neutron/example_strategy.toml");
