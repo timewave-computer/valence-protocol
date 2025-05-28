@@ -1,6 +1,6 @@
 # Introduction to Valence ZK
 
-Valence Protocol provides a Zero-Knowledge proofs and a dedicated ZK Coprocessor system to enhance its capabilities, particularly in areas requiring complex computation, privacy, and verifiable off-chain operations. This ZK integration allows Valence to bridge the gap between the rich, flexible environment of off-chain processing and the trust-minimized, verifiable nature of blockchain execution.
+Valence Protocol provides Zero-Knowledge proofs and a dedicated ZK Coprocessor system to enhance its capabilities, particularly in areas requiring complex computation, privacy, and verifiable off-chain operations. This ZK integration allows Valence to bridge the gap between the rich, flexible environment of off-chain processing and the trust-minimized, verifiable nature of blockchain execution.
 
 At a high level, ZK proofs enable one party (the prover, in this case, the ZK Coprocessor) to prove to another party (the verifier, typically on-chain smart contracts) that a certain statement is true, without revealing any information beyond the validity of the statement itself. In Valence, this means that computationally intensive or private tasks can be executed off-chain by a "guest program" running on the ZK Coprocessor. This guest program produces a result along with a cryptographic proof attesting to the correctness of that result according to the program's logic.
 
