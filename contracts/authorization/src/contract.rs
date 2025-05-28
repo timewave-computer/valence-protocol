@@ -924,6 +924,12 @@ fn execute_zk_authorization(
             ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
         })?;
 
+    if zk_authorization.state.ne(&AuthorizationState::Enabled) {
+        return Err(ContractError::Unauthorized(
+            UnauthorizedReason::NotEnabled {},
+        ));
+    }
+
     // Get the verification gateway address
     let verification_gateway = VERIFICATION_GATEWAY
         .load(deps.storage)
