@@ -11,6 +11,4 @@ Valence currently supports CosmWasm and EVM. SVM support coming soon. The rest o
     - [Middleware](./middleware.md)
 
 2. **Off-chain Execution via ZK Coprocessor**:
-Early specifications exist for the [Valence ZK coprocessor](./../zk-coprocessor/_overview.md). We aim to move as much computation off-chain as possible since off-chain computation is a more scalable approach to building a cross-chain execution environment.
-
-Unless explicitly mentioned, you may assume that documentation and examples in the remaining sections are written with on-chain execution in mind.
+Early specifications for the [Valence ZK System](./../zk/_overview.md). We aim to move as much computation off-chain as possible since off-chain computation is a more scalable approach to building a cross-chain execution environment.
