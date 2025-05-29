@@ -3,7 +3,7 @@ use std::error::Error;
 mod ethereum;
 mod gaia;
 mod neutron;
-mod strategy;
+mod strategist;
 mod strategy_config;
 
 fn main() -> Result<(), Box<dyn Error>> {
