@@ -6,7 +6,7 @@ Since ZK proofs are uniquely tied to their verification keys, we can use these k
 
 ## Merkle Tree
 
-A Merkle tree is an authenticaed data structure consisting of leaves and nodes that form a tree shape. Each node in this tree represents the cryptographic hash of its children, while the leaves hold an arbitrary piece of data—usually the hash value of some variable input.
+A Merkle tree is an authenticated data structure consisting of leaves and nodes that form a tree shape. Each node in this tree represents the cryptographic hash of its children, while the leaves hold an arbitrary piece of data—usually the hash value of some variable input.
 
 For a hash function `H`, if we insert data items A, B, C into a Merkle tree, the resulting structure would look like:
 
@@ -89,7 +89,7 @@ If the tree comprises two nodes with indices `[(0,0), (0,2)]`, the Merkle openin
 
 ### Precomputed Empty Subtrees
 
-The Valence SMT implementation includes a pre-computed set of empty subtrees based on the selected hash primitive. For example, when a tree contains only empty nodes, all hash values are constant:
+The Valence SMT implementation includes a precomputed set of empty subtrees based on the selected hash primitive. For example, when a tree contains only empty nodes, all hash values are constant:
 
 ```mermaid
 graph TB

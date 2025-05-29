@@ -114,9 +114,9 @@ fn verify(&self, proof: Proof, circuit_output: Vec<u8>) {
 }
 ```
 
-## Merklelized Encoder
+## Merkleized Encoder
 
-For cross-chain applications, the Merklelized Encoder handles state transition dependencies across multiple domains. This enables parallel execution while maintaining correctness for chains that depend on each other's state.
+For cross-chain applications, the Merkleized Encoder handles state transition dependencies across multiple domains. This enables parallel execution while maintaining correctness for chains that depend on each other's state.
 
 ### Cross-Chain State Dependencies
 
@@ -127,7 +127,7 @@ Consider three chains where:
 
 The Merklelized Encoder creates a Merkle tree structure:
 
-```
+```text
         R (Root)
        /         \
      M1           M2

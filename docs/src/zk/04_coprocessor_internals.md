@@ -1,14 +1,16 @@
 # ZK Coprocessor Internals
 
-This document provides a deeper look into the internal architecture and operational mechanics of the Valence ZK Coprocessor service. It is intended for those who wish to understand more about the Coprocessor's design beyond the scope of typical application development. Familiarity with [Valence ZK Architecture Overview](./01_system_overview.md) is assumed.
+This document provides an in-depth look into the internal architecture and operational mechanics of the Valence ZK Coprocessor service. It is intended for those who wish to understand more about the Coprocessor's design beyond the scope of typical application development. Familiarity with [Valence ZK System Overview](./01_system_overview.md) is assumed.
 
-The Valence ZK Coprocessor is designed as a persistent off-chain service that registers and execute Zero-Knowledge (ZK) guest applications.
+The Valence ZK Coprocessor is designed as a persistent off-chain service that registers and executes Zero-Knowledge (ZK) guest applications.
 
 ### Service Architecture
 
-The Coprocessor service consists of several coordinated components that work together to provide a complete ZK execution environment:
+The Coprocessor service consists of several coordinated components that work together to provide a complete ZK execution environment. It's important to note a key architectural separation: the `coprocessor` itself (which handles API requests, controller execution, and virtual filesystem management) is distinct from the `prover`. While they work in tandem, they can be deployed and scaled independently. For instance, Valence runs a dedicated, high-performance prover instance at `prover.timewave.computer:37282`. Coprocessor instances, including those run locally for development, can connect to this remote prover (typically requiring a `VALENCE_PROVER_SECRET` for access). This separation also allows developers to run a local coprocessor instance completely isolated from a real prover, using mocked ZK proofs. This is invaluable for rapid iteration and debugging of controller logic without incurring the overhead of actual proof generation.
 
-The **API Layer** serves as the primary external interface, exposing REST endpoints (typically on port `37281`) for core operations. Developers can deploy guest programs by submitting `controller` and `circuit` bundles, they can request proofs for deployed programs, query the status of ongoing tasks, and retrieve data stored in the virtual filesystem such as generated proofs or execution logs.
+The main components of the Coprocessor service include:
+
+The **API Layer** serves as the primary external interface, exposing REST endpoints (typically on port `37281` for the coprocessor service itself) for core operations. Developers can deploy guest programs by submitting `controller` and `circuit` bundles, they can request proofs for deployed programs, query the status of ongoing tasks, and retrieve data stored in the virtual filesystem such as generated proofs or execution logs.
 
 **Request Management & Database** - This component validates incoming requests and queues them for processing. It maintains persistent storage for deployed guest program details including Controller IDs, circuit specifications, and controller bundles, while also tracking proof generation status and execution metadata.
 
