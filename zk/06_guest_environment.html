@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorization &amp; Processors - Valence Protocol Documentation</title>
+        <title>Guest Environment - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -171,27 +171,44 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorization--processors"><a class="header" href="#authorization--processors">Authorization &amp; Processors</a></h1>
-<p>The <strong>Authorization</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
-<p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with <strong>Valence Programs</strong> via <strong>Authorizations</strong>.</p>
-<h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
+                        <h1 id="valence-zk-guest-environment"><a class="header" href="#valence-zk-guest-environment">Valence ZK Guest Environment</a></h1>
+<p>This document describes the specific execution environment provided by the Valence Coprocessor for "guest applications." Understanding this environment is crucial for developers building robust and efficient ZK applications. It complements the information found in <a href="./02_developing_coprocessor_apps.html">Developing Valence Coprocessor Apps</a>.</p>
+<p>When a guest program's <code>controller</code> crate logic is executed by the Valence ZK Coprocessor, it runs within a specialized, sandboxed environment. This environment imposes certain characteristics and provides specific interfaces for interaction.</p>
+<h3 id="execution-sandbox"><a class="header" href="#execution-sandbox">Execution Sandbox</a></h3>
+<p>The primary purpose of the sandbox is to securely execute the guest program's Rust code (often compiled to WebAssembly or a similar intermediate representation) that is responsible for generating the witness for the ZK circuit. This isolation prevents a guest program from interfering with the Coprocessor service itself or other concurrently running guest programs.</p>
+<p>While the exact nature of the sandbox can evolve, developers should assume an environment with constrained resources. This means that overly complex or long-running computations within the <code>controller</code> crate (before handing off to the ZK circuit for proving) should be approached with caution. The main computationally intensive work should ideally be designed into the ZK circuit itself, as that is what the proving system is optimized for.</p>
+<h3 id="virtual-filesystem"><a class="header" href="#virtual-filesystem">Virtual Filesystem</a></h3>
+<p>Each deployed guest program is provided with its own private virtual filesystem by the Coprocessor. This filesystem is essential for storing intermediate data, logs, and most importantly, the generated ZK proofs.</p>
+<p>Key characteristics and limitations of this virtual filesystem, as indicated by the <code>valence-coprocessor-app</code> template examples, include:</p>
 <ul>
-<li>To have a general purpose set of smart contracts that provide users with a single point of entry to interact with the Valence Program, which can have libraries and accounts deployed on multiple chains.</li>
-<li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
-<li>To have a single address (Processor) that will execute the messages for all the contracts in a domain using execution queues.</li>
-<li>To only tick a single contract (Processor) that will go through the queues to route and execute the messages.</li>
-<li>To create, edit, or remove different application permissions with ease.</li>
+<li><strong>FAT-16 Basis:</strong> The underlying structure often emulates a FAT-16 filesystem. This implies certain legacy constraints that developers must be aware of.</li>
+<li><strong>Extension Length:</strong> File extensions are typically limited to a maximum of three characters (e.g., <code>.bin</code>, <code>.txt</code>, <code>.log</code>).</li>
+<li><strong>Case Insensitivity:</strong> File and directory names are generally treated as case-insensitive (e.g., <code>Proof.bin</code> and <code>proof.bin</code> would refer to the same file).</li>
+<li><strong>Path Structure:</strong> Paths are typically Unix-like (e.g., <code>/var/share/my_proof.bin</code>).</li>
+<li><strong>Interaction:</strong> The <code>controller</code> crate interacts with this filesystem by sending specific commands to the Coprocessor service rather than through direct OS-level file I/O calls. For example, to store a generated proof, the <code>controller</code> constructs a <code>store</code> command with the target path and data, which the Coprocessor then writes to the program's virtual disk image.</li>
 </ul>
+<p>Developers should design their <code>controller</code> logic to work within these constraints, particularly when choosing filenames for storing proofs or other outputs.</p>
+<h3 id="interfacing-with-the-coprocessor-service"><a class="header" href="#interfacing-with-the-coprocessor-service">Interfacing with the Coprocessor Service</a></h3>
+<p>From within its sandboxed execution, the <code>controller</code> crate logic needs to communicate with the host Coprocessor service for several key operations:</p>
+<ul>
+<li><strong>Signaling Witness Readiness:</strong> After processing inputs and preparing the witness for the ZK circuit, the <code>controller</code> must inform the Coprocessor that it is ready for the proving phase to begin.</li>
+<li><strong>Receiving Proof Results:</strong> The Coprocessor calls a designated entrypoint function within the <code>controller</code> crate upon completion of a proof generation task (successful or failed). This entrypoint receives the proof data, initial arguments, and any logs.</li>
+<li><strong>Filesystem Operations:</strong> As mentioned above, storing data (like the received proof) or logging information involves sending structured requests to the Coprocessor to perform actions on the program's virtual filesystem.</li>
+</ul>
+<p>The exact mechanism for this interaction (e.g., specific function calls, message passing, predefined environment variables or handles) is defined by the Coprocessor's execution environment for guest programs.</p>
+<h3 id="resource-constraints"><a class="header" href="#resource-constraints">Resource Constraints</a></h3>
+<p>Guest applications run with finite system resources including limited memory, CPU time, and storage space. Developers should aim for efficiency in their <code>controller</code> crate logic, focusing on input processing, witness generation, and handling results rather than performing heavy computations that are better suited for the ZK circuit itself.</p>
+<p>Understanding these environment constraints enables developers to build ZK applications that run efficiently on the Valence Coprocessor.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../zk/05_sparse_merkle_trees.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../zk/07_state_encoding_and_encoders.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -201,11 +218,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../zk/05_sparse_merkle_trees.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../zk/07_state_encoding_and_encoders.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

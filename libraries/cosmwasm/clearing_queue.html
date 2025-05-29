@@ -174,7 +174,7 @@
                         <h1 id="valence-clearing-queue-library"><a class="header" href="#valence-clearing-queue-library">Valence Clearing Queue Library</a></h1>
 <p>The <strong>Valence Clearing Queue</strong> library allows <strong>registration and settlement of withdrawal obligations</strong> in a FIFO (First-In-First-Out) manner. It maintains a queue of pending withdrawal obligations, with each obligation containing recipient information, payout amounts, and a unique identifier. When settling obligations, funds are pulled from a <strong>settlement input account</strong> and sent to the specified recipients.</p>
 <blockquote>
-<p>[!IMPORTANT]
+<p><strong>Important:</strong>
 This library functions solely as a settlement engine. The settlement account funding (liquidity-management) flow is outside of its scope and is managed by a strategist. This management process likely involves monitoring both the settlement account balance and the obligation queue in order to ensure the settlement account maintains sufficient liquidity for obligation settlements.</p>
 </blockquote>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>

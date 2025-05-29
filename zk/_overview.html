@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorization &amp; Processors - Valence Protocol Documentation</title>
+        <title>Valence ZK System - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -171,27 +171,31 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorization--processors"><a class="header" href="#authorization--processors">Authorization &amp; Processors</a></h1>
-<p>The <strong>Authorization</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
-<p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with <strong>Valence Programs</strong> via <strong>Authorizations</strong>.</p>
-<h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
+                        <h1 id="introduction-to-valence-zk"><a class="header" href="#introduction-to-valence-zk">Introduction to Valence ZK</a></h1>
+<p>The Valence Protocol provides Zero-Knowledge proofs and a dedicated ZK Coprocessor system to enhance its capabilities, particularly in areas requiring complex computation, privacy, and verifiable off-chain operations. This ZK integration allows Valence to bridge the gap between the rich, flexible environment of off-chain processing and the trust-minimized, verifiable nature of blockchain execution.</p>
+<p>At a high level, ZK proofs enable one party (the prover, in this case, the ZK Coprocessor) to prove to another party (the verifier, typically on-chain smart contracts) that a certain statement is true, without revealing any information beyond the validity of the statement itself. In Valence, this means that computationally intensive or private tasks can be executed off-chain by a "guest program" running on the ZK Coprocessor. This guest program produces a result along with a cryptographic proof attesting to the correctness of that result according to the program's logic.</p>
+<p>This proof, which is relatively small and efficient to check, is then submitted to the Valence smart contracts on-chain. The on-chain contracts only need to verify this succinct proof to be assured that the off-chain computation was performed correctly, rather than having to re-execute the entire complex computation themselves. This model brings several advantages, including reduced gas costs, increased transaction throughput, the ability to handle private data, and the capacity to implement more sophisticated logic than would be feasible purely on-chain.</p>
+<p>Key terms you will encounter in this documentation include:</p>
 <ul>
-<li>To have a general purpose set of smart contracts that provide users with a single point of entry to interact with the Valence Program, which can have libraries and accounts deployed on multiple chains.</li>
-<li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
-<li>To have a single address (Processor) that will execute the messages for all the contracts in a domain using execution queues.</li>
-<li>To only tick a single contract (Processor) that will go through the queues to route and execute the messages.</li>
-<li>To create, edit, or remove different application permissions with ease.</li>
+<li><strong>ZK Coprocessor:</strong> An off-chain service responsible for running "guest programs" and generating ZK proofs of their execution.</li>
+<li><strong>Guest Program:</strong> A piece of software designed by developers for off-chain execution on the ZK Coprocessor. It comprises two main parts: the <strong>ZK Circuit</strong> (which defines the core ZK-provable computations) and the <strong>Controller</strong> (Wasm-compiled logic that prepares inputs for the circuit, handles its outputs, and interacts with the Coprocessor environment).</li>
+<li><strong>zkVM (Zero-Knowledge Virtual Machine):</strong> An environment that can execute arbitrary programs and produce a ZK proof of that execution. The Valence ZK Coprocessor leverages such technology (e.g., SP1) to run guest programs.</li>
+<li><strong>Encoders:</strong> Systems that compress blockchain state into formats suitable for ZK proofs. The Unary Encoder handles single-chain state transitions, while the Merkleized Encoder manages cross-chain state dependencies.</li>
+<li><strong>Proof:</strong> A small piece of cryptographic data that demonstrates a computation was performed correctly according to a specific program, without revealing all the details of the computation.</li>
+<li><strong>Public Inputs/Outputs:</strong> The specific data points that are part of the public statement being proven. The ZK proof attests that the guest program correctly transformed certain public inputs into certain public outputs.</li>
+<li><strong>Witness:</strong> The complete set of inputs, both public (known to prover and verifier) and private (known only to the prover), required by a ZK circuit to perform its computation and allow the generation of a proof. The ZK proof demonstrates that the computation was performed correctly using this witness, without revealing the private inputs.</li>
 </ul>
+<p>This set of documentation will guide you through understanding how this ZK system works within Valence, how to develop your own guest programs for the Coprocessor, and how to integrate these ZK-proven results with the on-chain components of the Valence Protocol. For detailed information on how blockchain state is encoded for ZK proofs and cross-chain coordination, see <a href="./07_state_encoding_and_encoders.html">State Encoding and Encoders</a>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../components/middleware.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../zk/01_system_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -201,11 +205,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../components/middleware.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../zk/01_system_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

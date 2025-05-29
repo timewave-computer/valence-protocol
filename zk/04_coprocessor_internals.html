@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authorization &amp; Processors - Valence Protocol Documentation</title>
+        <title>Coprocessor Internals - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -171,27 +171,36 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authorization--processors"><a class="header" href="#authorization--processors">Authorization &amp; Processors</a></h1>
-<p>The <strong>Authorization</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
-<p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with <strong>Valence Programs</strong> via <strong>Authorizations</strong>.</p>
-<h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
-<ul>
-<li>To have a general purpose set of smart contracts that provide users with a single point of entry to interact with the Valence Program, which can have libraries and accounts deployed on multiple chains.</li>
-<li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
-<li>To have a single address (Processor) that will execute the messages for all the contracts in a domain using execution queues.</li>
-<li>To only tick a single contract (Processor) that will go through the queues to route and execute the messages.</li>
-<li>To create, edit, or remove different application permissions with ease.</li>
-</ul>
+                        <h1 id="zk-coprocessor-internals"><a class="header" href="#zk-coprocessor-internals">ZK Coprocessor Internals</a></h1>
+<p>This document provides an in-depth look into the internal architecture and operational mechanics of the Valence ZK Coprocessor service. It is intended for those who wish to understand more about the Coprocessor's design beyond the scope of typical application development. Familiarity with <a href="./01_system_overview.html">Valence ZK System Overview</a> is assumed.</p>
+<p>The Valence ZK Coprocessor is designed as a persistent off-chain service that registers and executes Zero-Knowledge (ZK) guest applications.</p>
+<h3 id="service-architecture"><a class="header" href="#service-architecture">Service Architecture</a></h3>
+<p>The Coprocessor service consists of several coordinated components that work together to provide a complete ZK execution environment. It's important to note a key architectural separation: the <code>coprocessor</code> itself (which handles API requests, controller execution, and virtual filesystem management) is distinct from the <code>prover</code>. While they work in tandem, they can be deployed and scaled independently. For instance, Valence runs a dedicated, high-performance prover instance at <code>prover.timewave.computer:37282</code>. Coprocessor instances, including those run locally for development, can connect to this remote prover (typically requiring a <code>VALENCE_PROVER_SECRET</code> for access). This separation also allows developers to run a local coprocessor instance completely isolated from a real prover, using mocked ZK proofs. This is invaluable for rapid iteration and debugging of controller logic without incurring the overhead of actual proof generation.</p>
+<p>The main components of the Coprocessor service include:</p>
+<p>The <strong>API Layer</strong> serves as the primary external interface, exposing REST endpoints (typically on port <code>37281</code> for the coprocessor service itself) for core operations. Developers can deploy guest programs by submitting <code>controller</code> and <code>circuit</code> bundles, they can request proofs for deployed programs, query the status of ongoing tasks, and retrieve data stored in the virtual filesystem such as generated proofs or execution logs.</p>
+<p><strong>Request Management &amp; Database</strong> - This component validates incoming requests and queues them for processing. It maintains persistent storage for deployed guest program details including Controller IDs, circuit specifications, and controller bundles, while also tracking proof generation status and execution metadata.</p>
+<p>The <strong>Controller Executor / Sandbox</strong> provides an isolated execution environment for <code>controller</code> crate logic. This sandbox runs a WebAssembly runtime for controller code and provides a crucial interface that allows controllers to signal when witness preparation is complete and proof generation should commence. Controllers can also perform filesystem operations through this interface.</p>
+<p><strong>Proving Engine Integration</strong> - Orchestrates the actual ZK proof generation process using underlying zkVM systems like SP1 or Groth16. This component manages prover resources, handles the translation of circuits and witnesses into the required formats for specific proving backends, and processes the resulting proof data and public outputs.</p>
+<p>The <strong>Virtual Filesystem Manager</strong> allocates FAT-16 based virtual filesystems to each guest program, enabling controllers to store proofs and logs through <code>store</code> commands. This filesystem has certain limitations on filename length and character sets that developers must consider.</p>
+<h3 id="the-coprocessor-process"><a class="header" href="#the-coprocessor-process">The Coprocessor Process</a></h3>
+<p><strong>Coprocessor Root Hash</strong> is a notable internal detail where the Coprocessor prepends a 32-byte hash to application-specific public outputs from the ZK circuit. This combined data forms the complete "public inputs" that are cryptographically bound to the proof, ensuring that proofs are tied to the specific Coprocessor instance that produced them. On-chain verifiers must account for this structure when validating proofs.</p>
+<p><strong>Task Lifecycle</strong> involves proof generation requests progressing through several distinct stages: initial queuing, controller execution for witness generation, circuit proving, and finally proof delivery back to the controller entrypoint. The API provides mechanisms to track task status throughout this lifecycle.</p>
+<p><strong>Persistent Job Queues</strong> enable the Coprocessor service to handle multiple concurrent proof requests efficiently and reliably through persistent job queues, and worker nodes for computationally intensive proving tasks.</p>
+<h3 id="handling-verifiable-state-proofs"><a class="header" href="#handling-verifiable-state-proofs">Handling Verifiable State Proofs</a></h3>
+<p>Guest programs can incorporate state from external blockchains through a structured integration pattern that enhances their capabilities significantly.</p>
+<p>External State Proof Services, such as the <code>eth-state-proof-service</code>, connect to external chains via RPC, query desired state at specific block heights, and construct Merkle proofs relative to known block hashes. These services play a crucial role in bridging external blockchain data into the ZK environment.</p>
+<p>The guest program integration follows a clear pattern. During <strong>Proof Ingestion</strong>, the controller receives external state proofs via JSON payloads and extracts state values along with relevant metadata like block hashes. In the <strong>Witness Preparation</strong> phase, the controller incorporates this external state into the witness for the ZK circuit. The <strong>Circuit Logic</strong> then performs computations using the external state data, with the option to verify external proofs directly within the circuit for stronger security guarantees.</p>
+<p><strong>Trust Model Considerations</strong> - The ZK proof fundamentally attests that given a set of provided inputs (which may include externally proven state at the latest block height), the circuit executed correctly to produce the specified outputs. The Coprocessor provides a state proof interface for each chain that exposes a light client prover wrapped in a recursive circuit. All light client circuits are initialized at a trusted height, where block hash and committee composition are taken as "weakly subjective" public inputs.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../zk/03_onchain_integration.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../zk/05_sparse_merkle_trees.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -201,11 +210,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../zk/03_onchain_integration.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/assumptions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../zk/05_sparse_merkle_trees.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

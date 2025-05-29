@@ -208,10 +208,9 @@ Valence currently supports CosmWasm and EVM. SVM support coming soon. The rest o
 </li>
 <li>
 <p><strong>Off-chain Execution via ZK Coprocessor</strong>:
-Early specifications exist for the <a href="components/./../zk-coprocessor/_overview.html">Valence ZK coprocessor</a>. We aim to move as much computation off-chain as possible since off-chain computation is a more scalable approach to building a cross-chain execution environment.</p>
+Early specifications for the <a href="components/./../zk/_overview.html">Valence ZK System</a>. We aim to move as much computation off-chain as possible since off-chain computation is a more scalable approach to building a cross-chain execution environment.</p>
 </li>
 </ol>
-<p>Unless explicitly mentioned, you may assume that documentation and examples in the remaining sections are written with on-chain execution in mind.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="domains"><a class="header" href="#domains">Domains</a></h1>
 <p>A <strong>domain</strong> is an environment in which the components that form a program (more on these later) can be instantiated (deployed).</p>
 <p><strong>Domains</strong> are defined by <strong>three properties</strong>:</p>
@@ -488,160 +487,192 @@ graph LR
 <p>Valence Types are the canonical representations of various external domain implementations of some types.</p>
 <h2 id="valence-asserter"><a class="header" href="#valence-asserter">Valence Asserter</a></h2>
 <p>Valence Asserter enables Valence Programs to assert specific predicates during runtime. This is useful for programs that wish to enable conditional execution of a given function as long as some predicate evaluates to <code>true</code>.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-zk-coprocessor"><a class="header" href="#valence-zk-coprocessor">Valence ZK coprocessor</a></h1>
-<blockquote>
-<p>⚠️ <strong>Note:</strong> Valence's ZK coprocessor is currently in specification stage and evolving rapidly. This document is shared to give partners a preview of our roadmap in the spirit of building in public.</p>
-</blockquote>
-<p>The Valence ZK coprocessor is a universal DeFi execution engine. It allows developers to compose programs once and deploy them across multiple blockchains. Additionally, the coprocessor facilitates execution of arbitrary cross-chain messages with a focus on synchronizing state between domains. Using Valence, developers can:</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="introduction-to-valence-zk"><a class="header" href="#introduction-to-valence-zk">Introduction to Valence ZK</a></h1>
+<p>The Valence Protocol provides Zero-Knowledge proofs and a dedicated ZK Coprocessor system to enhance its capabilities, particularly in areas requiring complex computation, privacy, and verifiable off-chain operations. This ZK integration allows Valence to bridge the gap between the rich, flexible environment of off-chain processing and the trust-minimized, verifiable nature of blockchain execution.</p>
+<p>At a high level, ZK proofs enable one party (the prover, in this case, the ZK Coprocessor) to prove to another party (the verifier, typically on-chain smart contracts) that a certain statement is true, without revealing any information beyond the validity of the statement itself. In Valence, this means that computationally intensive or private tasks can be executed off-chain by a "guest program" running on the ZK Coprocessor. This guest program produces a result along with a cryptographic proof attesting to the correctness of that result according to the program's logic.</p>
+<p>This proof, which is relatively small and efficient to check, is then submitted to the Valence smart contracts on-chain. The on-chain contracts only need to verify this succinct proof to be assured that the off-chain computation was performed correctly, rather than having to re-execute the entire complex computation themselves. This model brings several advantages, including reduced gas costs, increased transaction throughput, the ability to handle private data, and the capacity to implement more sophisticated logic than would be feasible purely on-chain.</p>
+<p>Key terms you will encounter in this documentation include:</p>
+<ul>
+<li><strong>ZK Coprocessor:</strong> An off-chain service responsible for running "guest programs" and generating ZK proofs of their execution.</li>
+<li><strong>Guest Program:</strong> A piece of software designed by developers for off-chain execution on the ZK Coprocessor. It comprises two main parts: the <strong>ZK Circuit</strong> (which defines the core ZK-provable computations) and the <strong>Controller</strong> (Wasm-compiled logic that prepares inputs for the circuit, handles its outputs, and interacts with the Coprocessor environment).</li>
+<li><strong>zkVM (Zero-Knowledge Virtual Machine):</strong> An environment that can execute arbitrary programs and produce a ZK proof of that execution. The Valence ZK Coprocessor leverages such technology (e.g., SP1) to run guest programs.</li>
+<li><strong>Encoders:</strong> Systems that compress blockchain state into formats suitable for ZK proofs. The Unary Encoder handles single-chain state transitions, while the Merkleized Encoder manages cross-chain state dependencies.</li>
+<li><strong>Proof:</strong> A small piece of cryptographic data that demonstrates a computation was performed correctly according to a specific program, without revealing all the details of the computation.</li>
+<li><strong>Public Inputs/Outputs:</strong> The specific data points that are part of the public statement being proven. The ZK proof attests that the guest program correctly transformed certain public inputs into certain public outputs.</li>
+<li><strong>Witness:</strong> The complete set of inputs, both public (known to prover and verifier) and private (known only to the prover), required by a ZK circuit to perform its computation and allow the generation of a proof. The ZK proof demonstrates that the computation was performed correctly using this witness, without revealing the private inputs.</li>
+</ul>
+<p>This set of documentation will guide you through understanding how this ZK system works within Valence, how to develop your own guest programs for the Coprocessor, and how to integrate these ZK-proven results with the on-chain components of the Valence Protocol. For detailed information on how blockchain state is encoded for ZK proofs and cross-chain coordination, see <a href="zk/./07_state_encoding_and_encoders.html">State Encoding and Encoders</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-zk-system-overview"><a class="header" href="#valence-zk-system-overview">Valence ZK System Overview</a></h1>
+<p>The Valence Zero-Knowledge (ZK) system facilitates the execution of complex or private computations off-chain, with their correctness verified on-chain through cryptographic proofs. This overview describes the primary components and the general flow of information and operations within this system. The foundational concepts of ZK proofs in Valence are introduced in <a href="zk/./_overview.html">Introduction to Valence ZK</a>.</p>
+<p>At its core, the system integrates an off-chain ZK Coprocessor Service with on-chain smart contracts, primarily the <code>Authorization</code> and <code>VerificationGateway</code> contracts. A key technical challenge is encoding blockchain state into formats suitable for zero-knowledge proofs, enabling pure functions to operate on committed state transitions. For detailed information on state encoding mechanisms and cross-chain coordination, see <a href="zk/./07_state_encoding_and_encoders.html">State Encoding and Encoders</a>.</p>
+<h3 id="component-roles"><a class="header" href="#component-roles">Component Roles</a></h3>
+<p>The Valence ZK system comprises several key components, each with distinct responsibilities.</p>
+<p>The <strong>ZK Coprocessor Service</strong>, operating off-chain, is a persistent service that manages ZK "guest programs." It deploys new guest programs, executes them with specific inputs, manages proving using an underlying zkVM (like SP1), and makes generated proofs available. Developers interact with this service to deploy ZK applications and initiate proof generation.</p>
+<p>A <strong>Guest Program</strong> is application-specific code developed by users. It consists of two parts: the <strong>Controller</strong> (Wasm-compiled Rust code running in the Coprocessor's sandbox) takes input data, processes it to generate a "witness" for the ZK circuit, and coordinates proof generation. The <strong>ZK Circuit</strong> (e.g., SP1 circuit) performs the core computation and assertions, taking the witness and producing a proof and public output (<code>Vec&lt;u8&gt;</code>) that forms the primary data for on-chain contracts.</p>
+<p>The <strong><code>Authorization</code> Contract</strong> (e.g., <code>Authorization.sol</code> for EVM chains) serves as the entry point for submitting ZK proofs for verification. It handles ZK-specific authorization logic, checking if proof submitters are authorized for given ZK programs (by <code>registry</code> ID) and managing replay protection.</p>
+<p>The <strong><code>VerificationGateway</code> Contract</strong> performs actual cryptographic verification of ZK proofs. The <code>Authorization</code> contract delegates verification to a configured <code>VerificationGateway</code>, which stores Verification Keys (VKs) for registered guest programs and uses them with submitted proofs and public inputs to confirm proof validity.</p>
+<h3 id="zk-program-flows"><a class="header" href="#zk-program-flows">ZK Program Flows</a></h3>
+<p>The following diagrams illustrate the key workflows in the Valence ZK system:</p>
+<h4 id="deployment-flow"><a class="header" href="#deployment-flow">Deployment Flow</a></h4>
+<p>Developers prepare and register their ZK applications, initializing the application before execution. They build guest program components, deploy them to the coprocessor service, and register verification keys on-chain.</p>
+<pre class="mermaid">graph TD
+    Dev[Developer Machine&lt;br/&gt;- Develops Guest Program&lt;br/&gt;- Builds Controller + Circuit] -- Deploys via cargo-valence --&gt; Coproc[ZK Coprocessor Service]
+    Dev -- Registers Verification Key --&gt; OnChain[On-Chain Contracts&lt;br/&gt;Authorization + VerificationGateway]
+    
+    Coproc -- Assigns --&gt; CID[Controller ID]
+    OnChain -- Associates --&gt; RegID[Registry ID]
+    
+    classDef dev fill:#e3f2fd
+    classDef onchain fill:#f3e5f5
+    classDef service fill:#e8f5e8
+    classDef data fill:#fff3e0
+    
+    class Dev dev
+    class OnChain onchain
+    class Coproc service
+    class CID,RegID data
+</pre>
+<h4 id="runtime-flow"><a class="header" href="#runtime-flow">Runtime Flow</a></h4>
+<p>Strategists execute ZK-proven actions on-chain through an operational process. They request proof generation from the coprocessor and then submit verified proofs to trigger on-chain execution.</p>
+<pre class="mermaid">graph TD
+    Strategist[Strategist&lt;br/&gt;- Requests proof generation&lt;br/&gt;- Retrieves proof&lt;br/&gt;- Submits ZKMessage] -- Requests proof generation --&gt; Coproc[ZK Coprocessor Service]
+    Coproc -- Executes Guest Program --&gt; Proof[ZK Proof + Public Output]
+    Strategist -- Retrieves proof --&gt; Coproc
+    Strategist -- Submits ZKMessage + Proof --&gt; OnChain[On-Chain Contracts&lt;br/&gt;Authorization + VerificationGateway]
+    OnChain -- Verifies proof --&gt; Valid{Proof Valid?}
+    Valid -- Yes --&gt; Processor[Processor Contract]
+    Processor -- Executes validated message --&gt; State[Blockchain State Changes]
+    
+    classDef strategist fill:#fff8e1
+    classDef service fill:#e8f5e8
+    classDef onchain fill:#f3e5f5
+    classDef data fill:#fff3e0
+    classDef decision fill:#ffebee
+    
+    class Strategist strategist
+    class Coproc service
+    class OnChain,Processor onchain
+    class Proof,State data
+    class Valid decision
+</pre>
+<h3 id="operation"><a class="header" href="#operation">Operation</a></h3>
+<p>The process of executing an off-chain computation and verifying it on-chain generally follows a sequence of interconnected steps.</p>
+<p><strong>Development and Deployment</strong></p>
+<p>During development and deployment (off-chain), a developer creates a guest program, defining its Controller and ZK <code>circuit</code>. This guest program is compiled (Controller to Wasm, circuit to target representation) and deployed to the ZK Coprocessor service using <code>cargo-valence</code> CLI, which assigns a unique Controller ID. The Verification Key (VK) for the circuit is registered with the on-chain <code>VerificationGateway</code> and associated with a <code>registry</code> ID that the <code>Authorization</code> contract uses.</p>
+<p><strong>Proof Request and Generation</strong></p>
+<p>Proof request and generation (off-chain) is initiated when an off-chain entity requests the ZK Coprocessor service to execute the deployed guest program with specific input data using <code>cargo-valence</code> CLI. The Coprocessor runs the Controller, which generates the necessary witness for the ZK <code>circuit</code>. The <code>circuit</code> executes with this witness, and the Coprocessor generates the ZK proof and circuit's public output. The Controller may store this proof and output in its virtual filesystem.</p>
+<p><strong>Proof Submission and Verification</strong></p>
+<p>Following proof generation, the off-chain entity retrieves the ZK proof and circuit's public output from the Coprocessor. It constructs a <code>ZKMessage</code>, which includes the circuit's public output (forming the <code>processorMessage</code>), the <code>registry</code> ID, a <code>blockNumber</code> for replay protection, and the target <code>authorizationContract</code> address. This <code>ZKMessage</code> and ZK proof are submitted to the <code>executeZKMessage</code> function of the <code>Authorization</code> contract.</p>
+<p><strong>On-Chain Processing</strong></p>
+<p>This triggers on-chain processing. The <code>Authorization</code> contract performs initial checks, verifying sender authorization for the <code>registry</code> ID and ensuring replay protection using the <code>blockNumber</code>. If checks pass, it calls the <code>verify</code> function on the <code>VerificationGateway</code>, passing the ZK proof and relevant public inputs from the <code>ZKMessage</code>. The <code>VerificationGateway</code> uses the <code>registry</code> ID to fetch the correct VK and verify the proof. The first 32 bytes of public inputs are a "Coprocessor Root" hash, with application-specific circuit output following.</p>
+<p><strong>Execution of Proven Action</strong></p>
+<p>Upon successful proof verification, the <code>Authorization</code> contract considers the <code>ZKMessage</code> contents (specifically the <code>processorMessage</code>) authentic and authorized. It dispatches this <code>processorMessage</code> to the appropriate Valence <code>Processor</code> contract for execution, leading to blockchain state changes based on the ZK-proven off-chain computation.</p>
+<p>This system allows Valence to securely integrate complex off-chain logic with its on-chain operations, opening up a wide range of advanced application possibilities.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="developing-valence-coprocessor-apps"><a class="header" href="#developing-valence-coprocessor-apps">Developing Valence Coprocessor Apps</a></h1>
+<p>This guide is designed for developers looking to build Zero-Knowledge (ZK) applications, or "guest programs," for the Valence ZK Coprocessor. It focuses on using the <code>valence-coprocessor-app</code> template as a foundation. Before diving in, it is beneficial to have a grasp of the concepts presented in <a href="zk/./_overview.html">Introduction to Valence ZK</a> and <a href="zk/./01_system_overview.html">Valence ZK System Overview</a>.</p>
+<p>The <a href="https://github.com/timewave-computer/valence-coprocessor-app">valence-coprocessor-app template repository</a> serves as the primary starting point and practical reference for this guide.</p>
+<h3 id="core-structure-of-a-coprocessor-app"><a class="header" href="#core-structure-of-a-coprocessor-app">Core Structure of a Coprocessor App</a></h3>
+<p>A Valence Coprocessor App (a Guest Program), when based on the template, is primarily structured around two main Rust crates, which compile into the two logical parts of the Guest Program: the Controller and the ZK Circuit.</p>
 <ol>
-<li>Build once, deploy everywhere. Write programs in Rust and settle on one or more EVM, Wasm, Move, or SVM chains.</li>
-<li>Avoid introducing additional trust assumptions. Only trust the consensus of the underlying chains you are building on.</li>
+<li>
+<p><strong>The <code>controller</code> Crate (compiles to the Controller):</strong> This component contains off-chain logic executed as Wasm within the Valence ZK Coprocessor's sandboxed environment. This <strong>Controller</strong> acts as an intermediary between user inputs and the ZK circuit. Key responsibilities include receiving input arguments (often JSON) for proof requests, processing inputs to generate a "witness" (private and public data the ZK circuit needs), and interacting with the Coprocessor service to initiate proof generation. The Controller handles proof computation results; it has an entrypoint function the Coprocessor calls upon successful proof generation, allowing the Controller to store the proof or log information. The Controller can utilize a virtual filesystem provided by the Coprocessor, which is FAT-16 based (implying constraints like 3-character file extensions and case-insensitive paths), for persistent data storage.</p>
+</li>
+<li>
+<p><strong>The <code>circuit</code> Crate (defines the ZK Circuit):</strong> This crate defines the <strong>ZK Circuit</strong> itself. The ZK Circuit is the heart of the ZK application, containing the actual computations and assertions whose correctness will be proven. It's typically written using a specialized language or Domain-Specific Language (DSL) that compiles down to a ZK proving system supported by the Coprocessor (for example, SP1). The ZK Circuit receives the witness data prepared by the Controller. It then performs its defined computations and assertions. If all these pass, it produces a public output (as a <code>Vec&lt;u8&gt;</code>), which represents the public statement that will be cryptographically verified on-chain. This output forms a crucial part of the "public inputs" of the ZK proof.</p>
+</li>
 </ol>
-<p>While the actual execution is straightforward, <em>the challenge lies in encoding state</em>. The ZK program, as a pure function, must be able to to utilize existing state as arguments to produce an evaluated output state.</p>
-<p>Initially, we can develop an efficient version of this coprocessor approximately at par with creating the state encoder. However, it is crucial to note that each chain will necessitate a separate encoder implementation. The initial version will necessitate users to deploy their custom verification keys along with the state mutation function within the target blockchain. Although the code required for this purpose will be minimal, users will still need to implement their own verification keys and state mutation functions.</p>
-<p>Longer term, we plan to develop a decoder that will automate the state mutation process based on the output of the ZK commitment. For this initial version, users will be able to perform raw mutations directly, as the correctness of ZK proofs will ensure the validity of messages according to the implemented ZK circuit.</p>
-<pre class="mermaid">---
-title: ZK coprocessor overview
----
-graph TB;
-    %% Programs
-    subgraph ZK coprocessor
-        P1[zk program 1]
-        P2[zk program 2]
-        P3[zk program 3]
-    end
-
-    %% Chains
-    C1[chain 1]
-    C2[chain 2]
-    C3[chain 3]
-
-    P1 &lt;--&gt; C1
-    P2 &lt;--&gt; C2
-    P3 &lt;--&gt; C3
-</pre>
-<h2 id="zkvm-primer"><a class="header" href="#zkvm-primer">zkVM Primer</a></h2>
-<p>A zero-knowledge virtual machine (zkVM) is a zero-knowledge proof system that allows developers to prove the execution of arbitrary programs. In our case these programs are written in Rust. Given a Rust program that can be described as a pure function<code>f(x) = y</code>, one can prove the evaluation in the following way:</p>
+<p>While these two crates form the core, the template might also include an optional <strong><code>./crates/domain</code></strong> crate. This is generally intended for more advanced scenarios, such as defining how to derive state proofs from JSON arguments or for validating block data that might be incorporated within the Coprocessor's operations, though its direct use can vary significantly depending on the specific application's needs.</p>
+<h3 id="general-development-workflow"><a class="header" href="#general-development-workflow">General Development Workflow</a></h3>
+<p>Developing a Coprocessor App typically follows a sequence of steps from setup to deployment and testing:</p>
 <ol>
-<li>Define <code>f</code> using normal Rust code and compile the function as an executable binary</li>
-<li>With this executable binary, set up a proving key <code>pk</code> and verifying key <code>vk</code></li>
-<li>Generate a proof <code>p</code> that <code>f</code> was evaluated correctly given input <code>x</code> using the zkVM, by calling <code>prove(pk, x)</code></li>
-<li>Now you can verify this proof <code>p</code> by calling <code>verify(vk, x, y, p)</code></li>
+<li>
+<p><strong>Environment Setup:</strong> The initial step involves preparing your development environment. This requires installing Docker, a recent Rust toolchain, and the <a href="https://github.com/timewave-computer/valence-coprocessor/tree/v0.1.13?tab=readme-ov-file#cli-helper">Cargo Valence subcommand</a>. You would then clone the <code>valence-coprocessor-app</code> template repository to serve as the foundation for your new ZK application. For development, you can either use the public Valence ZK Coprocessor service at <code>prover.timewave.computer:37281</code> or optionally run a <a href="https://github.com/timewave-computer/valence-coprocessor/tree/v0.1.13?tab=readme-ov-file#local-execution">local Valence coprocessor instance</a>.</p>
+</li>
+<li>
+<p><strong>ZK Circuit Development (<code>./crates/circuit</code>):</strong> The next phase is to define the logic of your ZK circuit. This involves specifying the exact computations to be performed, the private inputs (the witness) that the circuit will consume, and the public inputs or outputs it will expose. The public output of your ZK circuit (a <code>Vec&lt;u8&gt;</code>) is of particular importance, as this is the data that will ultimately be verified on-chain. It's essential to remember that the first 32 bytes of the <em>full</em> public inputs (as seen by the on-chain verifier) are reserved by the Coprocessor for its own internal root hash; your application-specific public output data will follow these initial 32 bytes.</p>
+</li>
+<li>
+<p><strong>Controller Development (<code>./crates/controller</code>):</strong> Concurrently, you'll develop the Controller logic within the <code>controller</code> crate. This includes implementing the logic to parse incoming JSON arguments that are provided when a proof is requested for your application. You will also need to write the code that transforms these user-provided arguments into the precise witness format required by your ZK circuit. A key part of the Controller is its entrypoint function; this function is called by the Coprocessor service when a proof for your program has been successfully generated and is ready. This entrypoint typically receives the proof itself, the initial arguments that triggered the request, and any logs generated during the process. You must also implement how your Controller should handle this generated proof – a common pattern is to store it to a specific path (e.g., <code>/var/share/proof.bin</code>) within its virtual filesystem using a <code>store</code> command payload directed to the Coprocessor.</p>
+</li>
+<li>
+<p><strong>Application Build and Deployment:</strong> Once the ZK Circuit (from <code>circuit</code> crate) and Controller (from <code>controller</code> crate) are developed, you build and deploy your Guest Program to the Coprocessor using the <code>cargo-valence</code> CLI tool. This is typically done by running the command <code>cargo-valence --socket prover.timewave.computer:37281 deploy circuit --controller ./crates/controller --circuit &lt;circuit-crate-project-name&gt;</code> from your app template directory. If you're using a local coprocessor instance, you can omit the <code>--socket</code> parameter. This command compiles both crates (Controller to Wasm) and packages them into a single application bundle, which is then submitted to the Coprocessor service. Upon successful deployment, the Coprocessor service will return a unique Controller ID (e.g., <code>8965493acca61dfc26193978c4b9a785d24192a0a314143f1c497402859df783</code>). This Controller ID is crucial as it's used to reference your deployed ZK application in subsequent interactions.</p>
+</li>
+<li>
+<p><strong>Requesting Proof Generation:</strong> With your Guest Program deployed and its Controller ID known, you can instruct the Coprocessor to generate a proof. This is done using a command like <code>cargo-valence --socket prover.timewave.computer:37281 prove -j '{"value": 42}' -p /var/share/proof.bin &lt;CONTROLLER_ID&gt;</code>. You must replace <code>'{"value": 42}'</code> with the specific JSON input that your Controller is designed to expect. The <code>-p /var/share/proof.bin</code> argument is a suggestion to your Controller's entrypoint, indicating where it might store the resulting proof within its virtual filesystem after it has been generated and delivered back by the Coprocessor. The argument <code>-j '{"value": 42}'</code> will be forwarded to <code>./crates/controller/src/lib.rs:get_witnesses</code>, and the output of this function will be forwarded to the circuit for proving.</p>
+</li>
+<li>
+<p><strong>Retrieving Proofs and Public Inputs:</strong> After the proof generation is complete and your Controller's entrypoint has handled and stored the proof, you can retrieve it from the program's virtual filesystem. This is typically done with a command like <code>cargo-valence --socket prover.timewave.computer:37281 storage -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.data' | base64 -d | jq</code>. To inspect the public inputs associated with the generated proof (which will include your ZK circuit's specific output along with the Coprocessor's root hash), you can use a command like <code>cargo-valence --socket prover.timewave.computer:37281 proof-inputs -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.inputs' | base64 -d | hexdump -C</code>. When examining the hexdump, your circuit's specific output data will appear after the initial 32-byte Coprocessor root hash.</p>
+</li>
 </ol>
-<h2 id="building-the-valence-zk-coprocessor"><a class="header" href="#building-the-valence-zk-coprocessor">Building the Valence ZK coprocessor</a></h2>
-<p>Let's assume that we have Valence Base Accounts in each domain. These accounts implement a kv store.</p>
-<p>Every ZK computation will follow the format of a pure state transition function; specifically, we input a state <code>A</code>, apply the function <code>f</code> to it, and produce the resulting state <code>B</code> : <code>f(A) = B</code> .
-For the function <code>f</code>, the chosen zkVM will generate a verifying key <code>K</code>, which remains consistent across all state transition functions.</p>
-<h3 id="encoding-the-account-state-unary-encoder"><a class="header" href="#encoding-the-account-state-unary-encoder">Encoding the account state: Unary Encoder</a></h3>
-<p>To ensure every state transition computed as a ZK proof by the coprocessor is a pure state transition function, we require a method to encode the entire account's state into initial and mutated forms, <code>A</code> and <code>B</code>, respectively, for use in providing the applicable state modifications for the target chain.</p>
-<p>In essence, let's consider an account with its state containing a map that assigns a balance (u64 value) to each key. A contract execution transferring 100 tokens from key <code>m</code> to <code>n</code> can be achieved by invoking <code>state.transfer(signature, m, n, 100)</code>. This on-chain transfer function may look something like this:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn transfer(&amp;mut self, signature: Signature, from: Address, to: Address, value: u64) {
-    assert!(signature.verify(&amp;from));
-    assert!(value &gt; 0);
-
-    let balance_from = self.get(&amp;from).unwrap();
-    let balance_to = self.get(&amp;from).unwrap_or(0);
-
-    let balance_from = balance_from.checked_sub(value).unwrap();
-    let balance_to = balance_to.checked_add(value).unwrap();
-
-    self.insert(from, balance_from);
-    self.insert(to, balance_to);
-}
-<span class="boring">}</span></code></pre></pre>
-<p>Here, the pre-transfer state is <code>A</code> and after the transfer, the state is <code>B</code>.</p>
-<p>Let's write a new function called <code>transfer_trusted</code> that leaves signature verification to the ZK coprocessor.</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn transfer_trusted(&amp;mut self, from: Address, to: Address, value: u64) {
-    let balance_from = self.get(&amp;from).unwrap();
-    let balance_to = self.get(&amp;to).unwrap_or(0);
-
-    self.insert(from, balance_from - value);
-    self.insert(to, balance_to + value);
-}
-<span class="boring">}</span></code></pre></pre>
-<p>In the ZK setting, we execute the <code>transfer</code> function within the zkVM. We must input the encoded state the account and receive as output the encoded state of the mutated account.</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn program(mut state: State, encoder: Encoder, arguments: Arguments) -&gt; Commitment {
-    let (signature, from, to, value) = arguments;
-    let initial = encoder.commitment(state);
-
-    state.transfer(signature, from, to, value);
-
-	let arguments = encoder.commitment(arugment)
-    let finalized = encoder.commitment(state)
-    let output = encoder.commitment(initial, arguments, finalized)
-
-    encoder.commitment(initial, arguments, output)
-}
-<span class="boring">}</span></code></pre></pre>
-<p>Running this program within the zkVM, also allows us to generate a <code>Proof</code>.</p>
-<p>Upon receiving the <code>(Proof, Commitment, Arguments)</code> data on the target chain, it can validate the execution correctness by verifying the proof and commitments, leveraging the ZK property that the proof will be valid if, and only if, the contract's execution was accurate for the given inputs, and the supplied commitments are those generated specifically for this proof.</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn verify(&amp;self, proof: Proof, arguments: Arguments) {
-    let current = self.state.commitment();
-    let args = arguments.commitment();
-    let (from, to, value) = arguments;
-
-    self.transfer_trusted(from, to, value);
-
-    let mutated = self.state.commitment();
-    let commitment = (current, args, mutated).commitment();
-
-    proof.verify(&amp;self.vk, commitment);
-}
-<span class="boring">}</span></code></pre></pre>
-<p>By doing so, we switch from on-chain signature verification to computation over committed arguments, followed by ZK proof verification. Although we've presented a simplified example, the same verification process can accommodate any computation supported by a zkVM, enabling us to process multiple transfers in batches, perform intricate computation, and succinctly verify execution correctness. We refer to this pattern as a <strong>"Unary Encoder"</strong> because we compress the two states of the account, 'current' and 'mutated', into a single zero-knowledge proof.</p>
-<p>The Unary Encoder will be the responsible for compressing any chain account state into a compatible commitment for the chosen zkVM (in our case a RISC-V zkVM). The encoding is a one-way function that allows anyone in possession of the pre-image, i.e. inputs to the encoding function, to reconstruct the commitment. This commitment will be transparent to the target chain, enabling use in construction of the block header for verification purposes.</p>
-<h3 id="handling-state-transition-dependencies-across-domains-merkelized-encoder"><a class="header" href="#handling-state-transition-dependencies-across-domains-merkelized-encoder">Handling state transition dependencies across domains: Merkelized Encoder</a></h3>
-<p>Lets assume a hypothetical situation where we aim to achieve decoupled state updates across three distinct chains: <code>chain 1</code>, <code>chain 2</code>, and <code>chain 3</code>. The objective is to generate a unified ZK proof that verifies the correctness of the state transitions on all chains.</p>
-<p>Specifically, <code>chain 3</code> will depend on a mutation from <code>chain 1</code>, while <code>chain 2</code> operates independently of the mutations on both <code>chain 1</code> and <code>chain 3</code>.</p>
-<pre class="mermaid">graph TB
-    %% Root node
-    r[R]
-
-    %% Level 1
-    m1[M1] --&gt; r
-    m2[M2] --&gt; r
-
-    %% Level 2
-    c1[C1] --&gt; m1
-    c2[C2] --&gt; m1
-    c3[C3] --&gt; m2
-    zero((0)) --&gt; m2
-
-    %% Level 3
-    chain1[&quot;(S1 --&gt; T1), K1&quot;] -- chain 1 transition encoding --&gt; c1
-    chain2[&quot;(S2 --&gt; T2), K2&quot;] -- chain 2 transition encoding --&gt; c2
-    chain3[&quot;(S3 --&gt; T3), K3&quot;] -- chain 3 transition encoding --&gt; c3
-</pre>
-<p>The Merkle Graph above depicts the state transition that can be compressed into a single commitment via Merkelization. Given an encoder with a specialized argument—a Sparse Merkle tree containing encoded state transition values indexed by the program's view key on the target blockchain—we obtain a Merkle Root denoted as <code>R</code>.</p>
-<p>The ZK coprocessor can execute proof computations either sequentially or in parallel. The parallel computation associated with <code>C2</code> operates independently and generates a unary proof of <code>S2 -&gt; T2</code>. Conversely, the proof for <code>C3</code> requires querying <code>T1</code>.</p>
-<p>Since <code>chain 3</code> has a sequential execution, the coprocessor will first process <code>C1</code>, then relay the pre-image of <code>T1</code> to the coprocessor responsible for computing <code>C3</code>. Due to the deterministic nature of unary encoding, the <code>chain 3</code> coprocessor can easily derive <code>T1</code> and validate its foreign state while concurrently processing <code>C3</code>.</p>
-<p>At this point, there is no justification given for Merkelizing the produced proofs, hashing the entire set of Merkle arguments would work as well. However, it's worth noting that <code>chain 2</code> does not require knowledge of the data <code>(S1, T1, K1, S3, T3, K3)</code>. Including such information in the verification arguments of <code>chain 3</code> would unnecessarily burden its proving process. A Merkle tree is employed here for its logarithmic verification property: the condensed proof generated for <code>chain 2</code> will only require a Merkle opening to <code>R</code>, without requiring excess state data from other chains. Essentially, when generating the Merkelized proof, the <code>chain 2</code> coprocessor, after computing <code>C2</code>, will need only <code>C1</code> and <code>M2</code>, rather than all Merkle arguments.</p>
-<p>Finally, each chain will receive <code>R</code>, accompanied by its individual state transition arguments, and the Merkle path leading to <code>R</code> will be proven inside of the circuit.</p>
-<pre class="mermaid">---
-title: On-chain Proof Verification
----
-graph TD;
-	coprocessor --(R1, T1)--&gt; chain1
-	coprocessor --(R2, T2)--&gt; chain2
-	coprocessor --(R3, T3, R1, T1, C2)--&gt; chain3
-</pre>
-<p>In this diagram we see <code>chain 3</code> will first <code>verify(R3, T3)</code>, then <code>verify(R1, T1)</code>, then it will <code>query(T1)</code>, then compute <code>C1 := encoding(S1, T1)</code>, then compute  <code>C3 := encoding(S3, T3)</code>, and finally will assert <code>R == H(H(C1, C2), H(C3, 0))</code>.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="sparse-merkle-tree"><a class="header" href="#sparse-merkle-tree">Sparse Merkle tree</a></h1>
-<p>A sparse Merkle tree (SMT) is a specialized version of a Merkle tree, characterized by a leaf index defined by an injective function derived from a predefined argument at the design level. The verification key of a ZK circuit is another constant, also injective to the circuit's definition, and can serve as an index for the available programs.</p>
-<p>In the context of a ZK proof being a product of its verification key (alongside other attributes), it allows us to index a proof from a collection of proofs for distinct programs.</p>
-<p>Assuming that we don't reuse the same proof for different purposes during a state transition, as the program will either be raw or recursed, the verifying key is an unique index in such collection.</p>
-<p>This document describes a sparse Merkle tree design that employs indexing proofs based on the hash of the verification key.</p>
-<h2 id="merkle-tree"><a class="header" href="#merkle-tree">Merkle tree</a></h2>
-<p>A Merkle tree is typically a (binary) tree structure consisting of leaves and nodes. Each node in this tree represents the cryptographic hash of its children, while the leaves hold an arbitrary piece of data—usually the hash value of some variable input.</p>
-<p>For a hash function <code>H</code>, if we insert the data items A, B, C into a Merkle tree, the resulting structure would look like:</p>
+<p>This workflow allows for an iterative development process, enabling you to test and refine your ZK guest programs effectively.</p>
+<h3 id="incorporating-verifiable-external-state"><a class="header" href="#incorporating-verifiable-external-state">Incorporating Verifiable External State</a></h3>
+<p>Guest programs on the Valence Coprocessor can be designed to utilize verifiable state from external blockchains, like Ethereum. This allows ZK applications to react to or incorporate off-chain data in a trust-minimized way. Services such as the state proof service facilitate this by generating state proofs (e.g., Merkle proofs for account balances or storage slots on Ethereum at specific block heights). Currently, this interaction for fetching external state is often achieved via ABI-encoded HTTP calls, though future implementations might support other protocols like WebSockets.</p>
+<p>When developing a guest program, you would design its Controller (within the <code>controller</code> crate) to accept such state proofs as part of its input. The ZK <code>circuit</code> can then use the proven external state in its computations. The resulting ZK proof from the Valence Coprocessor will thus attest to the correctness of operations performed on this externally verified data. More detailed architectural considerations for this pattern, including how the Coprocessor environment might support or interact with such external proofs, are discussed in <a href="zk/./04_coprocessor_internals.html">ZK Coprocessor Internals</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="integrating-zk-proofs-with-on-chain-contracts"><a class="header" href="#integrating-zk-proofs-with-on-chain-contracts">Integrating ZK Proofs with On-Chain Contracts</a></h1>
+<p>This document details the process of integrating Zero-Knowledge (ZK) proofs, generated by a Valence Coprocessor guest program, with the Valence Protocol's on-chain smart contracts. It assumes an understanding of the ZK system as outlined in <a href="zk/./01_system_overview.html">Valence ZK System Overview</a> and how guest programs are developed as described in <a href="zk/./02_developing_coprocessor_apps.html">Developing Valence Coprocessor Apps</a>.</p>
+<p>The core of on-chain integration revolves around submitting the ZK proof and its associated public data to the <code>Authorization.sol</code> contract (for EVM chains), which then collaborates with a <code>VerificationGateway.sol</code> to cryptographically verify the proof's authenticity and correctness.</p>
+<h3 id="preparing-data-for-on-chain-submission"><a class="header" href="#preparing-data-for-on-chain-submission">Preparing Data for On-Chain Submission</a></h3>
+<p>After your guest program successfully executes on the ZK Coprocessor and a proof is generated, two key pieces of data are essential for on-chain interaction:</p>
+<ol>
+<li><strong>The ZK Proof:</strong> This is the raw cryptographic proof data (e.g., SP1 proof bytes) generated by the Coprocessor, attesting to the correct execution of your guest program's ZK circuit.</li>
+<li><strong>The Circuit's Public Output:</strong> Your ZK circuit is designed to produce a public output (<code>Vec&lt;u8&gt;</code>). This output is critical because it represents the data that, once proven correct by the ZK proof, will be used to form the <code>processorMessage</code> for execution by the on-chain Valence <code>Processor</code> contract. It's important to remember that when the full "public inputs" are presented to the on-chain verifier, the first 32 bytes are a prefix that contains the Coprocessor Root hash. The remaining bytes are relevant for constructing on-chain messages.</li>
+</ol>
+<p>An off-chain system, such as a script, bot, or backend service, is responsible for retrieving these pieces of data from the Coprocessor (typically after the guest program stores them in its virtual filesystem) and then initiating the on-chain transaction.</p>
+<h3 id="the-zkmessage-structure"><a class="header" href="#the-zkmessage-structure">The <code>ZKMessage</code> Structure</a></h3>
+<p>To submit a ZK-proven action to the Valence Protocol, the off-chain system must construct a <code>ZKMessage</code>. This structure is specifically designed for the <code>executeZKMessage</code> function within the <code>Authorization.sol</code> contract. The <code>ZKMessage</code> encapsulates all necessary information for the on-chain contracts to process the request:</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>registry</code></td><td>uint64</td><td>Unique identifier for the deployed ZK guest program. Used by the Authorization contract to look up the correct Verification Key (VK) from VerificationGateway.</td></tr>
+<tr><td><code>blockNumber</code></td><td>uint64</td><td>Current or recent block number for replay protection. Ensures proofs aren't submitted multiple times, or after that they're no longer relevant.</td></tr>
+<tr><td><code>authorizationContract</code></td><td>address</td><td>Address of the target Authorization contract. Acts as a safeguard to ensure message is processed by the correct instance.</td></tr>
+<tr><td><code>processorMessage</code></td><td>bytes</td><td>Core payload dispatched to Processor contract if ZK proof is valid. Derived from circuit's public output and encoded for ProcessorMessageTypes.</td></tr>
+</tbody></table>
+</div>
+<h3 id="on-chain-verification-sequence"><a class="header" href="#on-chain-verification-sequence">On-Chain Verification Sequence</a></h3>
+<p>Once the <code>ZKMessage</code> is constructed and the ZK proof is obtained, the off-chain system submits these to the <code>executeZKMessage</code> function of the <code>Authorization.sol</code> contract. The on-chain processing then unfolds as follows:</p>
+<ol>
+<li>
+<p><strong>Initial Checks by <code>Authorization.sol</code>:</strong> The <code>Authorization</code> contract first performs several preliminary checks. It verifies if the <code>msg.sender</code> (the account submitting the transaction) is authorized to provide proofs for the given <code>registry</code> ID. It also typically checks the <code>blockNumber</code> from the <code>ZKMessage</code> against its record of the last executed block for that <code>registry</code> to prevent replay attacks.</p>
+</li>
+<li>
+<p><strong>Delegation to <code>VerificationGateway.sol</code>:</strong> If the initial checks pass, <code>Authorization.sol</code> delegates the task of cryptographic proof verification to the <code>VerificationGateway.sol</code> contract whose address it has been configured with. It calls a <code>verify</code> function on the gateway, passing along the ZK proof, the <code>registry</code> ID (so the gateway can find the correct VK), and a hash derived from the <code>ZKMessage</code> contents (crucially including the <code>processorMessage</code> which represents your circuit's output).</p>
+</li>
+<li>
+<p><strong>Proof Verification by <code>VerificationGateway.sol</code>:</strong> The <code>VerificationGateway</code> retrieves the pre-registered Verification Key (VK) associated with the <code>registry</code> ID. It then uses this VK, the submitted ZK proof, and the public inputs to perform the cryptographic verification. The public inputs are a critical piece of data: they include the Coprocessor Root hash (the first 32 bytes) followed by your circuit's specific output (which is embedded within the hashed <code>ZKMessage</code>). This Coprocessor Root hash acts as a commitment to the integrity of all Coprocessor state. It implicitly contains all the embedded state proofs of the domain relevant to that ZK proof, managed via its Sparse Merkle Tree (SMT). Every new block appended to a chain relevant to the proof's domain is included in this SMT with a ZK domain proof, and the verifications of these inclusions are cryptographically embedded into this Coprocessor Root. If the proof is valid for the VK and these comprehensive public inputs, the gateway returns a success status to the <code>Authorization.sol</code> contract.</p>
+</li>
+<li>
+<p><strong>Dispatch to <code>Processor.sol</code>:</strong> If the <code>VerificationGateway</code> confirms the proof's validity, <code>Authorization.sol</code> considers the <code>processorMessage</code> within the <code>ZKMessage</code> to be authentic and authorized for execution. It then typically updates its state for replay protection (e.g., storing the <code>blockNumber</code> as the last executed for that <code>registry</code>) and dispatches the <code>processorMessage</code> to the appropriate Valence <code>Processor.sol</code> contract.</p>
+</li>
+<li>
+<p><strong>Execution by <code>Processor.sol</code>:</strong> The <code>Processor.sol</code> contract receives the <code>processorMessage</code> and executes the sequence of on-chain actions (e.g., calls to various Valence Libraries or other smart contracts) as defined within that message. This is where the result of your ZK-proven off-chain computation translates into tangible on-chain state changes.</p>
+</li>
+</ol>
+<p>This integration pathway ensures that off-chain computations, once proven correct by the ZK Coprocessor, can be securely and reliably acted upon by the Valence on-chain contracts.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="zk-coprocessor-internals"><a class="header" href="#zk-coprocessor-internals">ZK Coprocessor Internals</a></h1>
+<p>This document provides an in-depth look into the internal architecture and operational mechanics of the Valence ZK Coprocessor service. It is intended for those who wish to understand more about the Coprocessor's design beyond the scope of typical application development. Familiarity with <a href="zk/./01_system_overview.html">Valence ZK System Overview</a> is assumed.</p>
+<p>The Valence ZK Coprocessor is designed as a persistent off-chain service that registers and executes Zero-Knowledge (ZK) guest applications.</p>
+<h3 id="service-architecture"><a class="header" href="#service-architecture">Service Architecture</a></h3>
+<p>The Coprocessor service consists of several coordinated components that work together to provide a complete ZK execution environment. It's important to note a key architectural separation: the <code>coprocessor</code> itself (which handles API requests, controller execution, and virtual filesystem management) is distinct from the <code>prover</code>. While they work in tandem, they can be deployed and scaled independently. For instance, Valence runs a dedicated, high-performance prover instance at <code>prover.timewave.computer:37282</code>. Coprocessor instances, including those run locally for development, can connect to this remote prover (typically requiring a <code>VALENCE_PROVER_SECRET</code> for access). This separation also allows developers to run a local coprocessor instance completely isolated from a real prover, using mocked ZK proofs. This is invaluable for rapid iteration and debugging of controller logic without incurring the overhead of actual proof generation.</p>
+<p>The main components of the Coprocessor service include:</p>
+<p>The <strong>API Layer</strong> serves as the primary external interface, exposing REST endpoints (typically on port <code>37281</code> for the coprocessor service itself) for core operations. Developers can deploy guest programs by submitting <code>controller</code> and <code>circuit</code> bundles, they can request proofs for deployed programs, query the status of ongoing tasks, and retrieve data stored in the virtual filesystem such as generated proofs or execution logs.</p>
+<p><strong>Request Management &amp; Database</strong> - This component validates incoming requests and queues them for processing. It maintains persistent storage for deployed guest program details including Controller IDs, circuit specifications, and controller bundles, while also tracking proof generation status and execution metadata.</p>
+<p>The <strong>Controller Executor / Sandbox</strong> provides an isolated execution environment for <code>controller</code> crate logic. This sandbox runs a WebAssembly runtime for controller code and provides a crucial interface that allows controllers to signal when witness preparation is complete and proof generation should commence. Controllers can also perform filesystem operations through this interface.</p>
+<p><strong>Proving Engine Integration</strong> - Orchestrates the actual ZK proof generation process using underlying zkVM systems like SP1 or Groth16. This component manages prover resources, handles the translation of circuits and witnesses into the required formats for specific proving backends, and processes the resulting proof data and public outputs.</p>
+<p>The <strong>Virtual Filesystem Manager</strong> allocates FAT-16 based virtual filesystems to each guest program, enabling controllers to store proofs and logs through <code>store</code> commands. This filesystem has certain limitations on filename length and character sets that developers must consider.</p>
+<h3 id="the-coprocessor-process"><a class="header" href="#the-coprocessor-process">The Coprocessor Process</a></h3>
+<p><strong>Coprocessor Root Hash</strong> is a notable internal detail where the Coprocessor prepends a 32-byte hash to application-specific public outputs from the ZK circuit. This combined data forms the complete "public inputs" that are cryptographically bound to the proof, ensuring that proofs are tied to the specific Coprocessor instance that produced them. On-chain verifiers must account for this structure when validating proofs.</p>
+<p><strong>Task Lifecycle</strong> involves proof generation requests progressing through several distinct stages: initial queuing, controller execution for witness generation, circuit proving, and finally proof delivery back to the controller entrypoint. The API provides mechanisms to track task status throughout this lifecycle.</p>
+<p><strong>Persistent Job Queues</strong> enable the Coprocessor service to handle multiple concurrent proof requests efficiently and reliably through persistent job queues, and worker nodes for computationally intensive proving tasks.</p>
+<h3 id="handling-verifiable-state-proofs"><a class="header" href="#handling-verifiable-state-proofs">Handling Verifiable State Proofs</a></h3>
+<p>Guest programs can incorporate state from external blockchains through a structured integration pattern that enhances their capabilities significantly.</p>
+<p>External State Proof Services, such as the <code>eth-state-proof-service</code>, connect to external chains via RPC, query desired state at specific block heights, and construct Merkle proofs relative to known block hashes. These services play a crucial role in bridging external blockchain data into the ZK environment.</p>
+<p>The guest program integration follows a clear pattern. During <strong>Proof Ingestion</strong>, the controller receives external state proofs via JSON payloads and extracts state values along with relevant metadata like block hashes. In the <strong>Witness Preparation</strong> phase, the controller incorporates this external state into the witness for the ZK circuit. The <strong>Circuit Logic</strong> then performs computations using the external state data, with the option to verify external proofs directly within the circuit for stronger security guarantees.</p>
+<p><strong>Trust Model Considerations</strong> - The ZK proof fundamentally attests that given a set of provided inputs (which may include externally proven state at the latest block height), the circuit executed correctly to produce the specified outputs. The Coprocessor provides a state proof interface for each chain that exposes a light client prover wrapped in a recursive circuit. All light client circuits are initialized at a trusted height, where block hash and committee composition are taken as "weakly subjective" public inputs.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="sparse-merkle-trees-in-valence"><a class="header" href="#sparse-merkle-trees-in-valence">Sparse Merkle Trees in Valence</a></h1>
+<p>A sparse Merkle tree (SMT) is a specialized Merkle tree with leaf indices defined by an injective function from predefined arguments. The verification key of a ZK circuit, being injective to the circuit's definition, serves as an index for available programs.</p>
+<p>Since ZK proofs are uniquely tied to their verification keys, we can use these keys to index and organize proofs from different programs. This makes each verification key a unique identifier for its corresponding proof within the collection.</p>
+<h2 id="merkle-tree"><a class="header" href="#merkle-tree">Merkle Tree</a></h2>
+<p>A Merkle tree is an authenticated data structure consisting of leaves and nodes that form a tree shape. Each node in this tree represents the cryptographic hash of its children, while the leaves hold an arbitrary piece of data—usually the hash value of some variable input.</p>
+<p>For a hash function <code>H</code>, if we insert data items A, B, C into a Merkle tree, the resulting structure would look like:</p>
 <pre class="mermaid">graph TB
     %% Root node
     r[&quot;R := H(t10, t11)&quot;]
@@ -656,9 +687,10 @@ graph TD;
     c3[&quot;t02 := H(C)&quot;] --&gt; m2
     c4[&quot;t03 := 0&quot;] --&gt; m2
 </pre>
-<h3 id="membership-proof"><a class="header" href="#membership-proof">Membership proof</a></h3>
-<p>A Merkle tree serves as an efficient data structure for validating the membership of a leaf node within a set in logarithmic time, making it especially useful for handling large sets. A Merkle opening (or Merkle proof) represents an array of sibling nodes that outline a Merkle Path leading to a commitment Root. If the verifier possesses the root and employs a cryptographic hash function, the pre-image of the hash is non-malleable; in a cryptographic hash, it's unfeasible to discover a set of siblings resulting in the root, except for the valid inputs. Given that the leaf node is known to the verifier, a Merkle Proof will consist of a sequence of hashes leading up to the root. This allows the verifier to compute the root value and compare it with the known Merkle root, thereby confirming the membership of any provided alleged member without relying on the trustworthiness of the source. Consequently, a single hash commitment ensures that any verifier can securely validate the membership of any proposed member supplied by an untrusted party.</p>
-<p>On the example above, the Merkle opening for <code>C</code> is the siblings of the path until the root, that is: <code>[t03, t10]</code> . The verifier, that knows <code>R</code> beforehand, will compute:</p>
+<p><em>Figure 1: Basic Merkle tree structure. The node labeling uses a coordinate system where the first digit represents the tree level (0 = leaves, 1 = intermediate nodes, etc.) and the second digit represents the position at that level. Each parent node is computed as the hash of its two children in this binary tree structure.</em></p>
+<h3 id="membership-proof"><a class="header" href="#membership-proof">Membership Proof</a></h3>
+<p>A Merkle tree serves as an efficient data structure for validating the membership of a leaf node within a set in logarithmic time, making it especially useful for handling large sets and well-suited for random insertion patterns. A Merkle opening (or Merkle proof) represents an array of sibling nodes that outline a Merkle Path leading to a commitment Root. If the verifier possesses the root and employs a cryptographic hash function, the pre-image of the hash is non-malleable; in a cryptographic hash, it's unfeasible to discover a set of siblings resulting in the root, except for the valid inputs. Given that the leaf node is known to the verifier, a Merkle Proof will consist of a sequence of hashes leading up to the root. This allows the verifier to compute the root value and compare it with the known Merkle root, thereby confirming the membership of any provided alleged member without relying on the trustworthiness of the source. Consequently, a single hash commitment ensures that any verifier can securely validate the membership of any proposed member supplied by an untrusted party.</p>
+<p>To prove that <code>C</code> is in the tree, the Merkle proof includes the sibling nodes along the path from <code>C</code> to the root: <code>[t03, t10]</code>. So the verifier, that knows <code>R</code> beforehand, will compute:</p>
 <ol>
 <li><code>t02 := H(C)</code></li>
 <li><code>t11 := H(t02, t03)</code></li>
@@ -668,7 +700,7 @@ graph TD;
 <p>Note that the depth of the tree is the length of its Merkle opening, that is: we open up to a node with depth equal to the length of the proof.</p>
 <h2 id="sparse-data"><a class="header" href="#sparse-data">Sparse Data</a></h2>
 <p>Let's consider a public function <code>f</code> that accepts a member and returns a tuple. This tuple consists of the index within the tree as a <code>u64</code> value, and the hash of the leaf: <code>(i, h) = f(X)</code>.</p>
-<p>For the example above, let’s assume two members:</p>
+<p>For the example above, let's assume two members:</p>
 <ul>
 <li><code>(3, a) := f(A)</code></li>
 <li><code>(1, b) := f(B)</code></li>
@@ -688,21 +720,20 @@ graph TD;
     c4[&quot;t03 := a&quot;] --&gt; m2
 </pre>
 <p>The primary distinction of a sparse Merkle tree lies in the deterministic leaf index, making it agnostic to input order. In essence, this structure forms an unordered set whose equivalence remains consistent irrespective of the sequence in which items are appended.</p>
-<p>The behavior of the membership proof in this context mirrors that in a traditional Merkle tree, except that a sparse Merkle tree enables the generation of a non-membership proof. To achieve this, we carry out a Merkle opening at the specified target index, and expect it to be <code>0</code>.</p>
-<p>Let’s assume a non-member <code>X</code> to be <code>(0, x) := f(X)</code> . To prove non-membership, we broadcast <code>[b, t11]</code> . To verify the non-membership of <code>X</code>, knowing <code>R</code> and the non-membership proof, we:</p>
+<p>In addition to membership proofs sparse Merkle trees also support generating proofs of non-membership. To achieve this, we carry out a Merkle opening at the specified target index, and expect the returned value to be <code>0</code>.</p>
+<p>Let's assume a non-member <code>X</code> to be <code>(0, x) := f(X)</code>. To verify that <code>X</code> is not in the tree, given the root <code>R</code> and the non-membership proof <code>[b, t11]</code>, the verifier:</p>
 <ol>
-<li><code>(0, x) := f(X)</code></li>
-<li><code>t10 := H(0, b)</code> ; here we open to <code>0</code></li>
-<li><code>R’ := H(t10, t11)</code></li>
+<li>Computes <code>(0, x) := f(X)</code> to find where <code>X</code> should be located (index 0)</li>
+<li>Reconstructs <code>t10 := H(0, b)</code> using the empty slot (0) and sibling <code>b</code></li>
+<li>Computes the root <code>R' := H(t10, t11)</code> and checks if <code>R' == R</code></li>
 </ol>
-<p>If <code>R == R'</code> , then <code>0</code> is at the slot of <code>X</code> . Since we know <code>X</code> to not be the pre-image of <code>0</code> in <code>H</code>, then <code>X</code> is not a member of the tree.</p>
-<h2 id="valence-smt"><a class="header" href="#valence-smt">Valence SMT</a></h2>
-<p>Within the scope of Valence, the sparse Merkle tree is designed to utilize the hash of the verifying key generated by the ZK circuit as its index. The tree's leaf data will encompass the proof and input arguments for the ZK program. In this particular implementation, we can consider the input arguments as a generic type, which will be specifically defined during development. These input arguments will constitute the key-value pairs that define a subset of the contract state essential for state transition. The proof will be a vector of bytes.</p>
-<p>The tree depth will be adaptive, representing the smallest feasible value required to traverse from the leaf nodes up to the root, given the number of elements involved. This approach ensures we avoid unnecessary utilization of nodes containing unused entries.</p>
-<p>For instance, if the tree contains two adjacent nodes indexed at <code>[(0,0), (0,1)]</code>, the Merkle opening proof will have a single element—specifically the sibling leaf of the validated node.</p>
-<p>In case the tree comprises two nodes with indices <code>[(0,0), (0,2)]</code>, the Merkle opening will require two elements, allowing for a complete traversal from the leaves to the root.</p>
-<h3 id="precomputed-empty-subtrees"><a class="header" href="#precomputed-empty-subtrees">Precomputed empty subtrees</a></h3>
-<p>Every Merkle tree implementation should include a pre-computed set of empty subtrees, based on the selected hash primitive. To avoid unnecessary computational expenditure, it is more efficient to pre-compute the roots of subtrees consisting solely of zeroed leaves. For instance, all the nodes of the following Merkle tree are constant values for <code>H</code> :</p>
+<p>If <code>R == R'</code>, then <code>0</code> is at the slot of <code>X</code>. Since we know <code>X</code> to not be the pre-image of <code>0</code> in <code>H</code>, then <code>X</code> is not a member of the tree.</p>
+<h2 id="the-valence-smt"><a class="header" href="#the-valence-smt">The Valence SMT</a></h2>
+<p>Valence's sparse Merkle tree is designed to utilize the hash of the verifying key generated by the ZK circuit as its index. The tree's leaf data will encompass the proof and input arguments for the ZK program. For this particular implementation, we can consider the input arguments as a generic type, which will be specifically defined during development. These input arguments will constitute the key-value pairs that define a subset of the contract state essential for state transition. The proof will be a vector of bytes.</p>
+<p>The tree depth is adaptive, representing the smallest value required to traverse from a leaf node to the root, given the number of elements involved. This approach avoids writing nodes that contain unused entries. So if a tree contains two adjacent nodes indexed at <code>[(0,0), (0,1)]</code>, the Merkle opening will contain a single element: the sibling leaf of the validated node.</p>
+<p>If the tree comprises two nodes with indices <code>[(0,0), (0,2)]</code>, the Merkle opening will have two elements, allowing for a complete traversal from the leaves to the root.</p>
+<h3 id="precomputed-empty-subtrees"><a class="header" href="#precomputed-empty-subtrees">Precomputed Empty Subtrees</a></h3>
+<p>The Valence SMT implementation includes a precomputed set of empty subtrees based on the selected hash primitive. For example, when a tree contains only empty nodes, all hash values are constant:</p>
 <pre class="mermaid">graph TB
     %% Root node
     r[&quot;R := H(t10, t11)&quot;]
@@ -717,7 +748,8 @@ graph TD;
     c3[&quot;t02 := 0&quot;] --&gt; m2
     c4[&quot;t03 := 0&quot;] --&gt; m2
 </pre>
-<p>Let’s assume we have a long path on a sparse Merkle tree with a single leaf <code>X</code> with index 2:</p>
+<p>In practice, sparse Merkle trees often have many empty positions, especially when the index space is large but only a few positions are occupied. This creates opportunities for optimization through precomputation.</p>
+<p>Consider a more realistic scenario where we have a sparse tree with a single leaf <code>X</code> at index 2:</p>
 <pre class="mermaid">graph TB
     %% Root
     r[&quot;R := H(t20, K2)&quot;]
@@ -734,14 +766,191 @@ graph TD;
     c3[&quot;X&quot;] --&gt; m2
     c4[&quot;K0&quot;] --&gt; m2
 </pre>
-<p>It would be a waste to compute <code>(K0, K1, K2)</code> here as they are, respectively, <code>K0 := H(0)</code>, <code>K1 := H(K0, K0)</code>, <code>K2 := (K1, K1)</code>. In other words, they are constant values that should be available and should never have to hit the database backend in order to have their values fetched, nor should they exist as a data node. Whenever the tree queries for a node that doesn't exist on the data backend, it should return the constant precomputed empty subtree for that depth.</p>
-<p>Normally, the trees will support precomputed values up to a certain depth. If we adopt a 16 bits output hash function, we should have 16 precomputed empty subtrees.</p>
-<h3 id="future-upgrades"><a class="header" href="#future-upgrades">Future upgrades</a></h3>
-<p>We don't expect the MVP to be optimized. That is, we should have a working implementation, but not yet optimized to specific use-case.</p>
+<p>Rather than computing <code>(K0, K1, K2)</code> each time, these values can be precomputed since they represent known constants: <code>K0 := H(0)</code>, <code>K1 := H(K0, K0)</code>, <code>K2 := H(K1, K1)</code>.</p>
+<p>By using SMTs, Valence can efficiently manage and verify large collections of authenticated data, including ZK proofs from coprocessor applications and commitments to program states.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-zk-guest-environment"><a class="header" href="#valence-zk-guest-environment">Valence ZK Guest Environment</a></h1>
+<p>This document describes the specific execution environment provided by the Valence Coprocessor for "guest applications." Understanding this environment is crucial for developers building robust and efficient ZK applications. It complements the information found in <a href="zk/./02_developing_coprocessor_apps.html">Developing Valence Coprocessor Apps</a>.</p>
+<p>When a guest program's <code>controller</code> crate logic is executed by the Valence ZK Coprocessor, it runs within a specialized, sandboxed environment. This environment imposes certain characteristics and provides specific interfaces for interaction.</p>
+<h3 id="execution-sandbox"><a class="header" href="#execution-sandbox">Execution Sandbox</a></h3>
+<p>The primary purpose of the sandbox is to securely execute the guest program's Rust code (often compiled to WebAssembly or a similar intermediate representation) that is responsible for generating the witness for the ZK circuit. This isolation prevents a guest program from interfering with the Coprocessor service itself or other concurrently running guest programs.</p>
+<p>While the exact nature of the sandbox can evolve, developers should assume an environment with constrained resources. This means that overly complex or long-running computations within the <code>controller</code> crate (before handing off to the ZK circuit for proving) should be approached with caution. The main computationally intensive work should ideally be designed into the ZK circuit itself, as that is what the proving system is optimized for.</p>
+<h3 id="virtual-filesystem"><a class="header" href="#virtual-filesystem">Virtual Filesystem</a></h3>
+<p>Each deployed guest program is provided with its own private virtual filesystem by the Coprocessor. This filesystem is essential for storing intermediate data, logs, and most importantly, the generated ZK proofs.</p>
+<p>Key characteristics and limitations of this virtual filesystem, as indicated by the <code>valence-coprocessor-app</code> template examples, include:</p>
 <ul>
-<li><strong>Hash</strong>: In the context of sparse Merkle trees, the MVP could employ a widely-accepted cryptographic hash function as its fundamental building block. For example, the Keccak256, which is native to EVM, could be used due to its broad availability. However, utilizing this hash function may lead to an extensive gap between nodes, potentially resulting in a tree structure with only 2 leaves yet a significant depth, as the hashes of the two verifying keys might be exceptionally far apart. A future improvement would be to choose of a cryptographic hash that keeps the leaf nodes close. One cheap method to achieve this is by taking the initial <code>n</code> bits (e.g., 16) of the hash output and using it as an index, given that any secure cryptographic hash maintains its collision resistance and avalanche effect characteristics across the target security level with the selected number of sampled bits. While we anticipate not dealing with a large number of program, (i.e. a 256-bit number, 16 bits should be more than sufficient for this purpose.</li>
-<li><strong>Data backend</strong>: In typical scenarios, the number of nodes in a proof batch shouldn't be large: 8 bits should suffice to represent the number of programs; for very complex and large batches, 16 bits should suffice. Choosing a database backend for a Merkle tree can be challenging because it involves deciding on storage methodologies and optimizing database seek operations to retrieve nodes from the same path on a single page when possible. However, with a limited number of nodes, a streamlined database backend could suffice, delivering requested nodes without regard for the total page count. Given this performance constraint, we should prioritize compatibility over optimization: the ability to use the same backend across multiple blockchain clients and execution environments is more crucial than fine-tuning something that functions well only under specific conditions.</li>
+<li><strong>FAT-16 Basis:</strong> The underlying structure often emulates a FAT-16 filesystem. This implies certain legacy constraints that developers must be aware of.</li>
+<li><strong>Extension Length:</strong> File extensions are typically limited to a maximum of three characters (e.g., <code>.bin</code>, <code>.txt</code>, <code>.log</code>).</li>
+<li><strong>Case Insensitivity:</strong> File and directory names are generally treated as case-insensitive (e.g., <code>Proof.bin</code> and <code>proof.bin</code> would refer to the same file).</li>
+<li><strong>Path Structure:</strong> Paths are typically Unix-like (e.g., <code>/var/share/my_proof.bin</code>).</li>
+<li><strong>Interaction:</strong> The <code>controller</code> crate interacts with this filesystem by sending specific commands to the Coprocessor service rather than through direct OS-level file I/O calls. For example, to store a generated proof, the <code>controller</code> constructs a <code>store</code> command with the target path and data, which the Coprocessor then writes to the program's virtual disk image.</li>
 </ul>
+<p>Developers should design their <code>controller</code> logic to work within these constraints, particularly when choosing filenames for storing proofs or other outputs.</p>
+<h3 id="interfacing-with-the-coprocessor-service"><a class="header" href="#interfacing-with-the-coprocessor-service">Interfacing with the Coprocessor Service</a></h3>
+<p>From within its sandboxed execution, the <code>controller</code> crate logic needs to communicate with the host Coprocessor service for several key operations:</p>
+<ul>
+<li><strong>Signaling Witness Readiness:</strong> After processing inputs and preparing the witness for the ZK circuit, the <code>controller</code> must inform the Coprocessor that it is ready for the proving phase to begin.</li>
+<li><strong>Receiving Proof Results:</strong> The Coprocessor calls a designated entrypoint function within the <code>controller</code> crate upon completion of a proof generation task (successful or failed). This entrypoint receives the proof data, initial arguments, and any logs.</li>
+<li><strong>Filesystem Operations:</strong> As mentioned above, storing data (like the received proof) or logging information involves sending structured requests to the Coprocessor to perform actions on the program's virtual filesystem.</li>
+</ul>
+<p>The exact mechanism for this interaction (e.g., specific function calls, message passing, predefined environment variables or handles) is defined by the Coprocessor's execution environment for guest programs.</p>
+<h3 id="resource-constraints"><a class="header" href="#resource-constraints">Resource Constraints</a></h3>
+<p>Guest applications run with finite system resources including limited memory, CPU time, and storage space. Developers should aim for efficiency in their <code>controller</code> crate logic, focusing on input processing, witness generation, and handling results rather than performing heavy computations that are better suited for the ZK circuit itself.</p>
+<p>Understanding these environment constraints enables developers to build ZK applications that run efficiently on the Valence Coprocessor.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="state-encoding-and-encoders"><a class="header" href="#state-encoding-and-encoders">State Encoding and Encoders</a></h1>
+<p>This document explains how the Valence ZK Coprocessor handles state encoding for zero-knowledge proofs and cross-chain state synchronization. Understanding these concepts is essential for building applications that work across multiple blockchains.</p>
+<blockquote>
+<p><strong>Implementation Status:</strong> The state encoding mechanisms described in this document represent the design goals and architecture for the Valence ZK Coprocessor. While the core coprocessor infrastructure exists (as shown in the <a href="https://github.com/timewave-computer/valence-coprocessor-app">valence-coprocessor-app template</a>), the full state encoding and cross-chain coordination features are still in active development.</p>
+</blockquote>
+<h2 id="the-state-encoding-challenge"><a class="header" href="#the-state-encoding-challenge">The State Encoding Challenge</a></h2>
+<p>The core challenge in ZK coprocessor design lies in encoding state. ZK applications are pure functions that must utilize existing state as arguments to produce an evaluated output state. This means we need a way to compress blockchain state into a format suitable for zero-knowledge proofs.</p>
+<p>For any state transition, we can describe it as a pure function: <code>f(A) = B</code>, where <code>A</code> is the initial state and <code>B</code> is the resulting state after applying function <code>f</code>.</p>
+<h2 id="pure-functions-in-zkvms"><a class="header" href="#pure-functions-in-zkvms">Pure Functions in zkVMs</a></h2>
+<p>The Valence ZK Coprocessor leverages zero-knowledge virtual machines (zkVMs) to execute Rust programs and generate proofs of their execution. Specifically, Valence uses a RISC-V zkVM, currently Succinct's SP1. For state encoding purposes, these applications must be structured as pure functions <code>f(x) = y</code>.</p>
+<p>The zkVM workflow for state transitions follows the following pattern:</p>
+<ol>
+<li><strong>Application definition</strong>: The state transition logic is written in Rust as a pure function</li>
+<li><strong>Key generation</strong>: The compiled application produces a proving key <code>pk</code> and verifying key <code>vk</code></li>
+<li><strong>Proof generation</strong>: Given inputs <code>x</code>, the zkVM calls <code>prove(pk, x)</code> to generate proof <code>p</code></li>
+<li><strong>Verification</strong>: The proof is verified by calling <code>verify(vk, x, y, p)</code></li>
+</ol>
+<p>This pure function constraint is what necessitates the state encoding mechanisms described in this document - we must compress mutable blockchain state into immutable inputs and outputs suitable for zero-knowledge proving.</p>
+<h2 id="unary-encoder"><a class="header" href="#unary-encoder">Unary Encoder</a></h2>
+<p>The Unary Encoder compresses account state transitions into zero-knowledge proofs. It handles the transformation from on-chain state mutations to ZK-provable computations.</p>
+<h3 id="basic-state-transition-example"><a class="header" href="#basic-state-transition-example">Basic State Transition Example</a></h3>
+<p>Consider an account with a key-value store that maps addresses to balances. A traditional on-chain transfer function might look like:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn transfer(&amp;mut self, signature: Signature, from: Address, to: Address, value: u64) {
+    assert!(signature.verify(&amp;from));
+    assert!(value &gt; 0);
+    
+    let balance_from = self.get(&amp;from).unwrap();
+    let balance_to = self.get(&amp;to).unwrap_or(0);
+    
+    self.insert(from, balance_from.checked_sub(value).unwrap());
+    self.insert(to, balance_to.checked_add(value).unwrap());
+}
+<span class="boring">}</span></code></pre></pre>
+<p>For ZK execution, we can create a trusted version that delegates signature verification to the ZK circuit:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn transfer_trusted(&amp;mut self, from: Address, to: Address, value: u64) {
+    let balance_from = self.get(&amp;from).unwrap();
+    let balance_to = self.get(&amp;to).unwrap_or(0);
+    
+    self.insert(from, balance_from - value);
+    self.insert(to, balance_to + value);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="zk-application-structure"><a class="header" href="#zk-application-structure">ZK Application Structure</a></h3>
+<p>In the current Valence Coprocessor template, ZK applications consist of two components: a controller and a circuit. The controller processes inputs and generates witnesses, while the circuit performs the ZK-provable computation.</p>
+<p><strong>Controller (processes JSON inputs and generates witnesses):</strong></p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn get_witnesses(args: Value) -&gt; anyhow::Result&lt;Vec&lt;Witness&gt;&gt; {
+    let (signature, from, to, value) = parse_transfer_args(args);
+    
+    // Verify signature off-chain and prepare witness data
+    signature.verify(&amp;from)?;
+    
+    let witness_data = TransferWitness {
+        from,
+        to, 
+        value,
+        initial_state: get_current_state(),
+    };
+    
+    Ok(vec![Witness::Data(witness_data.encode())])
+}
+<span class="boring">}</span></code></pre></pre>
+<p><strong>Circuit (performs ZK computation):</strong></p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn circuit(witnesses: Vec&lt;Witness&gt;) -&gt; Vec&lt;u8&gt; {
+    let witness_data = TransferWitness::decode(witnesses[0].as_data().unwrap());
+    let mut state = witness_data.initial_state;
+    
+    // Perform trusted transfer (signature already verified in controller)
+    state.transfer_trusted(witness_data.from, witness_data.to, witness_data.value);
+    
+    // Return state commitment for on-chain verification
+    state.commitment().encode()
+}
+<span class="boring">}</span></code></pre></pre>
+<blockquote>
+<p><strong>Note:</strong> The above examples show the conceptual structure for state encoding. The current template implementation uses simpler examples (like incrementing a counter), as the full state encoding mechanisms are still in development.</p>
+</blockquote>
+<h3 id="on-chain-verification"><a class="header" href="#on-chain-verification">On-Chain Verification</a></h3>
+<p>When the target chain receives the proof and circuit output, it can verify execution correctness:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn verify(&amp;self, proof: Proof, circuit_output: Vec&lt;u8&gt;) {
+    let current_commitment = self.state.commitment();
+    
+    // Extract the new state commitment from circuit output
+    let new_commitment = StateCommitment::decode(circuit_output);
+    
+    // Verify the ZK proof
+    proof.verify(&amp;self.vk, &amp;[current_commitment, new_commitment].concat());
+    
+    // Apply the proven state transition
+    self.state.apply_commitment(new_commitment);
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="merkleized-encoder"><a class="header" href="#merkleized-encoder">Merkleized Encoder</a></h2>
+<p>For cross-chain applications, the Merkleized Encoder handles state transition dependencies across multiple domains. This enables parallel execution while maintaining correctness for chains that depend on each other's state.</p>
+<h3 id="cross-chain-state-dependencies"><a class="header" href="#cross-chain-state-dependencies">Cross-Chain State Dependencies</a></h3>
+<p>Consider three chains where:</p>
+<ul>
+<li>Chain 1 executes independently</li>
+<li>Chain 2 executes independently</li>
+<li>Chain 3 depends on the result from Chain 1</li>
+</ul>
+<p>The Merklelized Encoder creates a Merkle tree structure:</p>
+<pre><code class="language-text">        R (Root)
+       /         \
+     M1           M2
+    /  \         /  \
+   C1   C2      C3   0
+   |    |       |
+Chain1 Chain2 Chain3
+</code></pre>
+<p>Each leaf contains the encoded state transition for its respective chain:</p>
+<ul>
+<li><code>C1</code>: <code>(S1 → T1), K1</code> (Chain 1 transition)</li>
+<li><code>C2</code>: <code>(S2 → T2), K2</code> (Chain 2 transition)</li>
+<li><code>C3</code>: <code>(S3 → T3), K3</code> (Chain 3 transition, depends on T1)</li>
+</ul>
+<h3 id="parallel-and-sequential-execution"><a class="header" href="#parallel-and-sequential-execution">Parallel and Sequential Execution</a></h3>
+<p>The ZK coprocessor can execute proofs in parallel where possible:</p>
+<ol>
+<li><strong>Independent execution</strong>: Chain 1 and Chain 2 can execute in parallel</li>
+<li><strong>Sequential dependency</strong>: Chain 3 waits for Chain 1's result <code>T1</code></li>
+<li><strong>State sharing</strong>: Chain 3 receives <code>T1</code> and validates the foreign state while processing</li>
+</ol>
+<h3 id="optimized-verification"><a class="header" href="#optimized-verification">Optimized Verification</a></h3>
+<p>The Merkle tree structure provides logarithmic verification efficiency. Each chain only needs:</p>
+<ul>
+<li>Its own state transition arguments</li>
+<li>The Merkle path to the root <code>R</code></li>
+<li>Any dependent state from other chains</li>
+</ul>
+<p>For example, Chain 2 only needs <code>C1</code> and <code>M2</code> for its Merkle proof, not the complete state data from Chains 1 and 3.</p>
+<h3 id="on-chain-proof-distribution"><a class="header" href="#on-chain-proof-distribution">On-Chain Proof Distribution</a></h3>
+<p>Each chain receives the minimal data needed for verification:</p>
+<ul>
+<li><strong>Chain 1</strong>: <code>(R1, T1)</code></li>
+<li><strong>Chain 2</strong>: <code>(R2, T2)</code></li>
+<li><strong>Chain 3</strong>: <code>(R3, T3, R1, T1, C2)</code></li>
+</ul>
+<p>Chain 3's verification process includes:</p>
+<ol>
+<li>Verify its own transition: <code>verify(R3, T3)</code></li>
+<li>Verify the dependency: <code>verify(R1, T1)</code></li>
+<li>Query the foreign state: <code>query(T1)</code></li>
+<li>Reconstruct the commitments and validate the Merkle root</li>
+</ol>
+<p>This architecture enables the Valence Coprocessor to securely and efficiently coordinate complex cross-chain programs.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="authorization--processors"><a class="header" href="#authorization--processors">Authorization &amp; Processors</a></h1>
 <p>The <strong>Authorization</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
 <p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with <strong>Valence Programs</strong> via <strong>Authorizations</strong>.</p>
@@ -1332,7 +1541,7 @@ pub enum PoolType {
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-clearing-queue-library"><a class="header" href="#valence-clearing-queue-library">Valence Clearing Queue Library</a></h1>
 <p>The <strong>Valence Clearing Queue</strong> library allows <strong>registration and settlement of withdrawal obligations</strong> in a FIFO (First-In-First-Out) manner. It maintains a queue of pending withdrawal obligations, with each obligation containing recipient information, payout amounts, and a unique identifier. When settling obligations, funds are pulled from a <strong>settlement input account</strong> and sent to the specified recipients.</p>
 <blockquote>
-<p>[!IMPORTANT]
+<p><strong>Important:</strong>
 This library functions solely as a settlement engine. The settlement account funding (liquidity-management) flow is outside of its scope and is managed by a strategist. This management process likely involves monitoring both the settlement account balance and the obligation queue in order to ensure the settlement account maintains sufficient liquidity for obligation settlements.</p>
 </blockquote>
 <h2 id="high-level-flow-2"><a class="header" href="#high-level-flow-2">High-level flow</a></h2>

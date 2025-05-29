@@ -171,14 +171,12 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="sparse-merkle-tree"><a class="header" href="#sparse-merkle-tree">Sparse Merkle tree</a></h1>
-<p>A sparse Merkle tree (SMT) is a specialized version of a Merkle tree, characterized by a leaf index defined by an injective function derived from a predefined argument at the design level. The verification key of a ZK circuit is another constant, also injective to the circuit's definition, and can serve as an index for the available programs.</p>
-<p>In the context of a ZK proof being a product of its verification key (alongside other attributes), it allows us to index a proof from a collection of proofs for distinct programs.</p>
-<p>Assuming that we don't reuse the same proof for different purposes during a state transition, as the program will either be raw or recursed, the verifying key is an unique index in such collection.</p>
-<p>This document describes a sparse Merkle tree design that employs indexing proofs based on the hash of the verification key.</p>
-<h2 id="merkle-tree"><a class="header" href="#merkle-tree">Merkle tree</a></h2>
-<p>A Merkle tree is typically a (binary) tree structure consisting of leaves and nodes. Each node in this tree represents the cryptographic hash of its children, while the leaves hold an arbitrary piece of data—usually the hash value of some variable input.</p>
-<p>For a hash function <code>H</code>, if we insert the data items A, B, C into a Merkle tree, the resulting structure would look like:</p>
+                        <h1 id="sparse-merkle-trees-in-valence"><a class="header" href="#sparse-merkle-trees-in-valence">Sparse Merkle Trees in Valence</a></h1>
+<p>A sparse Merkle tree (SMT) is a specialized Merkle tree with leaf indices defined by an injective function from predefined arguments. The verification key of a ZK circuit, being injective to the circuit's definition, serves as an index for available programs.</p>
+<p>Since ZK proofs are uniquely tied to their verification keys, we can use these keys to index and organize proofs from different programs. This makes each verification key a unique identifier for its corresponding proof within the collection.</p>
+<h2 id="merkle-tree"><a class="header" href="#merkle-tree">Merkle Tree</a></h2>
+<p>A Merkle tree is an authenticated data structure consisting of leaves and nodes that form a tree shape. Each node in this tree represents the cryptographic hash of its children, while the leaves hold an arbitrary piece of data—usually the hash value of some variable input.</p>
+<p>For a hash function <code>H</code>, if we insert data items A, B, C into a Merkle tree, the resulting structure would look like:</p>
 <pre class="mermaid">graph TB
     %% Root node
     r[&quot;R := H(t10, t11)&quot;]
@@ -193,9 +191,10 @@
     c3[&quot;t02 := H(C)&quot;] --&gt; m2
     c4[&quot;t03 := 0&quot;] --&gt; m2
 </pre>
-<h3 id="membership-proof"><a class="header" href="#membership-proof">Membership proof</a></h3>
-<p>A Merkle tree serves as an efficient data structure for validating the membership of a leaf node within a set in logarithmic time, making it especially useful for handling large sets. A Merkle opening (or Merkle proof) represents an array of sibling nodes that outline a Merkle Path leading to a commitment Root. If the verifier possesses the root and employs a cryptographic hash function, the pre-image of the hash is non-malleable; in a cryptographic hash, it's unfeasible to discover a set of siblings resulting in the root, except for the valid inputs. Given that the leaf node is known to the verifier, a Merkle Proof will consist of a sequence of hashes leading up to the root. This allows the verifier to compute the root value and compare it with the known Merkle root, thereby confirming the membership of any provided alleged member without relying on the trustworthiness of the source. Consequently, a single hash commitment ensures that any verifier can securely validate the membership of any proposed member supplied by an untrusted party.</p>
-<p>On the example above, the Merkle opening for <code>C</code> is the siblings of the path until the root, that is: <code>[t03, t10]</code> . The verifier, that knows <code>R</code> beforehand, will compute:</p>
+<p><em>Figure 1: Basic Merkle tree structure. The node labeling uses a coordinate system where the first digit represents the tree level (0 = leaves, 1 = intermediate nodes, etc.) and the second digit represents the position at that level. Each parent node is computed as the hash of its two children in this binary tree structure.</em></p>
+<h3 id="membership-proof"><a class="header" href="#membership-proof">Membership Proof</a></h3>
+<p>A Merkle tree serves as an efficient data structure for validating the membership of a leaf node within a set in logarithmic time, making it especially useful for handling large sets and well-suited for random insertion patterns. A Merkle opening (or Merkle proof) represents an array of sibling nodes that outline a Merkle Path leading to a commitment Root. If the verifier possesses the root and employs a cryptographic hash function, the pre-image of the hash is non-malleable; in a cryptographic hash, it's unfeasible to discover a set of siblings resulting in the root, except for the valid inputs. Given that the leaf node is known to the verifier, a Merkle Proof will consist of a sequence of hashes leading up to the root. This allows the verifier to compute the root value and compare it with the known Merkle root, thereby confirming the membership of any provided alleged member without relying on the trustworthiness of the source. Consequently, a single hash commitment ensures that any verifier can securely validate the membership of any proposed member supplied by an untrusted party.</p>
+<p>To prove that <code>C</code> is in the tree, the Merkle proof includes the sibling nodes along the path from <code>C</code> to the root: <code>[t03, t10]</code>. So the verifier, that knows <code>R</code> beforehand, will compute:</p>
 <ol>
 <li><code>t02 := H(C)</code></li>
 <li><code>t11 := H(t02, t03)</code></li>
@@ -205,7 +204,7 @@
 <p>Note that the depth of the tree is the length of its Merkle opening, that is: we open up to a node with depth equal to the length of the proof.</p>
 <h2 id="sparse-data"><a class="header" href="#sparse-data">Sparse Data</a></h2>
 <p>Let's consider a public function <code>f</code> that accepts a member and returns a tuple. This tuple consists of the index within the tree as a <code>u64</code> value, and the hash of the leaf: <code>(i, h) = f(X)</code>.</p>
-<p>For the example above, let’s assume two members:</p>
+<p>For the example above, let's assume two members:</p>
 <ul>
 <li><code>(3, a) := f(A)</code></li>
 <li><code>(1, b) := f(B)</code></li>
@@ -225,21 +224,20 @@
     c4[&quot;t03 := a&quot;] --&gt; m2
 </pre>
 <p>The primary distinction of a sparse Merkle tree lies in the deterministic leaf index, making it agnostic to input order. In essence, this structure forms an unordered set whose equivalence remains consistent irrespective of the sequence in which items are appended.</p>
-<p>The behavior of the membership proof in this context mirrors that in a traditional Merkle tree, except that a sparse Merkle tree enables the generation of a non-membership proof. To achieve this, we carry out a Merkle opening at the specified target index, and expect it to be <code>0</code>.</p>
-<p>Let’s assume a non-member <code>X</code> to be <code>(0, x) := f(X)</code> . To prove non-membership, we broadcast <code>[b, t11]</code> . To verify the non-membership of <code>X</code>, knowing <code>R</code> and the non-membership proof, we:</p>
+<p>In addition to membership proofs sparse Merkle trees also support generating proofs of non-membership. To achieve this, we carry out a Merkle opening at the specified target index, and expect the returned value to be <code>0</code>.</p>
+<p>Let's assume a non-member <code>X</code> to be <code>(0, x) := f(X)</code>. To verify that <code>X</code> is not in the tree, given the root <code>R</code> and the non-membership proof <code>[b, t11]</code>, the verifier:</p>
 <ol>
-<li><code>(0, x) := f(X)</code></li>
-<li><code>t10 := H(0, b)</code> ; here we open to <code>0</code></li>
-<li><code>R’ := H(t10, t11)</code></li>
+<li>Computes <code>(0, x) := f(X)</code> to find where <code>X</code> should be located (index 0)</li>
+<li>Reconstructs <code>t10 := H(0, b)</code> using the empty slot (0) and sibling <code>b</code></li>
+<li>Computes the root <code>R' := H(t10, t11)</code> and checks if <code>R' == R</code></li>
 </ol>
-<p>If <code>R == R'</code> , then <code>0</code> is at the slot of <code>X</code> . Since we know <code>X</code> to not be the pre-image of <code>0</code> in <code>H</code>, then <code>X</code> is not a member of the tree.</p>
-<h2 id="valence-smt"><a class="header" href="#valence-smt">Valence SMT</a></h2>
-<p>Within the scope of Valence, the sparse Merkle tree is designed to utilize the hash of the verifying key generated by the ZK circuit as its index. The tree's leaf data will encompass the proof and input arguments for the ZK program. In this particular implementation, we can consider the input arguments as a generic type, which will be specifically defined during development. These input arguments will constitute the key-value pairs that define a subset of the contract state essential for state transition. The proof will be a vector of bytes.</p>
-<p>The tree depth will be adaptive, representing the smallest feasible value required to traverse from the leaf nodes up to the root, given the number of elements involved. This approach ensures we avoid unnecessary utilization of nodes containing unused entries.</p>
-<p>For instance, if the tree contains two adjacent nodes indexed at <code>[(0,0), (0,1)]</code>, the Merkle opening proof will have a single element—specifically the sibling leaf of the validated node.</p>
-<p>In case the tree comprises two nodes with indices <code>[(0,0), (0,2)]</code>, the Merkle opening will require two elements, allowing for a complete traversal from the leaves to the root.</p>
-<h3 id="precomputed-empty-subtrees"><a class="header" href="#precomputed-empty-subtrees">Precomputed empty subtrees</a></h3>
-<p>Every Merkle tree implementation should include a pre-computed set of empty subtrees, based on the selected hash primitive. To avoid unnecessary computational expenditure, it is more efficient to pre-compute the roots of subtrees consisting solely of zeroed leaves. For instance, all the nodes of the following Merkle tree are constant values for <code>H</code> :</p>
+<p>If <code>R == R'</code>, then <code>0</code> is at the slot of <code>X</code>. Since we know <code>X</code> to not be the pre-image of <code>0</code> in <code>H</code>, then <code>X</code> is not a member of the tree.</p>
+<h2 id="the-valence-smt"><a class="header" href="#the-valence-smt">The Valence SMT</a></h2>
+<p>Valence's sparse Merkle tree is designed to utilize the hash of the verifying key generated by the ZK circuit as its index. The tree's leaf data will encompass the proof and input arguments for the ZK program. For this particular implementation, we can consider the input arguments as a generic type, which will be specifically defined during development. These input arguments will constitute the key-value pairs that define a subset of the contract state essential for state transition. The proof will be a vector of bytes.</p>
+<p>The tree depth is adaptive, representing the smallest value required to traverse from a leaf node to the root, given the number of elements involved. This approach avoids writing nodes that contain unused entries. So if a tree contains two adjacent nodes indexed at <code>[(0,0), (0,1)]</code>, the Merkle opening will contain a single element: the sibling leaf of the validated node.</p>
+<p>If the tree comprises two nodes with indices <code>[(0,0), (0,2)]</code>, the Merkle opening will have two elements, allowing for a complete traversal from the leaves to the root.</p>
+<h3 id="precomputed-empty-subtrees"><a class="header" href="#precomputed-empty-subtrees">Precomputed Empty Subtrees</a></h3>
+<p>The Valence SMT implementation includes a precomputed set of empty subtrees based on the selected hash primitive. For example, when a tree contains only empty nodes, all hash values are constant:</p>
 <pre class="mermaid">graph TB
     %% Root node
     r[&quot;R := H(t10, t11)&quot;]
@@ -254,7 +252,8 @@
     c3[&quot;t02 := 0&quot;] --&gt; m2
     c4[&quot;t03 := 0&quot;] --&gt; m2
 </pre>
-<p>Let’s assume we have a long path on a sparse Merkle tree with a single leaf <code>X</code> with index 2:</p>
+<p>In practice, sparse Merkle trees often have many empty positions, especially when the index space is large but only a few positions are occupied. This creates opportunities for optimization through precomputation.</p>
+<p>Consider a more realistic scenario where we have a sparse tree with a single leaf <code>X</code> at index 2:</p>
 <pre class="mermaid">graph TB
     %% Root
     r[&quot;R := H(t20, K2)&quot;]
@@ -271,24 +270,18 @@
     c3[&quot;X&quot;] --&gt; m2
     c4[&quot;K0&quot;] --&gt; m2
 </pre>
-<p>It would be a waste to compute <code>(K0, K1, K2)</code> here as they are, respectively, <code>K0 := H(0)</code>, <code>K1 := H(K0, K0)</code>, <code>K2 := (K1, K1)</code>. In other words, they are constant values that should be available and should never have to hit the database backend in order to have their values fetched, nor should they exist as a data node. Whenever the tree queries for a node that doesn't exist on the data backend, it should return the constant precomputed empty subtree for that depth.</p>
-<p>Normally, the trees will support precomputed values up to a certain depth. If we adopt a 16 bits output hash function, we should have 16 precomputed empty subtrees.</p>
-<h3 id="future-upgrades"><a class="header" href="#future-upgrades">Future upgrades</a></h3>
-<p>We don't expect the MVP to be optimized. That is, we should have a working implementation, but not yet optimized to specific use-case.</p>
-<ul>
-<li><strong>Hash</strong>: In the context of sparse Merkle trees, the MVP could employ a widely-accepted cryptographic hash function as its fundamental building block. For example, the Keccak256, which is native to EVM, could be used due to its broad availability. However, utilizing this hash function may lead to an extensive gap between nodes, potentially resulting in a tree structure with only 2 leaves yet a significant depth, as the hashes of the two verifying keys might be exceptionally far apart. A future improvement would be to choose of a cryptographic hash that keeps the leaf nodes close. One cheap method to achieve this is by taking the initial <code>n</code> bits (e.g., 16) of the hash output and using it as an index, given that any secure cryptographic hash maintains its collision resistance and avalanche effect characteristics across the target security level with the selected number of sampled bits. While we anticipate not dealing with a large number of program, (i.e. a 256-bit number, 16 bits should be more than sufficient for this purpose.</li>
-<li><strong>Data backend</strong>: In typical scenarios, the number of nodes in a proof batch shouldn't be large: 8 bits should suffice to represent the number of programs; for very complex and large batches, 16 bits should suffice. Choosing a database backend for a Merkle tree can be challenging because it involves deciding on storage methodologies and optimizing database seek operations to retrieve nodes from the same path on a single page when possible. However, with a limited number of nodes, a streamlined database backend could suffice, delivering requested nodes without regard for the total page count. Given this performance constraint, we should prioritize compatibility over optimization: the ability to use the same backend across multiple blockchain clients and execution environments is more crucial than fine-tuning something that functions well only under specific conditions.</li>
-</ul>
+<p>Rather than computing <code>(K0, K1, K2)</code> each time, these values can be precomputed since they represent known constants: <code>K0 := H(0)</code>, <code>K1 := H(K0, K0)</code>, <code>K2 := H(K1, K1)</code>.</p>
+<p>By using SMTs, Valence can efficiently manage and verify large collections of authenticated data, including ZK proofs from coprocessor applications and commitments to program states.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../zk-coprocessor/_overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../zk/04_coprocessor_internals.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../zk/06_guest_environment.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -298,11 +291,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../zk-coprocessor/_overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../zk/04_coprocessor_internals.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../zk/06_guest_environment.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
