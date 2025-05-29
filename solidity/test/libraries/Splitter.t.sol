@@ -76,6 +76,40 @@ contract SplitterTest is Test {
         assertEq(address(actualInputAccount), address(newInputAccount));
     }
 
+    function test_GivenFixedRatioSumsToApproximatelyOne_WhenOwnerUpdateConfig_ThenUpdateConfig() public {
+        // given
+        ValenceAccount.Account newInputAccount = new BaseAccount(owner, new address[](0));
+        ValenceAccount.Account outputAccount1 = new BaseAccount(owner, new address[](0));
+        ValenceAccount.Account outputAccount2 = new BaseAccount(owner, new address[](0));
+        ValenceAccount.Account outputAccount3 = new BaseAccount(owner, new address[](0));
+        Splitter.SplitConfig[] memory newSplits = new Splitter.SplitConfig[](3);
+        newSplits[0] = Splitter.SplitConfig({
+            outputAccount: outputAccount1,
+            token: IERC20(token),
+            splitType: Splitter.SplitType.FixedRatio,
+            amount: abi.encode(333_333_333_333_333_333)});
+        newSplits[1] = Splitter.SplitConfig({
+            outputAccount: outputAccount2,
+            token: IERC20(token),
+            splitType: Splitter.SplitType.FixedRatio,
+            amount: abi.encode(333_333_333_333_333_333)});
+        newSplits[2] = Splitter.SplitConfig({
+            outputAccount: outputAccount3,
+            token: IERC20(token),
+            splitType: Splitter.SplitType.FixedRatio,
+            amount: abi.encode(333_333_333_333_333_333)});
+        Splitter.SplitterConfig memory newConfig =
+            Splitter.SplitterConfig({inputAccount: newInputAccount, splits: newSplits});
+
+        // when
+        vm.prank(owner);
+        splitter.updateConfig(abi.encode(newConfig));
+
+        // then
+        (ValenceAccount.Account actualInputAccount) = splitter.config();
+        assertEq(address(actualInputAccount), address(newInputAccount));
+    }
+
     function test_RevertUpdateConfig_WithUnauthorized_WhenNotOwnerUpdateConfig() public {
         // given
         address unauthorized = makeAddr("unauthorized");
@@ -341,6 +375,7 @@ contract SplitterTest is Test {
         vm.prank(owner);
         splitter.updateConfig(abi.encode(newConfig));
     }
+
 
     // ============== Split Execution Tests ==============
 
@@ -710,4 +745,6 @@ contract SplitterTest is Test {
         vm.prank(unauthorized);
         splitter.split();
     }
+
+
 }

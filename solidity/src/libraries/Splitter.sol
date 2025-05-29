@@ -167,10 +167,10 @@ contract Splitter is Library {
                     "Invalid split config: cannot combine different split types for same token."
                 );
             } else if (splitConfig.splitType == SplitType.FixedRatio) {
-                require(
-                    tokenRatioSplitSum[splitConfig.token] == 10 ** DECIMALS,
-                    "Invalid split config: sum of ratios is not equal to 1."
-                );
+                unchecked {
+                    uint256 sum = 10 ** DECIMALS - tokenRatioSplitSum[splitConfig.token];
+                    require(sum <= 1, "Invalid split config: sum of ratios is not equal to 1.");
+                }
                 require(
                     tokenAmountSplitSum[splitConfig.token] == 0,
                     "Invalid split config: cannot combine different split types for same token."
