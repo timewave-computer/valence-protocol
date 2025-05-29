@@ -39,7 +39,7 @@ use valence_e2e::utils::{
         bech32_to_evm_bytes32, set_up_cw_hyperlane_contracts, set_up_eth_hyperlane_contracts,
         set_up_hyperlane,
     },
-    solidity_contracts::{BaseAccount, Forwarder, LiteProcessor, MockERC20},
+    solidity_contracts::{sol_lite_processor::LiteProcessor, BaseAccount, Forwarder, MockERC20},
     DEFAULT_ANVIL_RPC_ENDPOINT, ETHEREUM_CHAIN_NAME, ETHEREUM_HYPERLANE_DOMAIN, GAS_FLAGS,
     HYPERLANE_RELAYER_NEUTRON_ADDRESS, LOGS_FILE_PATH, NEUTRON_HYPERLANE_DOMAIN,
     VALENCE_ARTIFACTS_PATH,

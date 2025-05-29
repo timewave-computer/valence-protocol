@@ -371,7 +371,9 @@ pub mod lite_processor {
         evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
     };
 
-    use crate::utils::{solidity_contracts::LiteProcessor, NEUTRON_HYPERLANE_DOMAIN};
+    use crate::utils::{
+        solidity_contracts::sol_lite_processor::LiteProcessor, NEUTRON_HYPERLANE_DOMAIN,
+    };
 
     pub fn setup_lite_processor(
         rt: &tokio::runtime::Runtime,

@@ -32,11 +32,21 @@ sol!(
 );
 
 // Valence Core
-sol!(
-    #[sol(rpc)]
-    LiteProcessor,
-    "../solidity/out/LiteProcessor.sol/LiteProcessor.json",
-);
+pub mod sol_lite_processor {
+    alloy::sol!(
+        #[sol(rpc)]
+        LiteProcessor,
+        "../solidity/out/LiteProcessor.sol/LiteProcessor.json",
+    );
+}
+
+pub mod sol_authorizations {
+    alloy::sol!(
+        #[sol(rpc)]
+        Authorizations,
+        "../solidity/out/Authorization.sol/Authorization.json"
+    );
+}
 
 // Valence Base Accounts
 sol!(
@@ -90,6 +100,14 @@ sol!(
     #[derive(Debug, PartialEq, Eq)]
     ValenceVault,
     "../solidity/out/ValenceVault.sol/ValenceVault.json",
+);
+
+// Valence ERC4626-based one way vault
+sol!(
+    #[sol(rpc)]
+    #[derive(Debug, PartialEq, Eq)]
+    OneWayVault,
+    "../solidity/out/OneWayVault.sol/OneWayVault.json"
 );
 
 // Proxy contract
