@@ -18,7 +18,7 @@ contract Splitter is Library {
 
     /**
      * @title SplitterConfig
-     * @notice Configuration struct for Aave lending operations
+     * @notice Configuration struct for splitting operations
      * @dev Defines splitting parameters
      * @param inputAccount Address of the input account
      * @param splits Split configuration per token address
