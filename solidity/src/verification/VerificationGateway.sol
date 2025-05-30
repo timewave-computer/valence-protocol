@@ -23,6 +23,12 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
      */
     mapping(address => mapping(uint64 => bytes32)) public programVKs;
 
+    /**
+     * @notice Mapping of domain verification keys by user address and registry ID
+     * @dev Maps: user address => registry ID => domain verification key
+     */
+    mapping(address => mapping(uint64 => bytes32)) public domainVKs;
+
     // Storage gap - reserves slots for future versions
     uint256[50] private __gap;
 
@@ -59,9 +65,11 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
      * @dev Only the sender can add a VK for their own address
      * @param registry The registry ID to associate with the verification key
      * @param vk The verification key to register
+     * @param domainVk The domain verification key
      */
-    function addRegistry(uint64 registry, bytes32 vk) external {
+    function addRegistry(uint64 registry, bytes32 vk, bytes32 domainVk) external {
         programVKs[msg.sender][registry] = vk;
+        domainVKs[msg.sender][registry] = domainVk;
     }
 
     /**
@@ -71,6 +79,7 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
      */
     function removeRegistry(uint64 registry) external {
         delete programVKs[msg.sender][registry];
+        delete domainVKs[msg.sender][registry];
     }
 
     /**
@@ -79,7 +88,15 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
      * @param registry The registry data used in verification
      * @param proof The proof to verify
      * @param message The message associated with the proof
+     * @param domainProof The domain proof to verify against the domain verification key
+     * @param domainMessage The message associated with the domain proof
      * @return True if the proof is valid, false or revert otherwise
      */
-    function verify(uint64 registry, bytes calldata proof, bytes calldata message) external virtual returns (bool);
+    function verify(
+        uint64 registry,
+        bytes calldata proof,
+        bytes calldata message,
+        bytes calldata domainProof,
+        bytes calldata domainMessage
+    ) external virtual returns (bool);
 }

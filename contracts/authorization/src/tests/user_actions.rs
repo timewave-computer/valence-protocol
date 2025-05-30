@@ -803,6 +803,7 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         mode: AuthorizationModeInfo::Permissionless,
         registry: 1,
         vk: Binary::from(sp1_vk.bytes32().into_bytes()),
+        domain_vk: Binary::from(sp1_vk.bytes32().into_bytes()),
         validate_last_block_execution: false,
     };
     let zk_authorization_resume = ZkAuthorizationInfo {
@@ -810,6 +811,7 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         mode: AuthorizationModeInfo::Permissionless,
         registry: 2,
         vk: Binary::from(sp1_vk.bytes32().into_bytes()),
+        domain_vk: Binary::from(sp1_vk.bytes32().into_bytes()),
         validate_last_block_execution: false,
     };
     let zk_authorizations = vec![zk_authorization_pause, zk_authorization_resume];
@@ -843,6 +845,8 @@ fn pause_and_resume_processor_using_zk_authorizations() {
             label: "pause".to_string(),
             message: Binary::from(proof_pause_inputs.clone()),
             proof: Binary::from(proof_pause_bytes.clone()),
+            domain_message: Binary::from(proof_pause_inputs.clone()),
+            domain_proof: Binary::from(proof_pause_bytes.clone()),
         }),
         &[],
         &setup.user_accounts[0],
@@ -867,8 +871,10 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         &authorization,
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::ExecuteZkAuthorization {
             label: "resume".to_string(),
-            message: Binary::from(proof_resume_inputs),
-            proof: Binary::from(proof_resume_bytes),
+            message: Binary::from(proof_resume_inputs.clone()),
+            proof: Binary::from(proof_resume_bytes.clone()),
+            domain_message: Binary::from(proof_resume_inputs),
+            domain_proof: Binary::from(proof_resume_bytes),
         }),
         &[],
         &setup.user_accounts[0],
@@ -903,8 +909,10 @@ fn pause_and_resume_processor_using_zk_authorizations() {
             &authorization,
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::ExecuteZkAuthorization {
                 label: "pause".to_string(),
-                message: Binary::from(proof_pause_inputs),
-                proof: Binary::from(proof_pause_bytes),
+                message: Binary::from(proof_pause_inputs.clone()),
+                proof: Binary::from(proof_pause_bytes.clone()),
+                domain_message: Binary::from(proof_pause_inputs),
+                domain_proof: Binary::from(proof_pause_bytes),
             }),
             &[],
             &setup.user_accounts[0],

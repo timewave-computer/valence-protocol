@@ -269,6 +269,10 @@ pub enum PermissionlessMsg {
         label: String,
         message: Binary,
         proof: Binary,
+        // Public inputs of domain proof
+        domain_message: Binary,
+        // Domain proof
+        domain_proof: Binary,
     },
 }
 
