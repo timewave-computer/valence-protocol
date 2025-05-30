@@ -16,7 +16,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * It provides mechanisms for both standard address-based authorizations and ZK proof-based authorizations.
  * @notice The Authorization contract acts as a middleware for managing access control
  * to the Processor contract. It controls which addresses can call specific functions
- * on specific contracts through the processor.
+ * on specific contracts in a specific order through the processor.
  * It will receive callbacks from the processor after executing messages and can either store
  * the callback data in its state or just emit events for them.
  */
@@ -64,22 +64,18 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     event AdminAddressRemoved(address indexed admin);
     /**
      * @notice Event emitted when an authorization is added
-     * @dev This event is emitted when a new authorization is granted to a user for a specific contract and function
+     * @dev This event is emitted when a new authorization with a specific label is added
      * @dev Only used for Standard authorizations
-     * @param user The address of the user that was granted authorization. If address(0) is used, then it's permissionless
-     * @param contractAddress The address of the contract the user is authorized to interact with
-     * @param callHash The hash of the function call that the user is authorized to execute
+     * @param label The label of the authorization that was added
      */
-    event AuthorizationAdded(address indexed user, address indexed contractAddress, bytes32 indexed callHash);
+    event AuthorizationAdded(string label);
     /**
      * @notice Event emitted when an authorization is removed
-     * @dev This event is emitted when an authorization is revoked from a user for a specific contract and function
+     * @dev This event is emitted when an authorization with a specific label is removed
      * @dev Only used for Standard authorizations
-     * @param user The address of the user that had authorization revoked. If address(0) is used, then it's permissionless
-     * @param contractAddress The address of the contract the user had authorization for
-     * @param callHash The hash of the function call that the user had authorization to execute
+     * @param label The label of the authorization that was removed
      */
-    event AuthorizationRemoved(address indexed user, address indexed contractAddress, bytes32 indexed callHash);
+    event AuthorizationRemoved(string label);
 
     /**
      * @notice Callback data structure for processor callbacks
@@ -116,12 +112,35 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     mapping(address => bool) public adminAddresses;
 
     /**
-     * @notice Multi-dimensional mapping for granular authorization control
-     * @dev Maps from user address -> contract address -> function signature hash -> boolean
-     * If address(0) is used as the user address, it indicates permissionless access
-     * Represents the operations a specific address can execute on a specific contract
+     * @notice Mapping of authorization labels to their associated addresses that can execute them
+     * @dev This mapping is used to check if a user is authorized to send a message for a specific label
+     * @dev The mapping is structured as follows:
+     *     label -> user addresses
+     *     If address(0) is used as the user address, it indicates permissionless access
      */
-    mapping(address => mapping(address => mapping(bytes32 => bool))) public authorizations;
+    mapping(string => address[]) public authorizations;
+
+    /**
+     * @notice Structure representing the data for the authorization label
+     * @dev This structure contains the contract address and the function signature hash
+     * @param contractAddress The address of the contract that is authorized to be called
+     * @param useFunctionSelector Boolean indicating if the function selector should be used instead of callHash
+     * @param functionSelector The function selector of the function that is authorized to be called
+     * @param callHash The function signature hash of the function that is authorized to be called
+     */
+    struct AuthorizationData {
+        address contractAddress;
+        bool useFunctionSelector;
+        bytes4 functionSelector;
+        bytes32 callHash;
+    }
+
+    /**
+     * @notice Mapping of authorization labels to their associated data
+     * @dev This mapping stores the authorization data for each label
+     *     Key: label, Value: array of AuthorizationData
+     */
+    mapping(string => AuthorizationData[]) public authorizationsData;
 
     // ========================= ZK authorizations =========================
 
@@ -237,56 +256,68 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     }
 
     /**
-     * @notice Grants authorization for multiple users to call specific functions on specific contracts
+     * @notice Adds standard authorizations for a specific label
      * @dev Can only be called by the owner
-     * @param _users Array of addresses being granted authorization, if address(0) is used, then it's permissionless
-     * @param _contracts Array of contract addresses the users are authorized to interact with
-     * @param _calls Array of function call data (used to generate hashes for authorization checking)
+     * @param _labels Array of labels for the authorizations
+     * @param _users Array of arrays of user addresses associated with each label
+     * @param _authorizationData Array of arrays of authorization data associated with each label
      */
-    function addStandardAuthorizations(address[] memory _users, address[] memory _contracts, bytes[] memory _calls)
-        external
-        onlyOwner
-    {
+    function addStandardAuthorizations(
+        string[] memory _labels,
+        address[][] memory _users,
+        AuthorizationData[][] memory _authorizationData
+    ) external onlyOwner {
         // Check that the arrays are the same length
         // We are allowing adding multiple authorizations at once for gas optimization
-        // The arrays must be the same length because for each user we have a contract and a call
-        require(_users.length == _contracts.length && _contracts.length == _calls.length, "Array lengths must match");
+        // The arrays must be the same length because for each label we have a list of authorization data
+        require(
+            _labels.length == _authorizationData.length && _labels.length == _users.length, "Array lengths must match"
+        );
 
-        for (uint256 i = 0; i < _users.length; i++) {
-            bytes32 callHash = keccak256(_calls[i]);
-            authorizations[_users[i]][_contracts[i]][callHash] = true;
-            emit AuthorizationAdded(_users[i], _contracts[i], callHash);
+        for (uint256 i = 0; i < _labels.length; i++) {
+            // Get the label and the authorization data
+            string memory label = _labels[i];
+            address[] memory users = _users[i];
+            // Check that users is not empty
+            require(users.length > 0, "Users array cannot be empty");
+            AuthorizationData[] memory authorizationData = _authorizationData[i];
+            // Check that the authorization data is not empty
+            require(
+                authorizationData.length > 0, string.concat("Authorization data array cannot be empty for: ", label)
+            );
+
+            // Add the label to the mapping
+            authorizations[label] = users;
+            // Add the authorization data to the mapping
+            authorizationsData[label] = authorizationData;
+
+            emit AuthorizationAdded(label);
         }
     }
 
     /**
-     * @notice Revokes authorization for multiple users to call specific functions on specific contracts
+     * @notice Removes standard authorizations for a specific set of labels
      * @dev Can only be called by the owner
-     * @param _users Array of addresses having authorization revoked
-     * @param _contracts Array of contract addresses the authorizations apply to
-     * @param _calls Array of function call data (used to generate the hashes for lookup)
+     * @param _labels Array of labels for the authorizations to be removed
      */
-    function removeStandardAuthorizations(address[] memory _users, address[] memory _contracts, bytes[] memory _calls)
-        external
-        onlyOwner
-    {
-        require(_users.length == _contracts.length && _contracts.length == _calls.length, "Array lengths must match");
-
-        for (uint256 i = 0; i < _users.length; i++) {
-            address user = _users[i];
-            address contractAddress = _contracts[i];
-            bytes32 callHash = keccak256(_calls[i]);
-            delete authorizations[user][contractAddress][callHash];
-            emit AuthorizationRemoved(user, contractAddress, callHash);
+    function removeStandardAuthorizations(string[] memory _labels) external onlyOwner {
+        for (uint256 i = 0; i < _labels.length; i++) {
+            // Get the label
+            string memory label = _labels[i];
+            // Remove from state
+            delete authorizationsData[label];
+            delete authorizations[label];
+            emit AuthorizationRemoved(label);
         }
     }
 
     /**
-     * @notice Main function to send messages to the processor after authorization checks
-     * @dev Delegates to specialized helper functions based on message type
-     * @param _message Encoded processor message to be executed
+     * @notice Sends a message to the processor for execution
+     * @dev This function is called by authorized addresses to send messages to the processor
+     * @param label The label of the authorization that is being used
+     * @param _message The encoded message to be sent to the processor
      */
-    function sendProcessorMessage(bytes calldata _message) external nonReentrant {
+    function sendProcessorMessage(string calldata label, bytes calldata _message) external nonReentrant {
         // Make a copy of the message to apply modifications
         bytes memory message = _message;
 
@@ -295,9 +326,9 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
 
         // Process message based on type
         if (decodedMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.SendMsgs) {
-            message = _handleSendMsgsMessage(decodedMessage);
+            message = _handleSendMsgsRequest(label, decodedMessage);
         } else if (decodedMessage.messageType == IProcessorMessageTypes.ProcessorMessageType.InsertMsgs) {
-            message = _handleInsertMsgsMessage(decodedMessage);
+            message = _handleInsertMsgsRequest(decodedMessage);
         } else {
             _requireAdminAccess();
         }
@@ -310,12 +341,12 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     }
 
     /**
-     * @notice Handle InsertMsgs type messages
-     * @dev Requires admin access and sets execution ID
-     * @param decodedMessage The decoded processor message
-     * @return The modified encoded message
+     * @notice Handles the InsertMsgs message type
+     * @dev This function modifies the InsertMsgs message to set the execution ID and encode it back. This requires admin access.
+     * @param decodedMessage The decoded InsertMsgs message
+     * @return The encoded processor message with the updated execution ID
      */
-    function _handleInsertMsgsMessage(IProcessorMessageTypes.ProcessorMessage memory decodedMessage)
+    function _handleInsertMsgsRequest(IProcessorMessageTypes.ProcessorMessage memory decodedMessage)
         private
         view
         returns (bytes memory)
@@ -336,25 +367,25 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     }
 
     /**
-     * @notice Handle SendMsgs type messages
-     * @dev Checks function-level authorizations and modifies priority and execution ID
-     * @param decodedMessage The decoded processor message
-     * @return The modified encoded message
+     * @notice Handles the SendMsgs message type
+     * @dev This function modifies the SendMsgs message to set the execution ID and encode it back. It also verifies authorizations based on subroutine type.
+     * @param label The label of the authorization that is being used
+     * @param decodedMessage The decoded SendMsgs message
+     * @return The encoded processor message with the updated execution ID
      */
-    function _handleSendMsgsMessage(IProcessorMessageTypes.ProcessorMessage memory decodedMessage)
-        private
-        view
-        returns (bytes memory)
-    {
+    function _handleSendMsgsRequest(
+        string calldata label,
+        IProcessorMessageTypes.ProcessorMessage memory decodedMessage
+    ) private view returns (bytes memory) {
         // Decode the SendMsgs message
         IProcessorMessageTypes.SendMsgs memory sendMsgs =
             abi.decode(decodedMessage.message, (IProcessorMessageTypes.SendMsgs));
 
         // Verify authorizations based on subroutine type
         if (sendMsgs.subroutine.subroutineType == IProcessorMessageTypes.SubroutineType.Atomic) {
-            _verifyAtomicSubroutineAuthorization(sendMsgs);
+            _verifyAtomicSubroutineAuthorization(label, sendMsgs);
         } else {
-            _verifyNonAtomicSubroutineAuthorization(sendMsgs);
+            _verifyNonAtomicSubroutineAuthorization(label, sendMsgs);
         }
 
         // Apply standard modifications to all SendMsgs
@@ -369,11 +400,15 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     }
 
     /**
-     * @notice Verify authorization for atomic subroutine messages
-     * @dev Checks that each function call is authorized for the sender
-     * @param sendMsgs The SendMsgs message containing the atomic subroutine
+     * @notice Verifies the authorization for an atomic subroutine
+     * @dev This function checks if the sender is authorized to execute the atomic subroutine
+     * @param label The label of the authorization that is being used
+     * @param sendMsgs The SendMsgs message containing the subroutine to be executed
      */
-    function _verifyAtomicSubroutineAuthorization(IProcessorMessageTypes.SendMsgs memory sendMsgs) private view {
+    function _verifyAtomicSubroutineAuthorization(
+        string calldata label,
+        IProcessorMessageTypes.SendMsgs memory sendMsgs
+    ) private view {
         IProcessorMessageTypes.AtomicSubroutine memory atomicSubroutine =
             abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.AtomicSubroutine));
 
@@ -382,24 +417,34 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
             revert("Subroutine functions length does not match messages length");
         }
 
-        // Check authorization for each function in the atomic subroutine
+        // Create the AuthorizationData array for the atomic subroutine
+        AuthorizationData[] memory authorizationData = new AuthorizationData[](atomicSubroutine.functions.length);
         for (uint256 i = 0; i < atomicSubroutine.functions.length; i++) {
-            if (
-                !_checkAddressIsAuthorized(
-                    msg.sender, atomicSubroutine.functions[i].contractAddress, sendMsgs.messages[i]
-                )
-            ) {
-                revert("Unauthorized access");
-            }
+            // Get the contract address and function signature hash
+            address contractAddress = atomicSubroutine.functions[i].contractAddress;
+            bytes4 functionSelector = bytes4(sendMsgs.messages[i]); // Takes first 4 bytes of the message
+            bytes32 callHash = keccak256(sendMsgs.messages[i]);
+
+            // Add the authorization data to the array
+            authorizationData[i] = AuthorizationData(contractAddress, true, functionSelector, callHash);
+        }
+
+        // Check if address is authorized to execute this subroutine
+        if (!_checkAddressIsAuthorized(msg.sender, label, authorizationData)) {
+            revert("Unauthorized access");
         }
     }
 
     /**
-     * @notice Verify authorization for non-atomic subroutine messages
-     * @dev Checks that each function call is authorized for the sender
-     * @param sendMsgs The SendMsgs message containing the non-atomic subroutine
+     * @notice Verifies the authorization for a non-atomic subroutine
+     * @dev This function checks if the sender is authorized to execute the non-atomic subroutine
+     * @param label The label of the authorization that is being used
+     * @param sendMsgs The SendMsgs message containing the subroutine to be executed
      */
-    function _verifyNonAtomicSubroutineAuthorization(IProcessorMessageTypes.SendMsgs memory sendMsgs) private view {
+    function _verifyNonAtomicSubroutineAuthorization(
+        string calldata label,
+        IProcessorMessageTypes.SendMsgs memory sendMsgs
+    ) private view {
         IProcessorMessageTypes.NonAtomicSubroutine memory nonAtomicSubroutine =
             abi.decode(sendMsgs.subroutine.subroutine, (IProcessorMessageTypes.NonAtomicSubroutine));
 
@@ -410,15 +455,20 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
             revert("Subroutine functions length does not match messages length");
         }
 
-        // Check authorization for each function in the non-atomic subroutine
+        // Create the AuthorizationData array for the non-atomic subroutine
+        AuthorizationData[] memory authorizationData = new AuthorizationData[](nonAtomicSubroutine.functions.length);
         for (uint256 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
-            if (
-                !_checkAddressIsAuthorized(
-                    msg.sender, nonAtomicSubroutine.functions[i].contractAddress, sendMsgs.messages[i]
-                )
-            ) {
-                revert("Unauthorized access");
-            }
+            // Get the contract address and function signature hash
+            address contractAddress = nonAtomicSubroutine.functions[i].contractAddress;
+            bytes4 functionSelector = bytes4(sendMsgs.messages[i]); // Takes first 4 bytes of the message
+            bytes32 callHash = keccak256(sendMsgs.messages[i]);
+
+            // Add the authorization data to the array
+            authorizationData[i] = AuthorizationData(contractAddress, true, functionSelector, callHash);
+        }
+        // Check if address is authorized to execute this subroutine
+        if (!_checkAddressIsAuthorized(msg.sender, label, authorizationData)) {
+            revert("Unauthorized access");
         }
     }
 
@@ -433,27 +483,63 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     }
 
     /**
-     * @notice Checks if an address is authorized to execute a specific call on a specific contract
-     * @dev Uses the authorizations mapping to perform the check
-     * @param _address Address to check authorization for
-     * @param _contract Address of the contract being called
-     * @param _call Function call data (used to generate the hash for lookup)
-     * @return bool True if the address is authorized, false otherwise
+     * @notice Checks if the address is authorized to execute a message
+     * @dev This function checks if the address is in the list of authorized addresses for this label
+     * @param _address The address to check for authorization
+     * @param label The label of the authorization that is being used
+     * @param _authorizationData The authorization data that needs to be checked
+     * @return True if the address is authorized, false otherwise
      */
-    function _checkAddressIsAuthorized(address _address, address _contract, bytes memory _call)
-        internal
-        view
-        returns (bool)
-    {
-        // Check if the address is authorized to call the contract with the given call
-        if (authorizations[_address][_contract][keccak256(_call)]) {
-            return true;
-        } else if (authorizations[address(0)][_contract][keccak256(_call)]) {
-            // If address(0) is used, it indicates permissionless access
-            return true;
-        } else {
+    function _checkAddressIsAuthorized(
+        address _address,
+        string calldata label,
+        AuthorizationData[] memory _authorizationData
+    ) internal view returns (bool) {
+        // Check if the address is in the list of authorized addresses for this label
+        address[] memory authorizedAddresses = authorizations[label];
+
+        bool isAuthorized = false;
+        for (uint256 i = 0; i < authorizedAddresses.length; i++) {
+            if (authorizedAddresses[i] == _address || authorizedAddresses[i] == address(0)) {
+                isAuthorized = true;
+                break;
+            }
+        }
+
+        // If the address is not authorized, return false
+        if (!isAuthorized) {
             return false;
         }
+
+        // Load the authorization data for this label
+        AuthorizationData[] memory labelAuthorizationData = authorizationsData[label];
+
+        // Check that the lengths are the same
+        if (labelAuthorizationData.length != _authorizationData.length) {
+            return false;
+        }
+
+        // Check that each element is the same
+        for (uint256 i = 0; i < labelAuthorizationData.length; i++) {
+            // Check that the contract address is the same
+            if (labelAuthorizationData[i].contractAddress != _authorizationData[i].contractAddress) {
+                return false;
+            }
+
+            // If we need to check the function selector, check that it's the same
+            if (labelAuthorizationData[i].useFunctionSelector) {
+                if (labelAuthorizationData[i].functionSelector != _authorizationData[i].functionSelector) {
+                    return false;
+                }
+            } else {
+                // If we don't need to check the function selector, check that the call hash is the same
+                if (labelAuthorizationData[i].callHash != _authorizationData[i].callHash) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     // ========================= ZK authorizations =========================
