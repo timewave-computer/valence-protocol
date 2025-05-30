@@ -36,23 +36,30 @@ contract SP1VerificationGateway is VerificationGateway {
      * @param registry The registry used in verification
      * @param proof The proof to verify
      * @param message The message associated with the proof
+     * @param domainProof The domain proof to verify
+     * @param domainMessage The domain message associated with the domain proof
      */
-    function verify(uint64 registry, bytes calldata proof, bytes calldata message)
-        external
-        view
-        override
-        returns (bool)
-    {
+    function verify(
+        uint64 registry,
+        bytes calldata proof,
+        bytes calldata message,
+        bytes calldata domainProof,
+        bytes calldata domainMessage
+    ) external view override returns (bool) {
         // Get the VK for the sender and the registry
         bytes32 vk = programVKs[msg.sender][registry];
 
         // If the VK is not set, revert
         require(vk != bytes32(0), "VK not set for sender and registry");
 
+        // Get the domain VK for the sender and the registry
+        bytes32 domainVk = domainVKs[msg.sender][registry];
+
         // Call the specific verifier
         ISP1Verifier sp1Verifier = getVerifier();
 
         sp1Verifier.verifyProof(vk, proof, message);
+        sp1Verifier.verifyProof(domainVk, domainProof, domainMessage);
 
         return true;
     }
