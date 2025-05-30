@@ -2,8 +2,14 @@ use std::{error::Error, str::FromStr};
 
 use alloy::primitives::Address;
 use async_trait::async_trait;
+use cosmwasm_std::Uint128;
 use log::info;
-use valence_domain_clients::evm::request_provider_client::RequestProviderClient;
+use valence_authorization_utils::{authorization::Priority, msg::PermissionedMsg};
+use valence_clearing_queue::msg::ObligationsResponse;
+use valence_domain_clients::{
+    cosmos::{base_client::BaseClient, wasm_client::WasmClient},
+    evm::request_provider_client::RequestProviderClient,
+};
 use valence_e2e::utils::{
     solidity_contracts::{
         sol_authorizations::Authorizations, sol_lite_processor::LiteProcessor, IBCEurekaTransfer,
@@ -118,18 +124,73 @@ impl Strategy {
     /// in the queue.
     async fn settlement(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         // 1. query the current settlement account balance
+        let settlement_acc_bal = self
+            .neutron_client
+            .query_balance(
+                &self.cfg.neutron.accounts.settlement,
+                &self.cfg.neutron.denoms.wbtc,
+            )
+            .await?;
 
         // 2. query the Clearing Queue and calculate the total active obligations
+        let clearing_queue: ObligationsResponse = self
+            .neutron_client
+            .query_contract_state(
+                &self.cfg.neutron.libraries.clearing,
+                valence_clearing_queue::msg::QueryMsg::PendingObligations {
+                    from: None,
+                    to: None,
+                },
+            )
+            .await?;
 
-        // 3. simulate Mars protocol withdrawal to obtain the funds necessary
-        // to fulfill all active withdrawal requests
+        let total_queue_obligations: u128 = clearing_queue
+            .obligations
+            .iter()
+            .map(|o| o.payout_coins[0].amount.u128())
+            .sum();
 
-        // 4. call the Mars lending library to perform the withdrawal.
-        // This will deposit the underlying assets directly to the settlement account.
+        // 3. if settlement account balance is insufficient to cover the active
+        // obligations, we perform the Mars protocol withdrawals
+        if settlement_acc_bal < total_queue_obligations {
+            // 3. simulate Mars protocol withdrawal to obtain the funds necessary
+            // to fulfill all active withdrawal requests
+            let obligations_delta = total_queue_obligations - settlement_acc_bal;
+
+            let mars_simulation_response = 0; // TODO
+
+            // 4. call the Mars lending library to perform the withdrawal.
+            // This will deposit the underlying assets directly to the settlement account.
+            // TODO
+        }
 
         // 5. queue the Clearing Queue settlement requests to the processor
+        self.neutron_client
+            .execute_wasm(
+                &self.cfg.neutron.authorizations,
+                valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                        label: "TBD".to_string(),
+                        messages: vec![],
+                        ttl: None,
+                    },
+                ),
+                vec![],
+                None,
+            )
+            .await?;
 
         // 6. tick the processor until all withdraw obligations are settled
+        self.neutron_client
+            .execute_wasm(
+                &self.cfg.neutron.processor,
+                valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_processor_utils::msg::PermissionlessMsg::Tick {},
+                ),
+                vec![],
+                None,
+            )
+            .await?;
 
         Ok(())
     }

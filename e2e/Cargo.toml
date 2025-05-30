@@ -51,6 +51,7 @@ valence-forwarder-library            = { workspace = true }
 valence-astroport-lper               = { workspace = true }
 valence-astroport-withdrawer         = { workspace = true }
 valence-astroport-utils              = { workspace = true }
+valence-clearing-queue               = { workspace = true }
 valence-program-manager              = { workspace = true }
 valence-program-registry-utils       = { workspace = true }
 valence-ibc-utils                    = { workspace = true }

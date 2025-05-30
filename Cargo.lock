@@ -10523,6 +10523,7 @@ dependencies = [
  "valence-astroport-withdrawer",
  "valence-authorization",
  "valence-authorization-utils",
+ "valence-clearing-queue",
  "valence-domain-clients",
  "valence-encoder-broker",
  "valence-encoder-utils",
