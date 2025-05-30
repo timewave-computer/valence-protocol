@@ -2,7 +2,6 @@
 pragma solidity ^0.8.28;
 
 import {Library} from "./Library.sol";
-import {Account} from "../accounts/Account.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {IDynamicRatioOracle} from "./interfaces/splitter/IDynamicRatioOracle.sol";
 import {BaseAccount} from "../accounts/BaseAccount.sol";
@@ -39,7 +38,7 @@ contract Splitter is Library {
      * @param amount encoded configuration based on the type of split
      */
     struct SplitConfig {
-        Account outputAccount;
+        BaseAccount outputAccount;
         address token;
         SplitType splitType;
         bytes splitData;
@@ -71,7 +70,7 @@ contract Splitter is Library {
     SplitterConfig public config;
 
     /// @notice Holds the splitConfig against output account against split token.
-    mapping(address => mapping(Account => SplitConfig)) splitConfigMapping;
+    mapping(address => mapping(BaseAccount => SplitConfig)) splitConfigMapping;
     mapping(address => uint256) tokenRatioSplitSum;
     mapping(address => uint256) tokenAmountSplitSum;
 
@@ -85,7 +84,7 @@ contract Splitter is Library {
      */
     struct TransferData {
         address token;
-        Account outputAccount;
+        BaseAccount outputAccount;
         uint256 amount;
     }
 
@@ -108,7 +107,7 @@ contract Splitter is Library {
         SplitterConfig memory decodedConfig = abi.decode(_config, (SplitterConfig));
 
         // Ensure the input account address is valid (non-zero).
-        if (decodedConfig.inputAccount == Account(payable(address(0)))) {
+        if (decodedConfig.inputAccount == BaseAccount(payable(address(0)))) {
             revert("Input account can't be zero address");
         }
 
@@ -250,7 +249,7 @@ contract Splitter is Library {
             } else {
                 balance = IERC20(token).balanceOf(address(currentConfig.inputAccount));
             }
-            
+
             // Process all splits for this token
             transfers[i] = prepareSplit(splitConfig, balance);
         }
@@ -293,8 +292,9 @@ contract Splitter is Library {
         } else if (splitConfig.splitType == SplitType.DynamicRatio) {
             DynamicRatioAmount memory dynamicRatioAmount = abi.decode(splitConfig.splitData, (DynamicRatioAmount));
             // Get dynamic ratio from oracle contract
-            uint256 ratio =
-                queryDynamicRatio(IERC20(splitConfig.token), dynamicRatioAmount.contractAddress, dynamicRatioAmount.params);
+            uint256 ratio = queryDynamicRatio(
+                IERC20(splitConfig.token), dynamicRatioAmount.contractAddress, dynamicRatioAmount.params
+            );
             return (totalBalance * ratio) / (10 ** DECIMALS);
         } else {
             revert("Invalid split type");
@@ -325,7 +325,7 @@ contract Splitter is Library {
      * @param token The token to transfer (address(0) for ETH)
      * @param amount The amount to transfer
      */
-    function transferFunds(Account from, Account to, address token, uint256 amount) internal {
+    function transferFunds(BaseAccount from, BaseAccount to, address token, uint256 amount) internal {
         if (token == address(0)) {
             bytes memory data = "";
             from.execute(address(to), amount, data);

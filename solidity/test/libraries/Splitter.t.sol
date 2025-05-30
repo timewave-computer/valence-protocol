@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.28;
 
-import "../../src/accounts/Account.sol" as ValenceAccount;
 import {Test, console} from "forge-std/src/Test.sol";
 import {Splitter} from "../../src/libraries/Splitter.sol";
 import {IDynamicRatioOracle} from "../../src/libraries/interfaces/splitter/IDynamicRatioOracle.sol";
@@ -9,7 +8,6 @@ import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 import {MockERC20} from "forge-std/src/mocks/MockERC20.sol";
 import {MockDynamicRatioOracle} from "../mocks/MockDynamicRatioOracle.sol";
-
 
 error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
 
@@ -21,8 +19,8 @@ contract SplitterTest is Test {
     Splitter.SplitConfig[] splits;
 
     // Mock contracts
-    ValenceAccount.Account public inputAccount;
-    ValenceAccount.Account public outputAccount;
+    BaseAccount public inputAccount;
+    BaseAccount public outputAccount;
     MockERC20 public token;
 
     // Test addresses
@@ -54,7 +52,8 @@ contract SplitterTest is Test {
 
         // Deploy Splitter contract
         // Create and encode config directly
-        Splitter.SplitterConfig memory config = Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: splits});
+        Splitter.SplitterConfig memory config =
+            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: splits});
 
         splitter = new Splitter(owner, processor, abi.encode(config));
 
@@ -66,7 +65,7 @@ contract SplitterTest is Test {
 
     function test_GivenConfigIsValid_WhenOwnerUpdateConfig_ThenUpdateInputAccount() public {
         // given
-        ValenceAccount.Account newInputAccount = new BaseAccount(owner, new address[](0));
+        BaseAccount newInputAccount = new BaseAccount(owner, new address[](0));
         Splitter.SplitterConfig memory newConfig =
             Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(newInputAccount))), splits: splits});
 
@@ -75,32 +74,35 @@ contract SplitterTest is Test {
         splitter.updateConfig(abi.encode(newConfig));
 
         // then
-        (ValenceAccount.Account actualInputAccount) = splitter.config();
+        (BaseAccount actualInputAccount) = splitter.config();
         assertEq(address(actualInputAccount), address(newInputAccount));
     }
 
     function test_GivenFixedRatioSumsToApproximatelyOne_WhenOwnerUpdateConfig_ThenUpdateConfig() public {
         // given
-        ValenceAccount.Account newInputAccount = new BaseAccount(owner, new address[](0));
-        ValenceAccount.Account outputAccount1 = new BaseAccount(owner, new address[](0));
-        ValenceAccount.Account outputAccount2 = new BaseAccount(owner, new address[](0));
-        ValenceAccount.Account outputAccount3 = new BaseAccount(owner, new address[](0));
+        BaseAccount newInputAccount = new BaseAccount(owner, new address[](0));
+        BaseAccount outputAccount1 = new BaseAccount(owner, new address[](0));
+        BaseAccount outputAccount2 = new BaseAccount(owner, new address[](0));
+        BaseAccount outputAccount3 = new BaseAccount(owner, new address[](0));
         Splitter.SplitConfig[] memory newSplits = new Splitter.SplitConfig[](3);
         newSplits[0] = Splitter.SplitConfig({
             outputAccount: outputAccount1,
             token: address(token),
             splitType: Splitter.SplitType.FixedRatio,
-            splitData: abi.encode(333_333_333_333_333_333)});
+            splitData: abi.encode(333_333_333_333_333_333)
+        });
         newSplits[1] = Splitter.SplitConfig({
             outputAccount: outputAccount2,
             token: address(token),
             splitType: Splitter.SplitType.FixedRatio,
-            splitData: abi.encode(333_333_333_333_333_333)});
+            splitData: abi.encode(333_333_333_333_333_333)
+        });
         newSplits[2] = Splitter.SplitConfig({
             outputAccount: outputAccount3,
             token: address(token),
             splitType: Splitter.SplitType.FixedRatio,
-            splitData: abi.encode(333_333_333_333_333_333)});
+            splitData: abi.encode(333_333_333_333_333_333)
+        });
         Splitter.SplitterConfig memory newConfig =
             Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(newInputAccount))), splits: newSplits});
 
@@ -109,15 +111,17 @@ contract SplitterTest is Test {
         splitter.updateConfig(abi.encode(newConfig));
 
         // then
-        (ValenceAccount.Account actualInputAccount) = splitter.config();
+        (BaseAccount actualInputAccount) = splitter.config();
         assertEq(address(actualInputAccount), address(newInputAccount));
     }
 
     function test_RevertUpdateConfig_WithUnauthorized_WhenNotOwnerUpdateConfig() public {
         // given
         address unauthorized = makeAddr("unauthorized");
-        Splitter.SplitterConfig memory config =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: new Splitter.SplitConfig[](0)});
+        Splitter.SplitterConfig memory config = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: new Splitter.SplitConfig[](0)
+        });
 
         // expect
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", unauthorized));
@@ -129,8 +133,10 @@ contract SplitterTest is Test {
 
     function test_RevertUpdateConfig_WithEmptySplitsConfig_WhenSplitsArrayIsEmpty() public {
         // given
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: new Splitter.SplitConfig[](0)});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: new Splitter.SplitConfig[](0)
+        });
 
         // expect
         vm.expectRevert("No split configuration provided.");
@@ -155,8 +161,10 @@ contract SplitterTest is Test {
             splitType: Splitter.SplitType.FixedAmount,
             splitData: abi.encode(1)
         });
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: duplicateSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: duplicateSplits
+        });
 
         // expect
         vm.expectRevert("Duplicate split in split config.");
@@ -175,8 +183,10 @@ contract SplitterTest is Test {
             splitType: Splitter.SplitType.FixedAmount,
             splitData: abi.encode(0)
         });
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: zeroAmountSplit});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: zeroAmountSplit
+        });
 
         // expect
         vm.expectRevert("Invalid split config: amount cannot be zero.");
@@ -285,8 +295,10 @@ contract SplitterTest is Test {
             splitType: Splitter.SplitType.FixedAmount,
             splitData: abi.encode(1_000_000_000_000_000_000)
         });
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: conflictingSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: conflictingSplits
+        });
 
         // expect
         vm.expectRevert("Invalid split config: cannot combine different split types for same token.");
@@ -314,8 +326,10 @@ contract SplitterTest is Test {
             splitData: abi.encode(1_000_000_000_000_000_000)
         });
 
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: conflictingSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: conflictingSplits
+        });
 
         // expect
         vm.expectRevert("Invalid split config: cannot combine different split types for same token.");
@@ -336,8 +350,10 @@ contract SplitterTest is Test {
             splitType: Splitter.SplitType.DynamicRatio,
             splitData: abi.encode(dynamicRatioAmount)
         });
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: amountAndRatioSplit});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: amountAndRatioSplit
+        });
 
         // expect
         vm.expectRevert("Invalid split config: dynamic ratio contract address is not a contract");
@@ -379,7 +395,6 @@ contract SplitterTest is Test {
         splitter.updateConfig(abi.encode(newConfig));
     }
 
-
     // ============== Split Execution Tests ==============
 
     function test_Given1FixedAmountSplit_WhenProcessorCallsSplit_ThenTransferCorrectAmount() public {
@@ -396,8 +411,10 @@ contract SplitterTest is Test {
             splitData: abi.encode(transferAmount)
         });
 
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: fixedAmountSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: fixedAmountSplits
+        });
 
         // Update config
         vm.prank(owner);
@@ -423,7 +440,7 @@ contract SplitterTest is Test {
         uint256 transferAmount1 = 300;
         uint256 transferAmount2 = 800;
 
-        ValenceAccount.Account outputAccount2 = new BaseAccount(owner, new address[](0));
+        BaseAccount outputAccount2 = new BaseAccount(owner, new address[](0));
 
         // Setup split config for multiple tokens
         Splitter.SplitConfig[] memory multiTokenSplits = new Splitter.SplitConfig[](2);
@@ -440,8 +457,10 @@ contract SplitterTest is Test {
             splitData: abi.encode(transferAmount2)
         });
 
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: multiTokenSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: multiTokenSplits
+        });
 
         // Update config
         vm.prank(owner);
@@ -509,8 +528,10 @@ contract SplitterTest is Test {
             splitData: abi.encode(ratio)
         });
 
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: fixedRatioSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: fixedRatioSplits
+        });
 
         // Update config
         vm.prank(owner);
@@ -536,7 +557,7 @@ contract SplitterTest is Test {
         uint256 ratio2 = 500_000_000_000_000_000; // 50% (0.5 * 10^18)
 
         // Create second output account
-        ValenceAccount.Account outputAccount2 = new BaseAccount(owner, new address[](0));
+        BaseAccount outputAccount2 = new BaseAccount(owner, new address[](0));
 
         // Setup split config for 50-50 split
         Splitter.SplitConfig[] memory fixedRatioSplits = new Splitter.SplitConfig[](2);
@@ -553,8 +574,10 @@ contract SplitterTest is Test {
             splitData: abi.encode(ratio2)
         });
 
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: fixedRatioSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: fixedRatioSplits
+        });
 
         // Update config
         vm.prank(owner);
@@ -578,8 +601,8 @@ contract SplitterTest is Test {
     function test_Given3FixedRatioSplits_WhenProcessorCallsSplit_ThenTransferCorrectRatios() public {
         // given
         uint256 initialBalance = 1000;
-        ValenceAccount.Account outputAccount2 = new BaseAccount(owner, new address[](0));
-        ValenceAccount.Account outputAccount3 = new BaseAccount(owner, new address[](0));
+        BaseAccount outputAccount2 = new BaseAccount(owner, new address[](0));
+        BaseAccount outputAccount3 = new BaseAccount(owner, new address[](0));
 
         // 30%, 30%, 40% splits (must sum to 100%)
         uint256 ratio1 = 300_000_000_000_000_000; // 30%
@@ -606,8 +629,10 @@ contract SplitterTest is Test {
             splitData: abi.encode(ratio3)
         });
 
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: multiRatioSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: multiRatioSplits
+        });
 
         // Update config
         vm.prank(owner);
@@ -651,8 +676,10 @@ contract SplitterTest is Test {
             splitData: abi.encode(dynamicRatioAmount)
         });
 
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: dynamicRatioSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: dynamicRatioSplits
+        });
 
         // Update config
         vm.prank(owner);
@@ -675,7 +702,7 @@ contract SplitterTest is Test {
         // given
         uint256 initialBalance = 1000;
         MockDynamicRatioOracle oracle = new MockDynamicRatioOracle();
-        ValenceAccount.Account outputAccount2 = new BaseAccount(owner, new address[](0));
+        BaseAccount outputAccount2 = new BaseAccount(owner, new address[](0));
 
         uint256 ratio1 = 300_000_000_000_000_000; // 30%
 
@@ -703,8 +730,10 @@ contract SplitterTest is Test {
             splitData: abi.encode(dynamicRatioAmount2)
         });
 
-        Splitter.SplitterConfig memory newConfig =
-            Splitter.SplitterConfig({inputAccount: BaseAccount(payable(address(inputAccount))), splits: dynamicRatioSplits});
+        Splitter.SplitterConfig memory newConfig = Splitter.SplitterConfig({
+            inputAccount: BaseAccount(payable(address(inputAccount))),
+            splits: dynamicRatioSplits
+        });
 
         // Update config
         vm.prank(owner);
@@ -725,7 +754,9 @@ contract SplitterTest is Test {
         assertEq(token.balanceOf(address(outputAccount2)), expectedTransfer2);
     }
 
-    function test_RevertSplit_WithInsufficientBalance_WhenProcessorCallsSplit_AndSplitAmountIsGreaterThanBalance() public {
+    function test_RevertSplit_WithInsufficientBalance_WhenProcessorCallsSplit_AndSplitAmountIsGreaterThanBalance()
+        public
+    {
         // given
         uint256 initialBalance = 1000;
         uint256 transferAmount = 1001;
@@ -748,8 +779,6 @@ contract SplitterTest is Test {
         vm.prank(owner);
         splitter.updateConfig(abi.encode(newConfig));
 
-
-
         // when
         vm.prank(processor);
         vm.expectRevert(); // Call needs to fail - the reason can come from erc20 or eth transfer
@@ -767,6 +796,4 @@ contract SplitterTest is Test {
         vm.prank(unauthorized);
         splitter.split();
     }
-
-
 }
