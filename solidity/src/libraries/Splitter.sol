@@ -5,6 +5,7 @@ import {Library} from "./Library.sol";
 import {Account} from "../accounts/Account.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {IDynamicRatioOracle} from "./interfaces/splitter/IDynamicRatioOracle.sol";
+import {BaseAccount} from "../accounts/BaseAccount.sol";
 
 /**
  * @title Splitter
@@ -24,7 +25,7 @@ contract Splitter is Library {
      * @param splits Split configuration per token address
      */
     struct SplitterConfig {
-        Account inputAccount;
+        BaseAccount inputAccount;
         SplitConfig[] splits;
     }
 
@@ -33,15 +34,15 @@ contract Splitter is Library {
      * @notice Split config for specified account
      * @dev Used to define the split config for a token to an account
      * @param outputAccount Address of the output account
-     * @param token Address of the output account
+     * @param token Address of the token account. Use address(0) to send ETH
      * @param splitType type of the split
      * @param amount encoded configuration based on the type of split
      */
     struct SplitConfig {
         Account outputAccount;
-        IERC20 token;
+        address token;
         SplitType splitType;
-        bytes amount;
+        bytes splitData;
     }
 
     /**
@@ -70,20 +71,20 @@ contract Splitter is Library {
     SplitterConfig public config;
 
     /// @notice Holds the splitConfig against output account against split token.
-    mapping(IERC20 => mapping(Account => SplitConfig)) splitConfigMapping;
-    mapping(IERC20 => uint256) tokenRatioSplitSum;
-    mapping(IERC20 => uint256) tokenAmountSplitSum;
+    mapping(address => mapping(Account => SplitConfig)) splitConfigMapping;
+    mapping(address => uint256) tokenRatioSplitSum;
+    mapping(address => uint256) tokenAmountSplitSum;
 
     /**
      * @title TransferData
      * @notice data for dynamic ratio split
-     * @dev Used to save transfer data during split exection
+     * @dev Used to save transfer data during split execution
      * @param token address of token to be transferred, address(0) when native
      * @param outputAccount the account where token needs to be transferred
      * @param amount absolute amount of tokens to be transferred
      */
     struct TransferData {
-        IERC20 token;
+        address token;
         Account outputAccount;
         uint256 amount;
     }
@@ -133,17 +134,17 @@ contract Splitter is Library {
             }
 
             if (splitConfig.splitType == SplitType.FixedAmount) {
-                uint256 decodedAmount = abi.decode(splitConfig.amount, (uint256));
+                uint256 decodedAmount = abi.decode(splitConfig.splitData, (uint256));
                 require(decodedAmount > 0, "Invalid split config: amount cannot be zero.");
 
                 tokenAmountSplitSum[splitConfig.token] += decodedAmount;
             } else if (splitConfig.splitType == SplitType.FixedRatio) {
-                uint256 decodedAmount = abi.decode(splitConfig.amount, (uint256));
-                require(decodedAmount > 0, "Invalid split config: ratio cannot be zero.");
+                uint256 decodedRatio = abi.decode(splitConfig.splitData, (uint256));
+                require(decodedRatio > 0, "Invalid split config: ratio cannot be zero.");
 
-                tokenRatioSplitSum[splitConfig.token] += decodedAmount;
+                tokenRatioSplitSum[splitConfig.token] += decodedRatio;
             } else {
-                DynamicRatioAmount memory dynamicRatioAmount = abi.decode(splitConfig.amount, (DynamicRatioAmount));
+                DynamicRatioAmount memory dynamicRatioAmount = abi.decode(splitConfig.splitData, (DynamicRatioAmount));
                 require(
                     tokenAmountSplitSum[splitConfig.token] == 0 && tokenRatioSplitSum[splitConfig.token] == 0,
                     "Invalid split config: cannot combine different split types for same token."
@@ -190,7 +191,7 @@ contract Splitter is Library {
      * @param token The token to check for
      * @return true if any split for the token uses dynamic ratio
      */
-    function hasDynamicRatioForToken(SplitConfig[] memory splits, IERC20 token) internal pure returns (bool) {
+    function hasDynamicRatioForToken(SplitConfig[] memory splits, address token) internal pure returns (bool) {
         for (uint256 i = 0; i < splits.length; i++) {
             if (splits[i].token == token && splits[i].splitType == SplitType.DynamicRatio) {
                 return true;
@@ -236,28 +237,30 @@ contract Splitter is Library {
      * Only the processor can call this function
      */
     function split() external onlyProcessor {
-        TransferData[] memory transfers = new TransferData[](config.splits.length);
+        SplitterConfig memory currentConfig = config;
+        TransferData[] memory transfers = new TransferData[](currentConfig.splits.length);
 
-        for (uint256 i = 0; i < config.splits.length; i++) {
-            SplitConfig memory splitConfig = config.splits[i];
-            IERC20 token = splitConfig.token;
+        for (uint256 i = 0; i < currentConfig.splits.length; i++) {
+            SplitConfig memory splitConfig = currentConfig.splits[i];
+            address token = splitConfig.token;
             uint256 balance;
 
             if (address(token) == address(0)) {
-                balance = address(config.inputAccount).balance;
+                balance = address(currentConfig.inputAccount).balance;
             } else {
-                balance = token.balanceOf(address(config.inputAccount));
+                balance = IERC20(token).balanceOf(address(currentConfig.inputAccount));
             }
-
-            if (balance == 0) continue;
-
+            
             // Process all splits for this token
             transfers[i] = prepareSplit(splitConfig, balance);
         }
 
         for (uint256 i = 0; i < transfers.length; i++) {
             TransferData memory transfer = transfers[i];
-            transferFunds(config.inputAccount, transfer.outputAccount, transfer.token, transfer.amount);
+            if (transfer.amount == 0) {
+                continue;
+            }
+            transferFunds(currentConfig.inputAccount, transfer.outputAccount, transfer.token, transfer.amount);
         }
     }
 
@@ -282,19 +285,20 @@ contract Splitter is Library {
         returns (uint256)
     {
         if (splitConfig.splitType == SplitType.FixedAmount) {
-            return abi.decode(splitConfig.amount, (uint256));
+            return abi.decode(splitConfig.splitData, (uint256));
         } else if (splitConfig.splitType == SplitType.FixedRatio) {
-            uint256 ratio = abi.decode(splitConfig.amount, (uint256));
+            uint256 ratio = abi.decode(splitConfig.splitData, (uint256));
             // Using multiply_ratio equivalent: (balance * numerator) / denominator
             return (totalBalance * ratio) / (10 ** DECIMALS);
         } else if (splitConfig.splitType == SplitType.DynamicRatio) {
-            DynamicRatioAmount memory dynamicRatioAmount = abi.decode(splitConfig.amount, (DynamicRatioAmount));
+            DynamicRatioAmount memory dynamicRatioAmount = abi.decode(splitConfig.splitData, (DynamicRatioAmount));
             // Get dynamic ratio from oracle contract
             uint256 ratio =
-                queryDynamicRatio(splitConfig.token, dynamicRatioAmount.contractAddress, dynamicRatioAmount.params);
+                queryDynamicRatio(IERC20(splitConfig.token), dynamicRatioAmount.contractAddress, dynamicRatioAmount.params);
             return (totalBalance * ratio) / (10 ** DECIMALS);
+        } else {
+            revert("Invalid split type");
         }
-        return 0;
     }
 
     /**
@@ -309,12 +313,9 @@ contract Splitter is Library {
         view
         returns (uint256)
     {
-        try IDynamicRatioOracle(contractAddr).queryDynamicRatio(token, params) returns (uint256 ratio) {
-            require(ratio <= 10 ** DECIMALS, "Dynamic ratio exceeds maximum (1.0)");
-            return ratio;
-        } catch {
-            return 0;
-        }
+        uint256 ratio = IDynamicRatioOracle(contractAddr).queryDynamicRatio(token, params);
+        require(ratio <= 10 ** DECIMALS, "Dynamic ratio exceeds maximum (1.0)");
+        return ratio;
     }
 
     /**
@@ -324,13 +325,13 @@ contract Splitter is Library {
      * @param token The token to transfer (address(0) for ETH)
      * @param amount The amount to transfer
      */
-    function transferFunds(Account from, Account to, IERC20 token, uint256 amount) internal {
-        if (address(token) == address(0)) {
+    function transferFunds(Account from, Account to, address token, uint256 amount) internal {
+        if (token == address(0)) {
             bytes memory data = "";
             from.execute(address(to), amount, data);
         } else {
             bytes memory transferData = abi.encodeWithSelector(IERC20.transfer.selector, address(to), amount);
-            from.execute(address(token), 0, transferData);
+            from.execute(token, 0, transferData);
         }
     }
 }
