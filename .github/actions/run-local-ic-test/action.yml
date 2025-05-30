@@ -12,7 +12,7 @@ runs:
   using: "composite"
   steps:
     - name: Cache Build artefacts
-      uses: Swatinem/rust-cache@v2.7.5
+      uses: Swatinem/rust-cache@v2.7.8
       with:
         cache-on-failure: true
         shared-key: ${{ github.event.pull_request.number || github.ref }}
