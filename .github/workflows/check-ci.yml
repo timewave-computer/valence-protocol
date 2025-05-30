@@ -73,7 +73,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Cache Build artifacts
-        uses: Swatinem/rust-cache@v2.7.5
+        uses: Swatinem/rust-cache@v2.7.8
         with:
           cache-on-failure: true
           shared-key: ${{ github.event.pull_request.number || github.ref }}
@@ -122,7 +122,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Cache Build artifacts
-        uses: Swatinem/rust-cache@v2.7.5
+        uses: Swatinem/rust-cache@v2.7.8
         with:
           cache-on-failure: true
           shared-key: ${{ github.event.pull_request.number || github.ref }}
@@ -147,7 +147,7 @@ jobs:
         uses: "./.github/actions/free-disk-space"
 
       - name: Cache Build artifacts
-        uses: Swatinem/rust-cache@v2.7.5
+        uses: Swatinem/rust-cache@v2.7.8
         with:
           cache-on-failure: true
           shared-key: ${{ github.event.pull_request.number || github.ref }}
