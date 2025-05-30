@@ -853,10 +853,6 @@ fn pause_and_resume_processor_using_zk_authorizations() {
     )
     .unwrap();
 
-    println!("vk: {}", Binary::from(sp1_vk.bytes32().into_bytes()));
-    println!("message: {}", Binary::from(proof_pause_inputs.clone()));
-    println!("proof: {}", Binary::from(proof_pause_bytes.clone()));
-
     // Check that the processor is paused
     let processor_config = wasm
         .query::<valence_processor_utils::msg::QueryMsg, valence_processor_utils::processor::Config>(
