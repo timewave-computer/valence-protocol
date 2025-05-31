@@ -63,7 +63,9 @@ mod execute {
 }
 
 mod functions {
-    use cosmwasm_std::{ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint64};
+    use cosmwasm_std::{
+        ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128, Uint64,
+    };
 
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
@@ -82,9 +84,9 @@ mod functions {
         match msg {
             FunctionMsgs::RegisterObligation {
                 recipient,
-                payout_coins,
+                payout_amount,
                 id,
-            } => try_register_withdraw_obligation(deps, env, cfg, recipient, payout_coins, id),
+            } => try_register_withdraw_obligation(deps, env, cfg, recipient, payout_amount, id),
             FunctionMsgs::SettleNextObligation {} => try_settle_next_obligation(deps, cfg),
         }
     }
@@ -92,41 +94,40 @@ mod functions {
     fn try_register_withdraw_obligation(
         deps: DepsMut,
         env: Env,
-        _cfg: Config,
+        mut cfg: Config,
         recipient: String,
-        payout_coins: Vec<Coin>,
+        payout_amount: Uint128,
         id: Uint64,
     ) -> Result<Response, LibraryError> {
-        // validate that this obligation is not registered yet
+        // increment the latest obligation id to the expected value
+        cfg.latest_id = cfg
+            .latest_id
+            .checked_add(Uint64::one())
+            .map_err(|_| LibraryError::ExecutionError("id overflow".to_string()))?;
+
+        // validate that id of the obligation being registered is monotonically increasing
         ensure!(
-            !REGISTERED_OBLIGATION_IDS.has(deps.storage, id.u64()),
+            cfg.latest_id == id,
             LibraryError::ExecutionError(format!(
-                "obligation #{id} is already registered in the queue"
+                "obligation being registered id out of order: expected {}, got {id}",
+                cfg.latest_id
             ))
         );
 
         // obligation payouts cannot be empty
         ensure!(
-            !payout_coins.is_empty(),
+            !payout_amount.is_zero(),
             LibraryError::ExecutionError(
-                "obligation must have payout coins in order to be registered".to_string()
+                "obligation amount must be greater than 0 in order to be registered".to_string()
             )
         );
 
-        // each coin in the obligation to be paid out must have non-zero amount
-        for payout_coin in &payout_coins {
-            ensure!(
-                !payout_coin.amount.is_zero(),
-                LibraryError::ExecutionError(format!(
-                    "obligation payout coin {} amount cannot be zero",
-                    payout_coin.denom
-                ))
-            );
-        }
-
         let withdraw_obligation = WithdrawalObligation {
             recipient: deps.api.addr_validate(&recipient)?,
-            payout_coins,
+            payout_coin: Coin {
+                amount: payout_amount,
+                denom: cfg.denom.to_string(),
+            },
             id,
             enqueue_block: env.block,
         };
@@ -141,6 +142,9 @@ mod functions {
         // thus settling) the same obligation twice. because of this,
         // upon settlement, the key remains - only the value is updated.
         REGISTERED_OBLIGATION_IDS.save(deps.storage, id.u64(), &false)?;
+
+        // save the config with incremented id
+        valence_library_base::save_config(deps.storage, &cfg)?;
 
         Ok(Response::new())
     }
@@ -158,31 +162,24 @@ mod functions {
             }
         };
 
-        let mut transfer_coins = vec![];
-
         // ensure that the settlement account is sufficiently topped up
         // to fulfill the obligation
-        for obligation_coin in obligation.payout_coins {
-            let settlement_acc_bal = deps.querier.query_balance(
-                cfg.settlement_acc_addr.as_str(),
-                obligation_coin.denom.to_string(),
-            )?;
+        let settlement_acc_bal = deps.querier.query_balance(
+            cfg.settlement_acc_addr.as_str(),
+            obligation.payout_coin.denom.to_string(),
+        )?;
 
-            ensure!(
-                settlement_acc_bal.amount >= obligation_coin.amount,
-                LibraryError::ExecutionError(format!(
-                    "insufficient settlement acc balance to fulfill obligation: {} < {}",
-                    settlement_acc_bal, obligation_coin
-                ))
-            );
-
-            // push the validated coin to be paid out
-            transfer_coins.push(obligation_coin);
-        }
+        ensure!(
+            settlement_acc_bal.amount >= obligation.payout_coin.amount,
+            LibraryError::ExecutionError(format!(
+                "insufficient settlement acc balance to fulfill obligation: {} < {}",
+                settlement_acc_bal, obligation.payout_coin
+            ))
+        );
 
         let fill_msg = BankMsg::Send {
             to_address: obligation.recipient.to_string(),
-            amount: transfer_coins,
+            amount: vec![obligation.payout_coin],
         };
 
         let input_account_msg =
