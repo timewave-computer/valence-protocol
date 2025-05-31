@@ -24,7 +24,7 @@ pub struct WithdrawalObligation {
     /// where the payout is to be routed
     pub recipient: Addr,
     /// what is owed to the recipient
-    pub payout_coins: Vec<Coin>,
+    pub payout_coin: Coin,
     /// some unique identifier for the request
     pub id: Uint64,
     /// block when registration was enqueued
