@@ -1,6 +1,6 @@
 use std::{error::Error, str::FromStr};
 
-use alloy::primitives::Address;
+use alloy::primitives::{Address, U256};
 use async_trait::async_trait;
 use cosmwasm_std::Uint128;
 use log::info;
@@ -8,12 +8,12 @@ use valence_authorization_utils::{authorization::Priority, msg::PermissionedMsg}
 use valence_clearing_queue::msg::ObligationsResponse;
 use valence_domain_clients::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
-    evm::request_provider_client::RequestProviderClient,
+    evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
 use valence_e2e::utils::{
     solidity_contracts::{
-        sol_authorizations::Authorizations, sol_lite_processor::LiteProcessor, IBCEurekaTransfer,
-        OneWayVault, ERC20,
+        sol_authorizations::Authorizations, sol_lite_processor::LiteProcessor, BaseAccount,
+        IBCEurekaTransfer, OneWayVault, ERC20,
     },
     worker::ValenceWorker,
 };
@@ -73,27 +73,136 @@ impl Strategy {
     /// carries out the steps needed to bring the new deposits from Ethereum to
     /// Neutron (via Cosmos Hub) before depositing them into Mars protocol.
     async fn deposit(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let eth_rp = self.eth_client.get_request_provider().await?;
+
+        let eth_wbtc_contract =
+            ERC20::new(Address::from_str(&self.cfg.ethereum.denoms.wbtc)?, &eth_rp);
+        let eth_deposit_acc = BaseAccount::new(
+            Address::from_str(&self.cfg.ethereum.accounts.deposit)?,
+            &eth_rp,
+        );
+
         // 1. query the ethereum deposit account balance
+        let eth_deposit_acc_bal = self
+            .eth_client
+            .query(eth_wbtc_contract.balanceOf(*eth_deposit_acc.address()))
+            .await?
+            ._0;
 
         // 2. validate that the deposit account balance exceeds the eureka routing
         // threshold amount (from cfg)
+        // TODO: replace the hardcoded value
+        if eth_deposit_acc_bal < U256::from(1_000_000) {
+            // early return if balance is too small for the eureka transfer
+            // to be worth it
+            return Ok(());
+        }
 
         // 3. perform IBC-Eureka transfer to Cosmos Hub ICA
 
         // 4. block execution until the funds arrive to the Cosmos Hub ICA owned
         // by the Valence Interchain Account on Neutron
+        // TODO: make this into a blocking assertion query
+        self.gaia_client
+            .query_balance(
+                &self.cfg.neutron.accounts.gaia_ica.remote_addr,
+                "TODO:gaia_wbtc_denom",
+            )
+            .await?;
 
         // 5. Initiate ICA-IBC-Transfer from Cosmos Hub ICA to Neutron program
         // deposit account
+        self.neutron_client
+            .execute_wasm(
+                &self.cfg.neutron.authorizations,
+                valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                        label: "ICA_IBC_TRANSFER".to_string(),
+                        messages: vec![],
+                        ttl: None,
+                    },
+                ),
+                vec![],
+                None,
+            )
+            .await?;
+
+        self.neutron_client
+            .execute_wasm(
+                &self.cfg.neutron.processor,
+                valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_processor_utils::msg::PermissionlessMsg::Tick {},
+                ),
+                vec![],
+                None,
+            )
+            .await?;
 
         // 6. block execution until funds arrive to the Neutron program deposit
         // account
+        // TODO: make this into a blocking assertion query
+        self.neutron_client
+            .query_balance(
+                &self.cfg.neutron.accounts.deposit,
+                &self.cfg.neutron.denoms.wbtc,
+            )
+            .await?;
 
         // 7. use Valence Forwarder to route funds from the Neutron program
         // deposit account to the Mars deposit account
+        self.neutron_client
+            .execute_wasm(
+                &self.cfg.neutron.authorizations,
+                valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                        label: "DEPOSIT_FWD".to_string(),
+                        messages: vec![],
+                        ttl: None,
+                    },
+                ),
+                vec![],
+                None,
+            )
+            .await?;
+
+        self.neutron_client
+            .execute_wasm(
+                &self.cfg.neutron.processor,
+                valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_processor_utils::msg::PermissionlessMsg::Tick {},
+                ),
+                vec![],
+                None,
+            )
+            .await?;
 
         // 8. use Mars Lending library to deposit funds from Mars deposit account
         // into Mars protocol
+        self.neutron_client
+            .execute_wasm(
+                &self.cfg.neutron.authorizations,
+                valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                        label: "MARS_DEPOSIT".to_string(),
+                        messages: vec![],
+                        ttl: None,
+                    },
+                ),
+                vec![],
+                None,
+            )
+            .await?;
+
+        self.neutron_client
+            .execute_wasm(
+                &self.cfg.neutron.processor,
+                valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                    valence_processor_utils::msg::PermissionlessMsg::Tick {},
+                ),
+                vec![],
+                None,
+            )
+            .await?;
 
         Ok(())
     }
