@@ -3,6 +3,7 @@ use cw_multi_test::{error::AnyResult, App, AppResponse, Executor};
 use valence_library_utils::{
     msg::ExecuteMsg,
     testing::{LibraryTestSuite, LibraryTestSuiteBase},
+    OptionUpdate,
 };
 
 use crate::msg::{
@@ -67,7 +68,9 @@ impl ClearingQueueTestingSuite {
         let updated_config = LibraryConfigUpdate {
             settlement_acc_addr: Some(new_config.settlement_acc_addr),
             denom: Some(new_config.denom),
+            latest_id: OptionUpdate::Set(new_config.latest_id),
         };
+
         self.app_mut().execute_contract(
             owner,
             clearing_lib,

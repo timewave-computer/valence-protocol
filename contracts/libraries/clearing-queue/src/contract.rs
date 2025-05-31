@@ -94,16 +94,23 @@ mod functions {
     fn try_register_withdraw_obligation(
         deps: DepsMut,
         env: Env,
-        cfg: Config,
+        mut cfg: Config,
         recipient: String,
         payout_amount: Uint128,
         id: Uint64,
     ) -> Result<Response, LibraryError> {
-        // validate that this obligation is not registered yet
+        // increment the latest obligation id to the expected value
+        cfg.latest_id = cfg
+            .latest_id
+            .checked_add(Uint64::one())
+            .map_err(|_| LibraryError::ExecutionError("id overflow".to_string()))?;
+
+        // validate that id of the obligation being registered is monotonically increasing
         ensure!(
-            !REGISTERED_OBLIGATION_IDS.has(deps.storage, id.u64()),
+            cfg.latest_id == id,
             LibraryError::ExecutionError(format!(
-                "obligation #{id} is already registered in the queue"
+                "obligation being registered id out of order: expected {}, got {id}",
+                cfg.latest_id
             ))
         );
 
@@ -119,7 +126,7 @@ mod functions {
             recipient: deps.api.addr_validate(&recipient)?,
             payout_coin: Coin {
                 amount: payout_amount,
-                denom: cfg.denom,
+                denom: cfg.denom.to_string(),
             },
             id,
             enqueue_block: env.block,
@@ -135,6 +142,9 @@ mod functions {
         // thus settling) the same obligation twice. because of this,
         // upon settlement, the key remains - only the value is updated.
         REGISTERED_OBLIGATION_IDS.save(deps.storage, id.u64(), &false)?;
+
+        // save the config with incremented id
+        valence_library_base::save_config(deps.storage, &cfg)?;
 
         Ok(Response::new())
     }

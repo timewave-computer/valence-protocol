@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Addr, Coin, Empty};
+use cosmwasm_std::{coin, Addr, Coin, Empty, Uint64};
 use cw_multi_test::{App, ContractWrapper};
 use valence_library_utils::{
     msg::InstantiateMsg,
@@ -19,6 +19,7 @@ pub struct ClearingQueueTestingSuiteBuilder {
     pub input_addr: Addr,
     pub processor: Addr,
     pub code_id: u64,
+    pub latest_id: Option<Uint64>,
 }
 
 impl LibraryTestSuite<Empty, Empty> for ClearingQueueTestingSuiteBuilder {
@@ -72,6 +73,7 @@ impl Default for ClearingQueueTestingSuiteBuilder {
             input_addr,
             code_id: clearing_code_id,
             processor,
+            latest_id: None,
         }
     }
 }
@@ -87,10 +89,16 @@ impl ClearingQueueTestingSuiteBuilder {
         self
     }
 
+    pub fn with_latest_obligation_id(mut self, obligation_id: u64) -> Self {
+        self.latest_id = Some(obligation_id.into());
+        self
+    }
+
     pub fn build(mut self) -> ClearingQueueTestingSuite {
         let cfg = LibraryConfig::new(
             valence_library_utils::LibraryAccountType::Addr(self.input_addr.to_string()),
             self.input_bal.denom.to_string(),
+            self.latest_id,
         );
 
         let init_msg = InstantiateMsg {

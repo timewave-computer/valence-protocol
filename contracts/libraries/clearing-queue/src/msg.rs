@@ -16,6 +16,8 @@ pub struct Config {
     pub settlement_acc_addr: Addr,
     /// obligation base denom
     pub denom: String,
+    /// latest registered obligation id
+    pub latest_id: Uint64,
 }
 
 #[cw_serde]
@@ -26,6 +28,9 @@ pub struct LibraryConfig {
     pub settlement_acc_addr: LibraryAccountType,
     /// obligation base denom
     pub denom: String,
+    /// latest registered obligation id.
+    /// if `None`, defaults to 0
+    pub latest_id: Option<Uint64>,
 }
 
 #[cw_serde]
@@ -44,14 +49,22 @@ pub enum FunctionMsgs {
 }
 
 impl LibraryConfig {
-    pub fn new(settlement_acc_addr: impl Into<LibraryAccountType>, denom: String) -> Self {
+    pub fn new(
+        settlement_acc_addr: impl Into<LibraryAccountType>,
+        denom: String,
+        latest_id: Option<Uint64>,
+    ) -> Self {
         LibraryConfig {
             settlement_acc_addr: settlement_acc_addr.into(),
             denom,
+            latest_id,
         }
     }
 
-    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, String), LibraryError> {
+    fn do_validate(
+        &self,
+        api: &dyn cosmwasm_std::Api,
+    ) -> Result<(Addr, String, Uint64), LibraryError> {
         // validate the input account
         let settlement_acc_addr = self.settlement_acc_addr.to_addr(api)?;
 
@@ -60,7 +73,10 @@ impl LibraryConfig {
             LibraryError::ConfigurationError("input denom cannot be empty".to_string())
         );
 
-        Ok((settlement_acc_addr, self.denom.to_string()))
+        // if id was not specified, we default to 0
+        let id = self.latest_id.unwrap_or_default();
+
+        Ok((settlement_acc_addr, self.denom.to_string(), id))
     }
 }
 
@@ -72,10 +88,11 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
-        let (settlement_acc_addr, denom) = self.do_validate(deps.api)?;
+        let (settlement_acc_addr, denom, latest_id) = self.do_validate(deps.api)?;
         Ok(Config {
             settlement_acc_addr,
             denom,
+            latest_id,
         })
     }
 }

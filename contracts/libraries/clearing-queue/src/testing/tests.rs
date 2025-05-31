@@ -27,6 +27,7 @@ fn test_update_validates_input_acc() {
         .update_clearing_config(LibraryConfig {
             settlement_acc_addr: new_settlement_acc_addr,
             denom: "denom".to_string(),
+            latest_id: None,
         })
         .unwrap();
 }
@@ -77,7 +78,9 @@ fn test_registering_obligation_validates_payout_coins_nonzero_amounts() {
 
 #[test]
 fn test_register_withdraw_obligation_happy() {
-    let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
+    let mut suite = ClearingQueueTestingSuiteBuilder::default()
+        .with_latest_obligation_id(9)
+        .build();
 
     let queue_len_0 = suite.query_queue_info().len;
     let queue_resp_0 = suite.query_obligations(None, None);
@@ -152,9 +155,11 @@ fn test_queue_operates_in_fifo_manner() {
 }
 
 #[test]
-#[should_panic(expected = "obligation #10 is already registered in the queue")]
+#[should_panic(expected = "obligation being registered id out of order: expected 11, got 10")]
 fn test_double_accounting_errors() {
-    let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
+    let mut suite = ClearingQueueTestingSuiteBuilder::default()
+        .with_latest_obligation_id(10)
+        .build();
 
     suite
         .register_new_obligation(suite.user_1.to_string(), 100u128.into(), 10)
@@ -165,10 +170,11 @@ fn test_double_accounting_errors() {
 }
 
 #[test]
-#[should_panic(expected = "obligation #10 is already registered in the queue")]
+#[should_panic(expected = "obligation being registered id out of order: expected 11, got 10")]
 fn test_double_accounting_errors_after_obligation_settlement() {
     let mut suite = ClearingQueueTestingSuiteBuilder::default()
         .with_input_balance(coin(1_000, DENOM_1))
+        .with_latest_obligation_id(10)
         .build();
 
     suite
@@ -233,4 +239,19 @@ fn test_multi_user_settlement() {
     assert_eq!(u1_d1_bal.amount.u128(), 100);
     assert_eq!(u2_d1_bal.amount.u128(), 300);
     assert_eq!(u3_d1_bal.amount.u128(), 400);
+}
+
+#[test]
+#[should_panic(expected = "obligation being registered id out of order: expected 2, got 3")]
+fn test_registering_obligations_validates_order() {
+    let mut suite = ClearingQueueTestingSuiteBuilder::default()
+        .with_input_balance(coin(1_000, DENOM_1))
+        .build();
+
+    suite
+        .register_new_obligation(suite.user_1.to_string(), 100u128.into(), 1)
+        .unwrap();
+    suite
+        .register_new_obligation(suite.user_2.to_string(), 300u128.into(), 3)
+        .unwrap();
 }
