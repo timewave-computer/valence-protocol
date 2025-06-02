@@ -65,6 +65,7 @@ valence-osmosis-utils                = { workspace = true }
 valence-encoder-broker               = { workspace = true }
 valence-encoder-utils                = { workspace = true }
 valence-neutron-ic-querier           = { workspace = true }
+valence-mars-lending                 = { workspace = true }
 valence-middleware-broker            = { workspace = true }
 valence-middleware-osmosis           = { workspace = true }
 valence-middleware-utils             = { workspace = true }

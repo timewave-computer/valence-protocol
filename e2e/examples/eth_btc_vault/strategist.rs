@@ -6,9 +6,12 @@ use alloy::{
     sol_types::SolEvent,
 };
 use async_trait::async_trait;
-use cosmwasm_std::{Uint128, Uint64};
+use cosmwasm_std::{to_json_binary, Uint128, Uint64};
 use log::{info, warn};
-use valence_authorization_utils::{authorization::Priority, msg::PermissionedMsg};
+use valence_authorization_utils::{
+    authorization::Priority,
+    msg::{PermissionedMsg, ProcessorMessage},
+};
 use valence_clearing_queue::msg::ObligationsResponse;
 use valence_domain_clients::{
     cosmos::{base_client::BaseClient, wasm_client::WasmClient},
@@ -346,13 +349,41 @@ impl Strategy {
         if settlement_acc_bal < total_queue_obligations {
             // 3. simulate Mars protocol withdrawal to obtain the funds necessary
             // to fulfill all active withdrawal requests
+            // TODO: check for underflows
             let obligations_delta = total_queue_obligations - settlement_acc_bal;
-
-            let mars_simulation_response = 0; // TODO
 
             // 4. call the Mars lending library to perform the withdrawal.
             // This will deposit the underlying assets directly to the settlement account.
-            // TODO
+            self.neutron_client
+                .execute_wasm(
+                    &self.cfg.neutron.authorizations,
+                    valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                            label: "TBD".to_string(),
+                            messages: vec![ProcessorMessage::CosmwasmExecuteMsg {
+                                msg: to_json_binary(
+                                    &valence_mars_lending::msg::FunctionMsgs::Withdraw {
+                                        amount: Some(obligations_delta.into()),
+                                    },
+                                )?,
+                            }],
+                            ttl: None,
+                        },
+                    ),
+                    vec![],
+                    None,
+                )
+                .await?;
+            self.neutron_client
+                .execute_wasm(
+                    &self.cfg.neutron.processor,
+                    valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                        valence_processor_utils::msg::PermissionlessMsg::Tick {},
+                    ),
+                    vec![],
+                    None,
+                )
+                .await?;
         }
 
         // 5. queue the Clearing Queue settlement requests to the processor

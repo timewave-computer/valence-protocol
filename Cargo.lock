@@ -10534,6 +10534,7 @@ dependencies = [
  "valence-ica-ibc-transfer",
  "valence-interchain-account",
  "valence-library-utils",
+ "valence-mars-lending",
  "valence-middleware-asserter",
  "valence-middleware-broker",
  "valence-middleware-osmosis",
