@@ -1540,6 +1540,8 @@ pub enum PoolType {
 <span class="boring">}</span></code></pre></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-clearing-queue-library"><a class="header" href="#valence-clearing-queue-library">Valence Clearing Queue Library</a></h1>
 <p>The <strong>Valence Clearing Queue</strong> library allows <strong>registration and settlement of withdrawal obligations</strong> in a FIFO (First-In-First-Out) manner. It maintains a queue of pending withdrawal obligations, with each obligation containing recipient information, payout amounts, and a unique identifier. When settling obligations, funds are pulled from a <strong>settlement input account</strong> and sent to the specified recipients.</p>
+<p>The queue processes obligations based on a strict, monotonically increasing order of the obligation ids.
+This is meant to prevent any out-of-order errors that may arise from latency or other issues.</p>
 <blockquote>
 <p><strong>Important:</strong>
 This library functions solely as a settlement engine. The settlement account funding (liquidity-management) flow is outside of its scope and is managed by a strategist. This management process likely involves monitoring both the settlement account balance and the obligation queue in order to ensure the settlement account maintains sufficient liquidity for obligation settlements.</p>
@@ -1562,7 +1564,7 @@ graph LR
 </pre>
 <h2 id="functions-2"><a class="header" href="#functions-2">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>RegisterObligation</strong></td><td><code>recipient: String</code><br><code>payout_coins: Vec&lt;Coin&gt;</code><br><code>id: Uint64</code></td><td>Registers a new withdrawal obligation in the queue with the specified recipient, payout coins, and unique ID. Each obligation must have non-zero payout amounts. Recipient must be a valid bech32 address.</td></tr>
+<tr><td><strong>RegisterObligation</strong></td><td><code>recipient: String</code><br><code>payout_amount: Uint128</code><br><code>id: Uint64</code></td><td>Registers a new withdrawal obligation in the queue with the specified recipient, payout coins, and unique ID. Each obligation must have a non-zero payout amount. Recipient must be a valid bech32 address. Obligation id must equal the latest registered obligation id plus 1.</td></tr>
 <tr><td><strong>SettleNextObligation</strong></td><td>-</td><td>Settles the oldest withdrawal obligation in the queue by transferring funds from the <strong>settlement input account</strong> to the specified recipient. Fails if there are no pending obligations or if the input account has insufficient balance.</td></tr>
 </tbody></table>
 </div>
@@ -1574,9 +1576,17 @@ graph LR
     /// settlement input account which we tap into in order
     /// to settle the obligations
     pub settlement_acc_addr: LibraryAccountType,
+    /// obligation base denom
+    pub denom: String,
+    /// latest registered obligation id.
+    /// if `None`, defaults to 0
+    pub latest_id: Option&lt;Uint64&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
 <p>The <code>settlement_acc_addr</code> specifies the account from which funds will be pulled to fulfill settlement obligations. The library will check that this account has sufficient balance before attempting to settle each obligation.</p>
+<p>Configured <code>denom</code> is the base clearing denomination which will be applied to all obligation amounts.</p>
+<p>Lastly, the optional <code>latest_id</code> field allows to configure the library order to start from a specific id.
+If <code>None</code>, latest id defaults to 0. Otherwise, it will start from the specified id.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-forwarder-library"><a class="header" href="#valence-forwarder-library">Valence Forwarder library</a></h1>
 <p>The <strong>Valence Forwarder</strong> library allows to <strong>continuously forward funds</strong> from an <strong>input account</strong> to an <strong>output account</strong>, following some time <strong>constraints</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
 <h2 id="high-level-flow-3"><a class="header" href="#high-level-flow-3">High-level flow</a></h2>
