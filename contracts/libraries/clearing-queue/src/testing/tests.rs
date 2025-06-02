@@ -3,6 +3,7 @@ use valence_library_utils::LibraryAccountType;
 
 use crate::{
     msg::LibraryConfig,
+    state::ObligationStatus,
     testing::{builder::ClearingQueueTestingSuiteBuilder, suite::DENOM_1},
 };
 
@@ -57,23 +58,42 @@ fn test_settling_obligations_requires_funded_settlement_account() {
 }
 
 #[test]
-#[should_panic(expected = "Error decoding bech32")]
-fn test_registering_obligation_validates_recipient_addr() {
-    let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
-
-    suite
-        .register_new_obligation("invalid_addr".to_string(), 100u128.into(), 1)
-        .unwrap();
-}
-
-#[test]
-#[should_panic(expected = "obligation amount must be greater than 0 in order to be registered")]
-fn test_registering_obligation_validates_payout_coins_nonzero_amounts() {
-    let mut suite = ClearingQueueTestingSuiteBuilder::default().build();
+fn test_processing_invalid_obligation_with_zero_amount_works() {
+    let mut suite = ClearingQueueTestingSuiteBuilder::default()
+        .with_input_balance(coin(1_000, DENOM_1))
+        .build();
 
     suite
         .register_new_obligation(suite.user_1.to_string(), Uint128::zero(), 1)
         .unwrap();
+
+    let obligation_status = suite.query_obligation_status(1);
+    assert!(matches!(obligation_status, ObligationStatus::InQueue));
+
+    suite.settle_next_obligation().unwrap();
+
+    let obligation_status = suite.query_obligation_status(1);
+    assert!(matches!(obligation_status, ObligationStatus::Error(_)));
+}
+
+#[test]
+fn test_processing_invalid_obligation_with_invalid_addr_works() {
+    let mut suite = ClearingQueueTestingSuiteBuilder::default()
+        .with_input_balance(coin(1_000, DENOM_1))
+        .build();
+
+    suite
+        .register_new_obligation("invalid_addr".to_string(), Uint128::new(100), 1)
+        .unwrap();
+
+    let obligation_status = suite.query_obligation_status(1);
+    assert!(matches!(obligation_status, ObligationStatus::InQueue));
+
+    suite.settle_next_obligation().unwrap();
+
+    // assert that the obligation is no longer in the queue
+    let obligation_status = suite.query_obligation_status(1);
+    assert!(!matches!(obligation_status, ObligationStatus::InQueue));
 }
 
 #[test]
@@ -98,7 +118,7 @@ fn test_register_withdraw_obligation_happy() {
 
     assert_eq!(queue_len, 1);
     assert_eq!(queue_resp.obligations.len(), 1);
-    assert!(!obligation_status.settled);
+    assert!(matches!(obligation_status, ObligationStatus::InQueue));
 }
 
 #[test]
@@ -132,11 +152,20 @@ fn test_queue_operates_in_fifo_manner() {
     assert_eq!(queue_resp.obligations.len(), 3);
 
     // first obligation was user_1
-    assert_eq!(queue_resp.obligations[0].recipient, suite.user_1);
+    assert_eq!(
+        queue_resp.obligations[0].recipient,
+        suite.user_1.to_string()
+    );
     // second obligation was user_3
-    assert_eq!(queue_resp.obligations[1].recipient, suite.user_3);
+    assert_eq!(
+        queue_resp.obligations[1].recipient,
+        suite.user_3.to_string()
+    );
     // third obligation was user_2
-    assert_eq!(queue_resp.obligations[2].recipient, suite.user_2);
+    assert_eq!(
+        queue_resp.obligations[2].recipient,
+        suite.user_2.to_string()
+    );
 
     // we settle an obligation in order to assert that queue is processed fifo
     suite.settle_next_obligation().unwrap();
@@ -149,9 +178,15 @@ fn test_queue_operates_in_fifo_manner() {
     assert_eq!(queue_resp.obligations.len(), 2);
 
     // user_3 should be the oldest
-    assert_eq!(queue_resp.obligations[0].recipient, suite.user_3);
+    assert_eq!(
+        queue_resp.obligations[0].recipient,
+        suite.user_3.to_string()
+    );
     // user_2 should be the latest
-    assert_eq!(queue_resp.obligations[1].recipient, suite.user_2);
+    assert_eq!(
+        queue_resp.obligations[1].recipient,
+        suite.user_2.to_string()
+    );
 }
 
 #[test]
@@ -214,9 +249,18 @@ fn test_multi_user_settlement() {
     assert!(u2_d1_bal.amount.is_zero());
     assert!(u3_d1_bal.amount.is_zero());
 
-    assert!(!suite.query_obligation_status(1).settled);
-    assert!(!suite.query_obligation_status(2).settled);
-    assert!(!suite.query_obligation_status(3).settled);
+    assert!(matches!(
+        suite.query_obligation_status(1),
+        ObligationStatus::InQueue
+    ));
+    assert!(matches!(
+        suite.query_obligation_status(2),
+        ObligationStatus::InQueue
+    ));
+    assert!(matches!(
+        suite.query_obligation_status(3),
+        ObligationStatus::InQueue
+    ));
 
     // settle all existing obligations
     suite.settle_next_obligation().unwrap();
@@ -229,9 +273,18 @@ fn test_multi_user_settlement() {
     let u3_d1_bal = suite.query_user_bal(suite.user_3.as_str(), DENOM_1);
 
     // assert that the obligations are now considered as settled
-    assert!(suite.query_obligation_status(1).settled);
-    assert!(suite.query_obligation_status(2).settled);
-    assert!(suite.query_obligation_status(3).settled);
+    assert!(matches!(
+        suite.query_obligation_status(1),
+        ObligationStatus::Processed
+    ));
+    assert!(matches!(
+        suite.query_obligation_status(2),
+        ObligationStatus::Processed
+    ));
+    assert!(matches!(
+        suite.query_obligation_status(3),
+        ObligationStatus::Processed
+    ));
 
     // assert that the settlement account balance is decreased as expected
     assert_eq!(input_acc_d1_bal.amount.u128(), 1_000 - 100 - 300 - 400);

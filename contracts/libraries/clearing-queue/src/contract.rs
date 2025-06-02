@@ -1,23 +1,26 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    SubMsgResult,
+};
 use valence_library_utils::{
     error::LibraryError,
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
 use crate::{
-    msg::{
-        Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, ObligationStatusResponse,
-        QueryMsg,
-    },
-    state::REGISTERED_OBLIGATION_IDS,
+    msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg},
+    state::{ObligationStatus, OBLIGATION_ID_TO_STATUS_MAP},
 };
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// reply ID for invalid obligation handling
+// const OBLIGATION_SETTLEMENT_REPLY_ID: u64 = 2;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -64,14 +67,16 @@ mod execute {
 
 mod functions {
     use cosmwasm_std::{
-        ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128, Uint64,
+        ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, SubMsg, Uint128, Uint64,
     };
 
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
 
     use crate::{
         msg::{Config, FunctionMsgs},
-        state::{WithdrawalObligation, CLEARING_QUEUE, REGISTERED_OBLIGATION_IDS},
+        state::{
+            ObligationStatus, WithdrawalObligation, CLEARING_QUEUE, OBLIGATION_ID_TO_STATUS_MAP,
+        },
     };
 
     pub fn process_function(
@@ -114,16 +119,10 @@ mod functions {
             ))
         );
 
-        // obligation payouts cannot be empty
-        ensure!(
-            !payout_amount.is_zero(),
-            LibraryError::ExecutionError(
-                "obligation amount must be greater than 0 in order to be registered".to_string()
-            )
-        );
-
         let withdraw_obligation = WithdrawalObligation {
-            recipient: deps.api.addr_validate(&recipient)?,
+            // intentionally not verifying the recipient address here as
+            // we do not want to block the queue processing
+            recipient,
             payout_coin: Coin {
                 amount: payout_amount,
                 denom: cfg.denom.to_string(),
@@ -136,14 +135,11 @@ mod functions {
         CLEARING_QUEUE.push_back(deps.storage, &withdraw_obligation)?;
 
         // store the id of the registered obligation in the map with
-        // value `false` to indicate that this obligation is not yet
+        // value `InQueue` to indicate that this obligation is not yet
         // settled/complete.
-        // this map also serves as a check to prevent registering (and
-        // thus settling) the same obligation twice. because of this,
-        // upon settlement, the key remains - only the value is updated.
-        REGISTERED_OBLIGATION_IDS.save(deps.storage, id.u64(), &false)?;
+        OBLIGATION_ID_TO_STATUS_MAP.save(deps.storage, id.u64(), &ObligationStatus::InQueue)?;
 
-        // save the config with incremented id
+        // save the config with the incremented id
         valence_library_base::save_config(deps.storage, &cfg)?;
 
         Ok(Response::new())
@@ -185,12 +181,30 @@ mod functions {
         let input_account_msg =
             execute_on_behalf_of(vec![fill_msg.into()], &cfg.settlement_acc_addr)?;
 
-        // update the registered obligation entry value to `true` to indicate that
-        // this obligation had been settled.
-        REGISTERED_OBLIGATION_IDS.save(deps.storage, obligation.id.u64(), &true)?;
-
-        Ok(Response::new().add_message(input_account_msg))
+        // we fire the settlement request as a submessage. obligation status will get
+        // updated in the reply. obligation id is used as the submessage identifier.
+        Ok(Response::new()
+            .add_submessage(SubMsg::reply_always(input_account_msg, obligation.id.u64())))
     }
+}
+
+/// reply entry point for handling the obligation settlement requests.
+/// in cases where the settlement attempts fail, the queue must remain
+/// functional and not block subsequent obligation requests from being
+/// processed.
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryError> {
+    // depending on the submsg result we get the ObligationStatus to be saved
+    let obligation_settlement_status = match msg.result {
+        SubMsgResult::Ok(_) => ObligationStatus::Processed,
+        SubMsgResult::Err(e) => ObligationStatus::Error(e),
+    };
+
+    // save the obligation settlement status under `msg.id` key which is the
+    // obligation id
+    OBLIGATION_ID_TO_STATUS_MAP.save(deps.storage, msg.id, &obligation_settlement_status)?;
+
+    Ok(Response::default())
 }
 
 mod query {
@@ -241,8 +255,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&query::get_obligations(deps, from, to)?)
         }
         QueryMsg::ObligationStatus { id } => {
-            let settled = REGISTERED_OBLIGATION_IDS.load(deps.storage, id)?;
-            to_json_binary(&ObligationStatusResponse { settled })
+            let obligation_status = OBLIGATION_ID_TO_STATUS_MAP.load(deps.storage, id)?;
+            to_json_binary(&obligation_status)
         }
     }
 }

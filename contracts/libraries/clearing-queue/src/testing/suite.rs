@@ -6,9 +6,12 @@ use valence_library_utils::{
     OptionUpdate,
 };
 
-use crate::msg::{
-    FunctionMsgs, LibraryConfig, LibraryConfigUpdate, ObligationStatusResponse,
-    ObligationsResponse, QueryMsg, QueueInfoResponse,
+use crate::{
+    msg::{
+        FunctionMsgs, LibraryConfig, LibraryConfigUpdate, ObligationsResponse, QueryMsg,
+        QueueInfoResponse,
+    },
+    state::ObligationStatus,
 };
 
 pub(crate) const DENOM_1: &str = "DENOM_1";
@@ -96,7 +99,7 @@ impl ClearingQueueTestingSuite {
             .query_wasm(&self.clearing_queue, &QueryMsg::QueueInfo {})
     }
 
-    pub fn query_obligation_status(&self, obligation_id: u64) -> ObligationStatusResponse {
+    pub fn query_obligation_status(&self, obligation_id: u64) -> ObligationStatus {
         self.inner.query_wasm(
             &self.clearing_queue,
             &QueryMsg::ObligationStatus { id: obligation_id },
