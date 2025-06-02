@@ -1,9 +1,13 @@
 use std::{error::Error, str::FromStr};
 
-use alloy::primitives::{Address, U256};
+use alloy::{
+    primitives::{keccak256, Address, Log, B256, U256},
+    providers::Provider,
+    sol_types::SolEvent,
+};
 use async_trait::async_trait;
-use cosmwasm_std::Uint128;
-use log::info;
+use cosmwasm_std::{Uint128, Uint64};
+use log::{info, warn};
 use valence_authorization_utils::{authorization::Priority, msg::PermissionedMsg};
 use valence_clearing_queue::msg::ObligationsResponse;
 use valence_domain_clients::{
@@ -12,8 +16,11 @@ use valence_domain_clients::{
 };
 use valence_e2e::utils::{
     solidity_contracts::{
-        sol_authorizations::Authorizations, sol_lite_processor::LiteProcessor, BaseAccount,
-        IBCEurekaTransfer, OneWayVault, ERC20,
+        sol_authorizations::Authorizations,
+        sol_lite_processor::LiteProcessor,
+        BaseAccount, IBCEurekaTransfer,
+        OneWayVault::{self, WithdrawRequested},
+        ERC20,
     },
     worker::ValenceWorker,
 };
@@ -211,18 +218,93 @@ impl Strategy {
     /// present in the Clearing Queue, generates their zero-knowledge proofs,
     /// and posts them into the Clearing queue in order.
     async fn register_withdraw_obligations(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let eth_rp = self.eth_client.get_request_provider().await?;
+
         // 1. query the Clearing Queue library for the latest posted withdraw request ID
+        let clearing_queue_cfg: valence_clearing_queue::msg::Config = self
+            .neutron_client
+            .query_contract_state(
+                &self.cfg.neutron.libraries.clearing,
+                valence_clearing_queue::msg::QueryMsg::GetLibraryConfig {},
+            )
+            .await?;
+
+        // TODO: fetch this from the cfg queried above
+        let latest_registered_obligation_id = Uint64::new(10);
 
         // 2. query the OneWayVault for emitted events and filter them such that
         // only requests with id greater than the one queried in step 1. are fetched
+        let vault_addr = self
+            .cfg
+            .ethereum
+            .libraries
+            .one_way_vault
+            .parse::<Address>()?;
+        let event_signature = "WithdrawRequested(uint64,address,string,uint256)";
+        let event_signature_hash = keccak256(event_signature.as_bytes());
+        let event_topic = B256::from(event_signature_hash);
+
+        // TODO: can we tune this filter such that only events with id (uint64 in signature)
+        // are fetched?
+        let withdraw_event_filter = alloy::rpc::types::Filter::new()
+            .address(vault_addr)
+            .event_signature(event_topic);
+
+        let logs = eth_rp.get_logs(&withdraw_event_filter).await?;
+
+        let mut withdraw_requested_events = vec![];
+
+        for log in logs {
+            let alloy_log = Log::new(log.address(), log.topics().into(), log.data().clone().data)
+                .unwrap_or_default();
+
+            match WithdrawRequested::decode_log(&alloy_log, false) {
+                Ok(val) => {
+                    info!("[BTC_STRATEGIST] decoded WithdrawRequested log: {:?}", val);
+                    withdraw_requested_events.push(val);
+                }
+                Err(e) => warn!(
+                    "[BTC_STRATEGIST] failed to decode WithdrawRequested log: {:?}",
+                    e
+                ),
+            }
+        }
 
         // 3. process the new OneWayVault Withdraw events in order from the oldest
         // to the newest, posting them to the coprocessor to obtain a ZKP
 
-        // 4. preserving the order, post the ZKPs obtained in step 3. to the Neutron
-        // Authorizations contract, enqueuing them to the processor
+        for withdraw_request in withdraw_requested_events {
+            // TODO: post to coprocessor, get ZKP
 
-        // 5. tick the processor to register the obligations to the clearing queue
+            //  4. preserving the order, post the ZKPs obtained in step 3. to the Neutron
+            // Authorizations contract, enqueuing them to the processor
+            self.neutron_client
+                .execute_wasm(
+                    &self.cfg.neutron.authorizations,
+                    valence_authorization_utils::msg::ExecuteMsg::PermissionlessAction(
+                        valence_authorization_utils::msg::PermissionlessMsg::SendMsgs {
+                            label: "POST_ZKP".to_string(),
+                            messages: vec![],
+                            ttl: None,
+                        },
+                    ),
+                    vec![],
+                    None,
+                )
+                .await?;
+
+            // 5. tick the processor to register the obligations to the clearing queue
+            self.neutron_client
+                .execute_wasm(
+                    &self.cfg.neutron.processor,
+                    valence_processor_utils::msg::ExecuteMsg::PermissionlessAction(
+                        valence_processor_utils::msg::PermissionlessMsg::Tick {},
+                    ),
+                    vec![],
+                    None,
+                )
+                .await?;
+        }
 
         Ok(())
     }
