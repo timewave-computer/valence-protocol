@@ -59,8 +59,7 @@ impl Default for ClearingQueueTestingSuiteBuilder {
             crate::contract::execute,
             crate::contract::instantiate,
             crate::contract::query,
-        )
-        .with_reply(crate::contract::reply);
+        );
 
         let clearing_code_id = inner
             .app_mut()

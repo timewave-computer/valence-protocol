@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{BlockInfo, Coin, Uint64};
+use cosmwasm_std::{Addr, BlockInfo, Coin, Uint64};
 use cw_storage_plus::Map;
 use valence_processor_utils::queue::QueueMap;
 
@@ -27,7 +27,7 @@ pub enum ObligationStatus {
 #[cw_serde]
 pub struct WithdrawalObligation {
     /// where the payout is to be routed
-    pub recipient: String,
+    pub recipient: Addr,
     /// what is owed to the recipient
     pub payout_coin: Coin,
     /// some unique identifier for the request
