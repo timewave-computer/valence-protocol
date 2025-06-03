@@ -5493,7 +5493,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -5669,8 +5669,8 @@ dependencies = [
 
 [[package]]
 name = "mmvault"
-version = "0.1.4"
-source = "git+https://github.com/neutron-org/slinky-vault#0432ad77ca44c8166401a31e4b7319cbf9cdebeb"
+version = "0.1.5"
+source = "git+https://github.com/neutron-org/slinky-vault#e664f27bae71b036c8dbca5cbf7ef0720bae45c8"
 dependencies = [
  "cosmwasm-std 2.2.1",
  "cw-storage-plus 2.0.0",
@@ -10397,6 +10397,24 @@ dependencies = [
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
+ "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+ "valence-processor-utils",
+]
+
+[[package]]
+name = "valence-clearing-queue-supervaults"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "mmvault",
  "valence-account-utils",
  "valence-library-base",
  "valence-library-utils",
