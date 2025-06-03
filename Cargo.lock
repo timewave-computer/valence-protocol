@@ -10569,6 +10569,7 @@ dependencies = [
  "valence-reverse-splitter-library",
  "valence-splitter-library",
  "valence-storage-account",
+ "valence-strategist-utils",
  "valence-test-icq-lib",
 ]
 
@@ -11219,6 +11220,19 @@ dependencies = [
  "thiserror 1.0.69",
  "valence-account-utils",
  "valence-middleware-utils",
+]
+
+[[package]]
+name = "valence-strategist-utils"
+version = "0.2.0"
+dependencies = [
+ "async-trait",
+ "cosmwasm-std 2.2.1",
+ "log",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
 ]
 
 [[package]]

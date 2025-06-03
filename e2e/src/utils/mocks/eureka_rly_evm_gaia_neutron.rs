@@ -3,7 +3,6 @@ use std::{collections::HashSet, error::Error, str::FromStr, time::Duration};
 use crate::utils::{
     parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
     solidity_contracts::{IBCEurekaTransfer::EurekaTransfer, MockERC20},
-    worker::ValenceWorker,
     ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT,
 };
 use alloy::{
@@ -21,6 +20,7 @@ use valence_domain_clients::{
     cosmos::base_client::BaseClient,
     evm::{anvil::AnvilImpersonationClient, request_provider_client::RequestProviderClient},
 };
+use valence_strategist_utils::worker::ValenceWorker;
 
 const POLLING_PERIOD: Duration = Duration::from_secs(5);
 

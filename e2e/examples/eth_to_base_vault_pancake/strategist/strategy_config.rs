@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use valence_e2e::utils::worker::ValenceWorkerTomlSerde;
+use valence_strategist_utils::worker::ValenceWorkerTomlSerde;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrategyConfig {

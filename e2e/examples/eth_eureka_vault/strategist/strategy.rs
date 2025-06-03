@@ -17,8 +17,8 @@ use valence_domain_clients::{
 use valence_e2e::utils::{
     solidity_contracts::{MockERC20, ValenceVault},
     vault::time::{get_current_second, wait_until_next_minute},
-    worker::{ValenceWorker, ValenceWorkerTomlSerde},
 };
+use valence_strategist_utils::worker::{ValenceWorker, ValenceWorkerTomlSerde};
 
 use crate::strategist::{
     astroport::AstroportOps, routing::EurekaVaultRouting, vault::EthereumVault,

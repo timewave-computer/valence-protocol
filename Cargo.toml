@@ -122,6 +122,7 @@ valence-middleware-utils       = { path = "packages/middleware-utils" }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 valence-lending-utils          = { path = "packages/lending-utils" }
 valence-supervaults-utils      = { path = "packages/supervaults-utils" }
+valence-strategist-utils       = { path = "packages/strategist-utils" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
