@@ -18,17 +18,15 @@ use valence_domain_clients::{
     clients::ethereum::EthereumClient,
     evm::{base_client::EvmBaseClient, request_provider_client::RequestProviderClient},
 };
-use valence_e2e::utils::{
-    solidity_contracts::{
-        AavePositionManager, CCTPTransfer,
-        Forwarder::{self},
-        PancakeSwapV3PositionManager, StandardBridgeTransfer, ValenceVault, ERC20,
-    },
-    worker::{ValenceWorker, ValenceWorkerTomlSerde},
+use valence_e2e::utils::solidity_contracts::{
+    AavePositionManager, CCTPTransfer,
+    Forwarder::{self},
+    PancakeSwapV3PositionManager, StandardBridgeTransfer, ValenceVault, ERC20,
 };
 use valence_encoder_utils::libraries::forwarder::solidity_types::{
     ForwarderConfig, ForwardingConfig, IntervalType,
 };
+use valence_strategist_utils::worker::{ValenceWorker, ValenceWorkerTomlSerde};
 
 use super::strategy_config::StrategyConfig;
 

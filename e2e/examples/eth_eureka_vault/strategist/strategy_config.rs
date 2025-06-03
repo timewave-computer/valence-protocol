@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use valence_e2e::utils::worker::ValenceWorkerTomlSerde;
+use valence_strategist_utils::worker::ValenceWorkerTomlSerde;
 
 // here we define the inputs for the strategy.
 // this configuration type should have sufficient information

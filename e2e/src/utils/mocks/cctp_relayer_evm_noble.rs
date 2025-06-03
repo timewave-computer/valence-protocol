@@ -8,11 +8,11 @@ use alloy::{
     sol_types::SolEvent,
 };
 use async_trait::async_trait;
+use valence_strategist_utils::worker::ValenceWorker;
 
 use crate::utils::{
     parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
     solidity_contracts::{MockERC20, MockTokenMessenger::DepositForBurn},
-    worker::ValenceWorker,
     ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, NOBLE_CHAIN_ADMIN_ADDR, NOBLE_CHAIN_DENOM,
     NOBLE_CHAIN_ID, UUSDC_DENOM,
 };

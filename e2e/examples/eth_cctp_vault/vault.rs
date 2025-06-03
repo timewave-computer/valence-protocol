@@ -40,12 +40,12 @@ use valence_e2e::{
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::ValenceVault,
         vault::{self, time::wait_until_half_minute, vault_users::EthereumUsers},
-        worker::{ValenceWorker, ValenceWorkerTomlSerde},
         ADMIN_MNEMONIC, DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, NOBLE_CHAIN_ADMIN_ADDR,
         NOBLE_CHAIN_DENOM, NOBLE_CHAIN_ID, NOBLE_CHAIN_NAME, NOBLE_CHAIN_PREFIX, UUSDC_DENOM,
         VALENCE_ARTIFACTS_PATH,
     },
 };
+use valence_strategist_utils::worker::{ValenceWorker, ValenceWorkerTomlSerde};
 
 const _PROVIDE_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "provide_liquidity";
 const _WITHDRAW_LIQUIDITY_AUTHORIZATIONS_LABEL: &str = "withdraw_liquidity";

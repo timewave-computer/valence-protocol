@@ -48,10 +48,10 @@ use valence_e2e::{
         parse::{get_chain_field_from_local_ic_log, get_grpc_address_and_port_from_url},
         solidity_contracts::{MockERC20, ValenceVault},
         vault::{self, time::wait_until_half_minute, vault_users::EthereumUsers},
-        worker::{ValenceWorker, ValenceWorkerTomlSerde},
         DEFAULT_ANVIL_RPC_ENDPOINT, LOGS_FILE_PATH, VALENCE_ARTIFACTS_PATH,
     },
 };
+use valence_strategist_utils::worker::{ValenceWorker, ValenceWorkerTomlSerde};
 
 mod evm;
 mod strategist;

@@ -8,11 +8,9 @@ use alloy::{
     sol_types::SolEvent,
 };
 use async_trait::async_trait;
+use valence_strategist_utils::worker::ValenceWorker;
 
-use crate::utils::{
-    solidity_contracts::{MockTokenMessenger::DepositForBurn, ERC20},
-    worker::ValenceWorker,
-};
+use crate::utils::solidity_contracts::{MockTokenMessenger::DepositForBurn, ERC20};
 use log::{info, warn};
 use valence_domain_clients::{
     clients::ethereum::EthereumClient,

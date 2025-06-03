@@ -26,8 +26,8 @@ use valence_e2e::utils::{
         standard_bridge_relayer::MockStandardBridgeRelayer,
     },
     solidity_contracts::{BaseAccount, ValenceVault, ERC20},
-    worker::{ValenceWorker, ValenceWorkerTomlSerde},
 };
+use valence_strategist_utils::worker::{ValenceWorker, ValenceWorkerTomlSerde};
 
 const ETH_FORK_URL: &str = "https://eth-mainnet.public.blastapi.io";
 const ETH_ANVIL_PORT: &str = "1337";
