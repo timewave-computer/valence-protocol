@@ -61,7 +61,7 @@ mod execute {
 
 mod functions {
     use cosmwasm_std::{
-        ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128, Uint64,
+        ensure, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128, Uint64,
     };
 
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
@@ -132,6 +132,90 @@ mod functions {
             }
         };
 
+        // after performing assertions that apply to both mars and supervaults phases,
+        // we branch into phase-specific obligation registration handlers
+        match cfg.supervaults_phase {
+            true => handle_supervaults_phase_obligation_registration(
+                deps,
+                env,
+                cfg,
+                payout_amount,
+                id,
+                validated_recipient,
+            ),
+            false => handle_mars_phase_obligation_registration(
+                deps,
+                env,
+                cfg,
+                payout_amount,
+                id,
+                validated_recipient,
+            ),
+        }
+    }
+
+    /// mars-phase obligations are registered in a straightforward manner.
+    /// as phase 1 payouts are distributed in the deposit denom, we assert
+    /// that the payout amount is non-zero. after that we push the obligation
+    /// to the queue and store its id in the obligation status map.
+    fn handle_mars_phase_obligation_registration(
+        deps: DepsMut,
+        env: Env,
+        cfg: Config,
+        payout_amount: Uint128,
+        id: Uint64,
+        recipient: Addr,
+    ) -> Result<Response, LibraryError> {
+        // we validate the payout amount:
+        // - if amount is non-zero, we proceed
+        // - if amount is zero, we immediately mark the obligation as processed
+        // with an error message to not block further obligations from being registered
+        let payout_coin = if !payout_amount.is_zero() {
+            Coin {
+                amount: payout_amount,
+                denom: cfg.denom.to_string(),
+            }
+        } else {
+            OBLIGATION_ID_TO_STATUS_MAP.save(
+                deps.storage,
+                id.u64(),
+                &ObligationStatus::Error("zero payout amount".to_string()),
+            )?;
+            return Ok(Response::default());
+        };
+
+        // construct the valid withdrawal obligation to be queued
+        let withdraw_obligation = WithdrawalObligation {
+            recipient,
+            payout_coin,
+            id,
+            enqueue_block: env.block,
+        };
+
+        // push the obligation to the back of the fifo queue
+        CLEARING_QUEUE.push_back(deps.storage, &withdraw_obligation)?;
+
+        // store the id of the registered obligation in the map with
+        // value `InQueue` to indicate that this obligation is not yet
+        // settled/complete.
+        OBLIGATION_ID_TO_STATUS_MAP.save(deps.storage, id.u64(), &ObligationStatus::InQueue)?;
+
+        Ok(Response::new())
+    }
+
+    /// supervaults obligation registration needs to take on some additional steps.
+    /// because phase 2 payouts are made in the supervaults LP shares, we need to
+    /// convert the obligation payout amount (denominated in the deposit token) into
+    /// the supervaults LP shares. after that, the obligation is constructed
+    /// and pushed to the queue & its id obligation status map just like in phase 1.
+    fn handle_supervaults_phase_obligation_registration(
+        deps: DepsMut,
+        env: Env,
+        cfg: Config,
+        payout_amount: Uint128,
+        id: Uint64,
+        recipient: Addr,
+    ) -> Result<Response, LibraryError> {
         // first we query the supervaults to pairwise match the config denom
         // to the supervault pair data
         let supervaults_config: mmvault::state::Config = deps
@@ -200,7 +284,7 @@ mod functions {
 
         // construct the valid withdrawal obligation to be queued
         let withdraw_obligation = WithdrawalObligation {
-            recipient: validated_recipient,
+            recipient,
             payout_coin,
             id,
             enqueue_block: env.block,
