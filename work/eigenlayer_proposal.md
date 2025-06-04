@@ -2,7 +2,7 @@
 
 ## Summary
 
-This proposal outlines the development of a cross-chain extension to EigenLayer's programmable slashing and reward mechanisms through integration with the Valence Protocol. The solution addresses the current gap where off-chain trading actors operate without slashable commitments despite EigenLayer's infrastructure capabilities, by leveraging Valence's ZK coprocessor to enable secure cross-chain accountability and risk management.
+This proposal outlines the development of a cross-chain extension to EigenLayer's programmable slashing and reward mechanisms through integration with the Valence Protocol. The solution addresses a current gap where off-chain trading firms operate without slashable commitments despite EigenLayer's infrastructure capabilities. By leveraging Valence's flexible, cross-chain programming environment, strategies that would otherwise be run custodially and without programmatic constraints, can be written in a trust-minimized and accountable fashion.
 
 ## Background
 
@@ -14,25 +14,25 @@ EigenLayer operates as a general commitment marketplace that transforms how stak
 - **Delegatable Rewards**: Flexible reward distribution systems that enable complex financial arrangements
 - **Restaking Infrastructure**: Allows ETH stakers to opt-in to additional services while maintaining their core validation responsibilities
 
-These capabilities enable the financialization of staked assets, creating opportunities for more sophisticated capital allocation strategies. Specifically, staked assets can serve as collateral for credit markets where stakers pledge capital to proprietary trading shops who run strategies across various DeFi protocols.
+These capabilities enable the financialization of staked assets, creating opportunities for more sophisticated capital allocation strategies. Specifically, tokenized representations of these staking positions can serve as collateral for credit markets where stakers pledge capital to proprietary trading shops who run strategies across various DeFi protocols.
 
 ### Current Market Dynamics
 
-The EigenLayer ecosystem has attracted significant interest from institutional trading firms and yield farming operations seeking access to large pools of staked capital. These actors offer attractive returns to stakers in exchange for capital allocation rights, creating a new primitive in crypto finance that bridges traditional institutional trading with decentralized staking infrastructure.
+The EigenLayer ecosystem has attracted significant interest from trading shops and yield farming operations seeking access to large pools of staked capital. These actors offer attractive returns to stakers in exchange for capital allocation rights, creating a new primitive in crypto finance that bridges decentralized finance with staking infrastructure.
 
 ## Problem Statement
 
 ### Accountability Gap in Cross-Chain Operations
 
-Despite EigenLayer's robust programmable slashing infrastructure, the current environment presents several critical limitations:
+Despite EigenLayer's robust programmable slashing infrastructure, the current environment presents several key limitations:
 
-1. **Off-Chain Actor Risk**: Most proprietary trading shops and yield farming operations function as off-chain entities providing no slashable commitments to EigenLayer stakers, despite having access to programmable slashing facilities.
+1. **Off-Chain Actor Risk**: Most proprietary trading shops and yield farming operations function as trusted off-chain entities providing no slashable commitments to EigenLayer stakers, despite having access to programmable slashing facilities.
 
-2. **Cross-Chain Accountability Void**: EigenLayer's slashing mechanisms are primarily designed for on-chain operations within the Ethereum ecosystem, leaving cross-chain activities—where significant yield opportunities exist—without adequate accountability frameworks.
+2. **Cross-Chain Accountability Void**: EigenLayer's slashing mechanisms are primarily designed for operations on Ethereum mainnet, leaving cross-chain activities—where significant yield opportunities exist—without adequate accountability frameworks.
 
 3. **High Risk Tolerance vs. Safety Requirements**: While the current market exhibits high risk tolerance, EigenLayer's long-term success requires promoting safer solutions that protect stakers while enabling innovation.
 
-4. **Limited Cross-Chain Verification**: There is no available mechanism to keep off-chain actors accountable for their cross-chain actions, creating an asymmetric risk profile where stakers bear the consequences of poor performance without enforceable recourse.
+4. **Limited Cross-Chain Verification**: There is no mechanism available to keep off-chain actors accountable for remote actions, creating an asymmetric risk profile where stakers bear the consequences of poor performance without enforceable recourse.
 
 ### Strategic Implications
 
@@ -45,9 +45,9 @@ This accountability gap poses several challenges:
 
 ### Solution Architecture Overview
 
-Our proposed solution leverages Valence Protocol's cross-chain capabilities to extend EigenLayer's slashing and reward facilities across multiple blockchain networks. This integration creates a comprehensive framework for cross-chain accountability while maintaining the security guarantees that EigenLayer stakers expect.
+Our proposed solution leverages Valence Protocol's cross-chain capabilities to extend EigenLayer's slashing and reward facilities across multiple blockchain networks. This integration creates a framework for cross-chain accountability while maintaining EigenLayer's security guarantees.
 
-### Key Innovation: ZK-Powered Cross-Chain Slashing
+### ZK Verifiable Cross-Chain Slashing
 
 The integration utilizes Valence's ZK coprocessor to create verifiable proofs of cross-chain behavior, enabling EigenLayer's slashing mechanisms to operate across any blockchain network supported by Valence. This approach provides:
 
