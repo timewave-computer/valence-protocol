@@ -62,6 +62,7 @@
     - [AAVE Position Manager](./libraries/evm/aave_position_manager.md)
     - [PancakeSwap V3 Position Manager](./libraries/evm/pancakeswap_v3_position_manager.md)
     - [Balancer V2 Swap](./libraries/evm/balancer_v2_swap.md)
+    - [Splitter](./libraries/evm/splitter.md)
 - [Middleware](./middleware/_overview.md)
   - [Broker](./middleware/broker.md)
   - [Type Registry](./middleware/type_registry.md)
