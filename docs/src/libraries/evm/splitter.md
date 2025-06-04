@@ -1,6 +1,6 @@
 # Valence Splitter Library
 
-The EVM Splitter library allows to split funds from one input account to one or more output accounts, for one or more tokens according to the configured split configurations. Each token can be split using fixed amounts, fixed ratios, or dynamic ratios calculated by an external oracle contract. This library enables Valence Programs to distribute assets across multiple accounts with precise control over allocation strategies.
+The EVM Splitter library allows splitting funds from one input account to one or more output accounts, for one or more tokens according to the configured split configurations. Each token can be split using fixed amounts, fixed ratios, or dynamic ratios calculated by an external oracle contract. This library enables Valence Programs to distribute assets across multiple accounts with precise control over allocation strategies.
 
 ## High-level Flow
 
@@ -91,7 +91,7 @@ The library is configured on deployment using the `SplitterConfig` type.
 ## Split Types
 
 ### Fixed Amount
-Splits an exact amount of tokens regardless of the total balance. The `splitData` contains the encoded amount as `uint256`.
+Splits an exact number of tokens regardless of the total balance. The `splitData` contains the encoded amount as `uint256`.
 
 ### Fixed Ratio
 Splits tokens based on a fixed percentage of the total balance. The `splitData` contains the encoded ratio as `uint256` scaled by 10^18.
@@ -139,15 +139,6 @@ The library supports both ERC20 tokens and native ETH:
 - **ERC20 Tokens**: Use the token contract address
 - **Native ETH**: Use `address(0)` as the token address
 
-### Error Handling
+## Acknowledgments
 
-- **Zero Address**: Input account cannot be zero address
-- **No Configuration**: Must provide at least one split configuration
-- **Invalid Amounts**: Fixed amounts and ratios must be greater than zero
-- **Type Conflicts**: Cannot combine different split types for the same token
-- **Ratio Overflow**: Dynamic ratios cannot exceed 1.0 (100%)
-- **Invalid Oracle**: Dynamic ratio contract addresses must be valid smart contracts 
-
-### Thank You
-
-Thanks to Muhammad, Hareem, and Ayush from [Orbit](https://www.orbitearn.com/) for your contribution.
+Thanks to Mujtaba, Hareem, and Ayush from [Orbit](https://www.orbitearn.com/) for this contribution.
