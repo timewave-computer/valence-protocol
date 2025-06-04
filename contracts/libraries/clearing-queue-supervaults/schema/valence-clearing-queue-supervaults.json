@@ -75,6 +75,7 @@
           "denom",
           "settlement_acc_addr",
           "supervault_addr",
+          "supervaults_phase",
           "supervaults_sender"
         ],
         "properties": {
@@ -104,6 +105,10 @@
           "supervault_addr": {
             "description": "supervaults address",
             "type": "string"
+          },
+          "supervaults_phase": {
+            "description": "vault phase flag: - true -> supervaults phase - false -> mars phase",
+            "type": "boolean"
           },
           "supervaults_sender": {
             "description": "supervaults provider addr",
@@ -424,6 +429,12 @@
               "null"
             ]
           },
+          "supervaults_phase": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "supervaults_sender": {
             "type": [
               "string",
@@ -626,7 +637,8 @@
         "latest_id",
         "settlement_acc_addr",
         "supervault_addr",
-        "supervault_sender"
+        "supervault_sender",
+        "supervaults_phase"
       ],
       "properties": {
         "denom": {
@@ -664,6 +676,10 @@
               "$ref": "#/definitions/Addr"
             }
           ]
+        },
+        "supervaults_phase": {
+          "description": "vault phase flag: - true -> supervaults phase - false -> mars phase",
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
@@ -692,6 +708,7 @@
         "denom",
         "settlement_acc_addr",
         "supervault_addr",
+        "supervaults_phase",
         "supervaults_sender"
       ],
       "properties": {
@@ -721,6 +738,10 @@
         "supervault_addr": {
           "description": "supervaults address",
           "type": "string"
+        },
+        "supervaults_phase": {
+          "description": "vault phase flag: - true -> supervaults phase - false -> mars phase",
+          "type": "boolean"
         },
         "supervaults_sender": {
           "description": "supervaults provider addr",
