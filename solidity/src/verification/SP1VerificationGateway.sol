@@ -52,14 +52,11 @@ contract SP1VerificationGateway is VerificationGateway {
         // If the VK is not set, revert
         require(vk != bytes32(0), "VK not set for sender and registry");
 
-        // Get the domain VK for the sender and the registry
-        bytes32 domainVk = domainVKs[msg.sender][registry];
-
         // Call the specific verifier
         ISP1Verifier sp1Verifier = getVerifier();
 
         sp1Verifier.verifyProof(vk, proof, message);
-        sp1Verifier.verifyProof(domainVk, domainProof, domainMessage);
+        sp1Verifier.verifyProof(domainVK, domainProof, domainMessage);
 
         return true;
     }

@@ -95,7 +95,7 @@ contract AuthorizationZKTest is Test {
         validateBlockNumbers[1] = validateBlockNumber2;
 
         // Add registries
-        auth.addRegistries(registries, users, vks, vks, validateBlockNumbers);
+        auth.addRegistries(registries, users, vks, vks[0], validateBlockNumbers);
 
         // Verify registry 1
         bytes32 storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
@@ -144,7 +144,7 @@ contract AuthorizationZKTest is Test {
         validateBlockNumbers[0] = validateBlockNumber1;
         validateBlockNumbers[1] = validateBlockNumber2;
 
-        auth.addRegistries(registriesToAdd, users, vks, vks, validateBlockNumbers);
+        auth.addRegistries(registriesToAdd, users, vks, vks[0], validateBlockNumbers);
 
         // Verify registries were added
         bytes32 storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
@@ -196,7 +196,7 @@ contract AuthorizationZKTest is Test {
         validateBlockNumbers[1] = validateBlockNumber2;
 
         vm.expectRevert();
-        auth.addRegistries(registries, users, vks, vks, validateBlockNumbers);
+        auth.addRegistries(registries, users, vks, vks[0], validateBlockNumbers);
 
         vm.stopPrank();
     }
@@ -240,7 +240,7 @@ contract AuthorizationZKTest is Test {
         validateBlockNumbers[1] = validateBlockNumber2;
 
         vm.expectRevert("Array lengths must match");
-        auth.addRegistries(registries, users, vks, vks, validateBlockNumbers);
+        auth.addRegistries(registries, users, vks, vks[0][0], validateBlockNumbers);
 
         vm.stopPrank();
     }
@@ -281,7 +281,7 @@ contract AuthorizationZKTest is Test {
         bool[] memory validateBlockNumbers = new bool[](1);
         validateBlockNumbers[0] = validateBlockNumber1;
 
-        auth.addRegistries(registries, users, vks, vks, validateBlockNumbers);
+        auth.addRegistries(registries, users, vks, vks[0], validateBlockNumbers);
 
         // Create a ZK message with an invalid authorization contract
         bytes memory zkMessage = createDummyZKMessage(registryId1, address(user1));
@@ -314,7 +314,7 @@ contract AuthorizationZKTest is Test {
         bool[] memory validateBlockNumbers = new bool[](1);
         validateBlockNumbers[0] = validateBlockNumber1;
 
-        auth.addRegistries(registries, users, vks, vks, validateBlockNumbers);
+        auth.addRegistries(registries, users, vks, vks[0], validateBlockNumbers);
 
         vm.stopPrank();
 

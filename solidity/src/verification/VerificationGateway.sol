@@ -17,17 +17,14 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
     /// @notice Generic verifier address that will be specialized in derived contracts
     address public verifier;
 
+    /// @notice domainVK used to verify domain proofs
+    bytes32 domainVK;
+
     /**
      * @notice Mapping of program verification keys by user address and registry ID
      * @dev Maps: user address => registry ID => verification key
      */
     mapping(address => mapping(uint64 => bytes32)) public programVKs;
-
-    /**
-     * @notice Mapping of domain verification keys by user address and registry ID
-     * @dev Maps: user address => registry ID => domain verification key
-     */
-    mapping(address => mapping(uint64 => bytes32)) public domainVKs;
 
     // Storage gap - reserves slots for future versions
     uint256[50] private __gap;
@@ -65,11 +62,19 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
      * @dev Only the sender can add a VK for their own address
      * @param registry The registry ID to associate with the verification key
      * @param vk The verification key to register
-     * @param domainVk The domain verification key
+     * @param _domainVk The domain verification key
      */
-    function addRegistry(uint64 registry, bytes32 vk, bytes32 domainVk) external {
+    function addRegistry(uint64 registry, bytes32 vk, bytes32 _domainVk) external {
         programVKs[msg.sender][registry] = vk;
-        domainVKs[msg.sender][registry] = domainVk;
+
+        bytes32 cachedDomainVk = domainVK;
+        // Check if the domain VK is initialized, if not check that it's the same as the existing one
+        if (cachedDomainVk == bytes32(0)) {
+            require(_domainVk != bytes32(0), "Domain VK cannot be zero");
+            domainVK = _domainVk;
+        } else {
+            require(cachedDomainVk == _domainVk, "Domain VK mismatch");
+        }
     }
 
     /**
@@ -79,7 +84,6 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
      */
     function removeRegistry(uint64 registry) external {
         delete programVKs[msg.sender][registry];
-        delete domainVKs[msg.sender][registry];
     }
 
     /**
