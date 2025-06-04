@@ -3716,6 +3716,131 @@ struct BalancerV2SwapConfig {
     address vaultAddress;
 }
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-splitter-library-1"><a class="header" href="#valence-splitter-library-1">Valence Splitter Library</a></h1>
+<p>The EVM Splitter library allows splitting funds from one input account to one or more output accounts, for one or more tokens according to the configured split configurations. Each token can be split using fixed amounts, fixed ratios, or dynamic ratios calculated by an external oracle contract. This library enables Valence Programs to distribute assets across multiple accounts with precise control over allocation strategies.</p>
+<h2 id="high-level-flow-24"><a class="header" href="#high-level-flow-24">High-level Flow</a></h2>
+<pre class="mermaid">---
+title: Splitter Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA1((Output
+      Account 1))
+  OA2((Output
+      Account 2))
+  P[Processor]
+  S[Splitter
+    Library]
+  O[Dynamic Ratio
+    Oracle]
+  P -- 1/Split --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -. 3/Query dynamic ratio .-&gt; O
+  S -- 4/Transfer to OA1 --&gt; IA
+  S -- 4'/Transfer to OA2 --&gt; IA
+  IA -- 5/Transfer funds --&gt; OA1
+  IA -- 5'/Transfer funds --&gt; OA2
+</pre>
+<h2 id="functions-26"><a class="header" href="#functions-26">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>split</strong></td><td>-</td><td>Splits funds from the configured input account to the output accounts according to the configured split configurations for each token.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-26"><a class="header" href="#configuration-26">Configuration</a></h2>
+<p>The library is configured on deployment using the <code>SplitterConfig</code> type.</p>
+<pre><code class="language-solidity">    /**
+     * @title SplitterConfig
+     * @notice Configuration struct for splitting operations
+     * @param inputAccount Address of the input account
+     * @param splits Split configuration per token address
+     */
+    struct SplitterConfig {
+        BaseAccount inputAccount;
+        SplitConfig[] splits;
+    }
+
+    /**
+     * @title SplitConfig
+     * @notice Split config for specified account
+     * @param outputAccount Address of the output account
+     * @param token Address of the token account. Use address(0) to send ETH
+     * @param splitType type of the split
+     * @param splitData encoded configuration based on the type of split
+     */
+    struct SplitConfig {
+        BaseAccount outputAccount;
+        address token;
+        SplitType splitType;
+        bytes splitData;
+    }
+
+    /**
+     * @title SplitType
+     * @notice enum defining allowed variants of split config
+     */
+    enum SplitType {
+        FixedAmount,    // Split a fixed amount of tokens
+        FixedRatio,     // Split based on a fixed ratio (percentage)
+        DynamicRatio    // Split based on a dynamic ratio from oracle
+    }
+
+    /**
+     * @title DynamicRatioAmount
+     * @notice Params for dynamic ratio split
+     * @param contractAddress Address of the dynamic ratio oracle contract
+     * @param params Encoded parameters for the oracle
+     */
+    struct DynamicRatioAmount {
+        address contractAddress;
+        bytes params;
+    }
+</code></pre>
+<h2 id="split-types"><a class="header" href="#split-types">Split Types</a></h2>
+<h3 id="fixed-amount"><a class="header" href="#fixed-amount">Fixed Amount</a></h3>
+<p>Splits an exact number of tokens regardless of the total balance. The <code>splitData</code> contains the encoded amount as <code>uint256</code>.</p>
+<h3 id="fixed-ratio"><a class="header" href="#fixed-ratio">Fixed Ratio</a></h3>
+<p>Splits tokens based on a fixed percentage of the total balance. The <code>splitData</code> contains the encoded ratio as <code>uint256</code> scaled by 10^18.</p>
+<h3 id="dynamic-ratio"><a class="header" href="#dynamic-ratio">Dynamic Ratio</a></h3>
+<p>Splits tokens based on a ratio calculated by an external oracle contract. The <code>splitData</code> contains an encoded <code>DynamicRatioAmount</code> struct with the oracle contract address and parameters.</p>
+<h2 id="implementation-details"><a class="header" href="#implementation-details">Implementation Details</a></h2>
+<h3 id="validation-rules"><a class="header" href="#validation-rules">Validation Rules</a></h3>
+<p>The library enforces several validation rules during configuration:</p>
+<ul>
+<li><strong>Input Account</strong>: Must be a valid non-zero address</li>
+<li><strong>No Duplicates</strong>: Cannot have duplicate splits for the same token and output account combination</li>
+<li><strong>Split Type Consistency</strong>: Cannot mix different split types for the same token</li>
+<li><strong>Ratio Sum</strong>: For fixed ratio splits, the sum of all ratios for a token must equal 1.0 (10^18)</li>
+<li><strong>Oracle Validation</strong>: Dynamic ratio oracle addresses must be valid smart contracts</li>
+</ul>
+<h3 id="execution-process"><a class="header" href="#execution-process">Execution Process</a></h3>
+<ol>
+<li><strong>Balance Query</strong>: Retrieves the current balance for each token from the input account</li>
+<li><strong>Amount Calculation</strong>: Calculates split amounts based on the configured split type:
+<ul>
+<li><strong>Fixed Amount</strong>: Uses the configured amount directly</li>
+<li><strong>Fixed Ratio</strong>: Multiplies balance by ratio and divides by 10^18</li>
+<li><strong>Dynamic Ratio</strong>: Queries the oracle contract for the current ratio</li>
+</ul>
+</li>
+<li><strong>Transfer Execution</strong>: Executes transfers from the input account to each output account</li>
+</ol>
+<h3 id="oracle-integration"><a class="header" href="#oracle-integration">Oracle Integration</a></h3>
+<p>For dynamic ratio splits, the library integrates with external oracle contracts implementing the <code>IDynamicRatioOracle</code> interface:</p>
+<pre><code class="language-solidity">interface IDynamicRatioOracle {
+    function queryDynamicRatio(IERC20 token, bytes calldata params) 
+        external view returns (uint256 ratio);
+}
+</code></pre>
+<p>The oracle returns a ratio scaled by 10^18, which must not exceed 1.0 (10^18). This enables integration with price oracles, TWAP calculators, or other dynamic pricing mechanisms.</p>
+<h3 id="native-asset-support"><a class="header" href="#native-asset-support">Native Asset Support</a></h3>
+<p>The library supports both ERC20 tokens and native ETH:</p>
+<ul>
+<li><strong>ERC20 Tokens</strong>: Use the token contract address</li>
+<li><strong>Native ETH</strong>: Use <code>address(0)</code> as the token address</li>
+</ul>
+<h2 id="acknowledgments"><a class="header" href="#acknowledgments">Acknowledgments</a></h2>
+<p>Thanks to Mujtaba, Hareem, and Ayush from <a href="https://www.orbitearn.com/">Orbit</a> for this contribution.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="middleware"><a class="header" href="#middleware">Middleware</a></h1>
 <p>This section contains a description of the Valence Protocol middleware design.</p>
 <p><strong>Valence Protocol Middleware components</strong>:</p>
@@ -4133,7 +4258,7 @@ This way, when the message batch is being processed, any assertions that do not 
 prevent later messages from executing as expected. If the batch is <em>atomic</em>, the whole batch will abort.
 If the batch is <em>non-atomic</em>, various <a href="middleware/./../authorizations_processors/authorization_contract.html">authorization</a> configuration
 options will dictate the further behavior.</p>
-<h2 id="high-level-flow-24"><a class="header" href="#high-level-flow-24">High-level flow</a></h2>
+<h2 id="high-level-flow-25"><a class="header" href="#high-level-flow-25">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---
