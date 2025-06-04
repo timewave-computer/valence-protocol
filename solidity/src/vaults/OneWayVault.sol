@@ -151,6 +151,7 @@ contract OneWayVault is
      * @dev Structure for withdrawal requests to destination domain
      * @param id Unique ID for the request
      * @param owner Owner of the request who burned shares
+     * @param isReceiverContract Whether the receiver is a contract or not (used for validation)
      * @param redemptionRate Redemption rate at time of request
      * @param sharesAmount Amount of shares to be redeemed
      * @param receiver Address to receive assets on destination domain (as string, e.g. Neutron address)
@@ -158,6 +159,7 @@ contract OneWayVault is
     struct WithdrawRequest {
         uint64 id;
         address owner;
+        bool isReceiverContract;
         uint256 redemptionRate;
         uint256 sharesAmount;
         string receiver;
@@ -605,9 +607,12 @@ contract OneWayVault is
         }
         _burn(owner, sharesToBurn);
 
+        // If receiver is 66 characters long, it's a contract address
+        bool isReceiverContract = bytes(receiver).length == 66;
         WithdrawRequest memory request = WithdrawRequest({
             id: currentWithdrawRequestId,
             owner: owner,
+            isReceiverContract: isReceiverContract,
             sharesAmount: postFeeShares, // Net shares that will be processed
             redemptionRate: redemptionRate,
             receiver: receiver
@@ -701,7 +706,10 @@ contract OneWayVault is
      */
     function _validateWithdrawParams(address owner, string calldata receiver, uint256 amount) internal pure {
         if (owner == address(0)) revert("Owner of shares cannot be zero address");
-        if (bytes(receiver).length == 0) revert("Receiver cannot be empty");
+        // Length of receiver must be 46 or 66 characters (Neutron address or Neutron contract address)
+        if (bytes(receiver).length != 46 && bytes(receiver).length != 66) {
+            revert("Receiver address must be 46 or 66 characters long");
+        }
         if (amount == 0) revert("Amount to withdraw cannot be zero");
     }
 
