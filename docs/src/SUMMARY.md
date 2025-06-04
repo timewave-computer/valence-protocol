@@ -36,6 +36,7 @@
     - [Astroport LPer](./libraries/cosmwasm/astroport_lper.md)
     - [Astroport Withdrawer](./libraries/cosmwasm/astroport_withdrawer.md)
     - [Clearing Queue](./libraries/cosmwasm/clearing_queue.md)
+    - [Elys Lending](./libraries/cosmwasm/elys_lending.md)   
     - [Forwarder](./libraries/cosmwasm/forwarder.md)
     - [Generic IBC Transfer](./libraries/cosmwasm/generic_ibc_transfer.md)
     - [Neutron IBC Transfer](./libraries/cosmwasm/neutron_ibc_transfer.md)
