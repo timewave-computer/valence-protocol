@@ -12,7 +12,7 @@ impl NeutronTestAppBuilder {
     pub fn new() -> Self {
         NeutronTestAppBuilder {
             fee_denom: FEE_DENOM.to_string(),
-            initial_balance: 100_000_000_000,
+            initial_balance: 100_000_000_000_000,
             num_accounts: 5,
         }
     }
