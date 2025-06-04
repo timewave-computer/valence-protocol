@@ -22,6 +22,10 @@ pub struct Config {
     pub supervault_addr: Addr,
     /// supervaults provider addr
     pub supervault_sender: Addr,
+    /// vault phase flag:
+    /// - true -> supervaults phase
+    /// - false -> mars phase
+    pub supervaults_phase: bool,
 }
 
 #[cw_serde]
@@ -39,6 +43,10 @@ pub struct LibraryConfig {
     pub supervault_addr: String,
     /// supervaults provider addr
     pub supervaults_sender: String,
+    /// vault phase flag:
+    /// - true -> supervaults phase
+    /// - false -> mars phase
+    pub supervaults_phase: bool,
 }
 
 #[cw_serde]
@@ -63,6 +71,7 @@ impl LibraryConfig {
         latest_id: Option<Uint64>,
         supervault_addr: String,
         supervaults_sender: String,
+        supervaults_phase: bool,
     ) -> Self {
         LibraryConfig {
             settlement_acc_addr: settlement_acc_addr.into(),
@@ -70,13 +79,14 @@ impl LibraryConfig {
             latest_id,
             supervault_addr,
             supervaults_sender,
+            supervaults_phase,
         }
     }
 
     fn do_validate(
         &self,
         api: &dyn cosmwasm_std::Api,
-    ) -> Result<(Addr, String, Uint64, Addr, Addr), LibraryError> {
+    ) -> Result<(Addr, String, Uint64, Addr, Addr, bool), LibraryError> {
         // validate the input account
         let settlement_acc_addr = self.settlement_acc_addr.to_addr(api)?;
 
@@ -97,6 +107,7 @@ impl LibraryConfig {
             id,
             validated_supervault_addr,
             validated_supervaults_sender,
+            self.supervaults_phase,
         ))
     }
 }
@@ -109,14 +120,21 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
-        let (settlement_acc_addr, denom, latest_id, supervault_addr, supervault_sender) =
-            self.do_validate(deps.api)?;
+        let (
+            settlement_acc_addr,
+            denom,
+            latest_id,
+            supervault_addr,
+            supervault_sender,
+            supervaults_phase,
+        ) = self.do_validate(deps.api)?;
         Ok(Config {
             settlement_acc_addr,
             denom,
             latest_id,
             supervault_addr,
             supervault_sender,
+            supervaults_phase,
         })
     }
 }
@@ -143,6 +161,10 @@ impl LibraryConfigUpdate {
 
         if let Some(addr) = self.supervaults_sender {
             config.supervault_sender = deps.api.addr_validate(&addr)?;
+        }
+
+        if let Some(is_supervaults) = self.supervaults_phase {
+            config.supervaults_phase = is_supervaults;
         }
 
         valence_library_base::save_config(deps.storage, &config)?;
