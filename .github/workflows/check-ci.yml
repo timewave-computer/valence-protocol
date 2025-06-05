@@ -15,6 +15,7 @@ env:
   FOUNDRY_PROFILE: ci
   RUSTFLAGS: "-Dwarnings"
   GO_VERSION: 1.21
+  MAINNET_RPC_URL: "https://mainnet.gateway.tenderly.co"
 
 jobs:
   solidity:
