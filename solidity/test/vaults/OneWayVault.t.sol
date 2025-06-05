@@ -604,7 +604,7 @@ contract OneWayVaultTest is Test {
 
         // Now redeem half the shares
         uint256 redeemShares = expectedShares / 2;
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron1fqf5mprg3f5hytvzp3t7spmsum6rjrw80mq8zgkc0h6rxga0dtzqws3uu7";
 
         // Calculate expected values
         uint256 grossAssets = (redeemShares * initialRate) / 10 ** vault.decimals();
@@ -625,11 +625,18 @@ contract OneWayVaultTest is Test {
         assertEq(vault.feesAccruedInAsset(), depositFee + expectedWithdrawFee);
 
         // Check that withdraw request was created
-        (uint64 id, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
-            vault.withdrawRequests(0);
+        (
+            uint64 id,
+            address ownerRequest,
+            bool isContract,
+            uint256 redemptionRate,
+            uint256 sharesAmount,
+            string memory receiver
+        ) = vault.withdrawRequests(0);
 
         assertEq(id, 0);
         assertEq(ownerRequest, user1);
+        assertTrue(isContract); // ownerRequest should be a contract address
         assertEq(receiver, receiverAddress);
         assertEq(redemptionRate, initialRate);
         // The withdrawal request stores NET shares (for cross-chain processing)
@@ -666,7 +673,7 @@ contract OneWayVaultTest is Test {
 
         uint256 userShares = vault.balanceOf(user1);
         uint256 redeemShares = userShares / 2;
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron14mlpd48k5vkeset4x7f78myz3m47jcax3ysjkp";
 
         uint256 feesAccruedBefore = vault.feesAccruedInAsset();
 
@@ -683,7 +690,8 @@ contract OneWayVaultTest is Test {
         assertEq(vault.balanceOf(user1), userShares - redeemShares);
 
         // Check withdrawal request has same shares (no fee deduction)
-        (,,, uint256 sharesAmount,) = vault.withdrawRequests(0);
+        (,, bool isContract,, uint256 sharesAmount,) = vault.withdrawRequests(0);
+        assertFalse(isContract); // ownerRequest should not be a contract address
         assertEq(sharesAmount, redeemShares);
     }
 
@@ -700,7 +708,7 @@ contract OneWayVaultTest is Test {
 
         // Now withdraw half the assets (gross amount)
         uint256 withdrawAssets = depositAfterFee / 2;
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron14mlpd48k5vkeset4x7f78myz3m47jcax3ysjkp";
 
         // Calculate expected withdrawal fee and net assets
         uint256 expectedWithdrawFee = vault.calculateWithdrawalFee(withdrawAssets);
@@ -717,7 +725,7 @@ contract OneWayVaultTest is Test {
         assertEq(vault.feesAccruedInAsset(), depositFee + expectedWithdrawFee);
 
         // Check that withdraw request was created
-        (, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
+        (, address ownerRequest,, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
             vault.withdrawRequests(0);
 
         assertEq(ownerRequest, user1);
@@ -751,7 +759,7 @@ contract OneWayVaultTest is Test {
         uint256 expectedSharesToBurn = approvedShares;
 
         // User2 redeems on behalf of user1
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron14mlpd48k5vkeset4x7f78myz3m47jcax3ysjkp";
         vm.prank(user2);
         vault.redeem(approvedShares, receiverAddress, user1);
 
@@ -764,7 +772,7 @@ contract OneWayVaultTest is Test {
         assertEq(vault.allowance(user1, user2), 0);
 
         // Additional verification: check the withdrawal request
-        (,, uint256 redemptionRate, uint256 sharesAmount,) = vault.withdrawRequests(0);
+        (,,, uint256 redemptionRate, uint256 sharesAmount,) = vault.withdrawRequests(0);
 
         // The withdrawal request should store net shares (for cross-chain processing)
         uint256 expectedNetShares = (netAssets * 10 ** vault.decimals()) / initialRate;
@@ -782,7 +790,7 @@ contract OneWayVaultTest is Test {
         vault.deposit(depositAmount, user1);
 
         uint256 shares = vault.balanceOf(user1);
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron14mlpd48k5vkeset4x7f78myz3m47jcax3ysjkp";
 
         // Test zero owner address
         vm.prank(user1);
@@ -791,8 +799,8 @@ contract OneWayVaultTest is Test {
 
         // Test empty receiver address
         vm.prank(user1);
-        vm.expectRevert("Receiver cannot be empty");
-        vault.redeem(shares / 2, "", user1);
+        vm.expectRevert("Receiver address must be 46 or 66 characters long");
+        vault.redeem(shares / 2, "neutron11234", user1);
 
         // Test zero shares amount
         vm.prank(user1);
@@ -853,7 +861,7 @@ contract OneWayVaultTest is Test {
 
         // Redeem some shares to generate withdrawal fees
         uint256 redeemShares = userShares / 4; // Redeem 25%
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron14mlpd48k5vkeset4x7f78myz3m47jcax3ysjkp";
 
         vm.prank(user1);
         vault.redeem(redeemShares, receiverAddress, user1);
@@ -901,7 +909,7 @@ contract OneWayVaultTest is Test {
         uint256 userShares = vault.balanceOf(user1);
 
         // User immediately withdraws all shares
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron14mlpd48k5vkeset4x7f78myz3m47jcax3ysjkp";
         vm.prank(user1);
         vault.redeem(userShares, receiverAddress, user1);
 
@@ -1177,7 +1185,7 @@ contract OneWayVaultTest is Test {
         // 4. Withdrawal request from user1 (half their shares)
         uint256 user1SharesBefore = vault.balanceOf(user1);
         uint256 redeemShares = user1SharesBefore / 2;
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron14mlpd48k5vkeset4x7f78myz3m47jcax3ysjkp";
 
         vm.prank(user1);
         vault.redeem(redeemShares, receiverAddress, user1);
@@ -1189,7 +1197,7 @@ contract OneWayVaultTest is Test {
         assertEq(user1SharesAfter, user1SharesBefore - redeemShares, "Should burn exact shares requested");
 
         // 6. Check withdrawal request was created with correct values
-        (, address ownerRequest, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
+        (, address ownerRequest,, uint256 redemptionRate, uint256 sharesAmount, string memory receiver) =
             vault.withdrawRequests(0);
 
         assertEq(ownerRequest, user1);
@@ -1232,12 +1240,12 @@ contract OneWayVaultTest is Test {
 
         // 11. Additional verification: Check that two withdrawal requests exist
         // First request (user1)
-        (, address owner1,,, string memory receiver1) = vault.withdrawRequests(0);
+        (, address owner1,,,, string memory receiver1) = vault.withdrawRequests(0);
         assertEq(owner1, user1);
         assertEq(receiver1, receiverAddress);
 
         // Second request (user2)
-        (, address owner2,,, string memory receiver2) = vault.withdrawRequests(1);
+        (, address owner2,,,, string memory receiver2) = vault.withdrawRequests(1);
         assertEq(owner2, user2);
         assertEq(receiver2, receiverAddress);
     }
@@ -1264,7 +1272,7 @@ contract OneWayVaultTest is Test {
 
         // 6. Create withdrawal request for assets (accounting for withdrawal fee)
         uint256 withdrawAssets = expectedAssets / 4; // Withdraw 25% of total assets
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron14mlpd48k5vkeset4x7f78myz3m47jcax3ysjkp";
 
         vm.prank(user1);
         vault.withdraw(withdrawAssets, receiverAddress, user1);
@@ -1274,7 +1282,7 @@ contract OneWayVaultTest is Test {
         uint256 sharesBurned = user1SharesBefore - user1SharesAfter;
 
         // 8. Check withdrawal request uses current rate
-        (,, uint256 redemptionRate, uint256 sharesAmount,) = vault.withdrawRequests(0);
+        (,,, uint256 redemptionRate, uint256 sharesAmount,) = vault.withdrawRequests(0);
         assertEq(redemptionRate, doubledRate);
 
         // 9. Verify correct shares were burned (including fee)
@@ -1400,7 +1408,7 @@ contract OneWayVaultTest is Test {
         );
 
         // Each user redeems a portion (this will generate withdrawal fees)
-        string memory receiverAddress = "neutron1abcdef123456789";
+        string memory receiverAddress = "neutron14mlpd48k5vkeset4x7f78myz3m47jcax3ysjkp";
         for (uint256 i = 0; i < userCount; i++) {
             uint256 userShares = vault.balanceOf(users[i]);
             if (userShares > 0) {
