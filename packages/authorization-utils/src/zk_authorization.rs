@@ -19,8 +19,6 @@ pub struct ZkAuthorizationInfo {
     pub registry: u64,
     // The Verifying Key to be used for the Message
     pub vk: Binary,
-    // The VK that will be used to verify the domain
-    pub domain_vk: Binary,
     // Flag to indicate if we need to validate the last block execution of a specific ZK authorization
     pub validate_last_block_execution: bool,
 }
@@ -32,7 +30,6 @@ impl ZkAuthorizationInfo {
             mode: self.mode.into_mode_validated(api),
             registry: self.registry,
             vk: self.vk,
-            domain_vk: self.domain_vk,
             validate_last_block_execution: self.validate_last_block_execution,
             state: AuthorizationState::Enabled,
         }
@@ -45,7 +42,6 @@ pub struct ZkAuthorization {
     pub mode: AuthorizationMode,
     pub registry: u64,
     pub vk: Binary,
-    pub domain_vk: Binary,
     pub validate_last_block_execution: bool,
     pub state: AuthorizationState,
 }

@@ -550,14 +550,12 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @param registries Array of registry IDs to be added
      * @param users Array of arrays of user addresses associated with each registry
      * @param vks Array of verification keys associated with each registry
-     * @param domainVk Verification key for the domain, used to verify the coprocessor root
      * @param validateBlockNumber Array of booleans indicating if we need to validate the last block execution for each registry
      */
     function addRegistries(
         uint64[] memory registries,
         address[][] memory users,
         bytes32[] calldata vks,
-        bytes32 domainVk,
         bool[] memory validateBlockNumber
     ) external onlyOwner {
         // Since we are allowing multiple registries to be added at once, we need to check that the arrays are the same length
@@ -571,7 +569,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
 
         for (uint256 i = 0; i < registries.length; i++) {
             // Add the registry to the verification gateway
-            verificationGateway.addRegistry(registries[i], vks[i], domainVk);
+            verificationGateway.addRegistry(registries[i], vks[i]);
             zkAuthorizations[registries[i]] = users[i];
             // Only store if true because default is false
             if (validateBlockNumber[i]) {

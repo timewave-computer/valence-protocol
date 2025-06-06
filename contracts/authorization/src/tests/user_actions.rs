@@ -768,12 +768,6 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         vec![],
     );
 
-    instantiate_and_set_verification_gateway(
-        &setup.app,
-        &setup.owner_accounts[0],
-        authorization.clone(),
-    );
-
     // VK of the program that accepts 2 registry values and creates a message to pause the processor for registry 1 and
     // creates a message to resume it for registry 2
     let program_vk = "BYX3ESvOAQq9cdkc9IPbbYXpg2qdHHgX5xNkEiM0TlJUvSAAU4EVAprBNkOrsRsoMlyiE/qesXJCKaQi59g8Lxwb5k0upNZO/WR5UfCodBbxY6MSiVl5SlBHfykCAAAAAAAAAAcAAAAAAAAAUHJvZ3JhbRMAAAAAAAAAAQAAAA4AAAAAAAAAAAAIAAAAAAAEAAAAAAAAAEJ5dGUQAAAAAAAAAAEAAAALAAAAAAAAAAAAAQAAAAAAAgAAAAAAAAAEAAAAAAAAAEJ5dGUBAAAAAAAAAAcAAAAAAAAAUHJvZ3JhbQAAAAAAAAAA";
@@ -797,13 +791,20 @@ fn pause_and_resume_processor_using_zk_authorizations() {
     )
     .unwrap();
 
+    instantiate_and_set_verification_gateway(
+        &setup.app,
+        &setup.owner_accounts[0],
+        authorization.clone(),
+        setup.owner_addr.to_string(),
+        Binary::from(sp1_vk.bytes32().into_bytes()),
+    );
+
     // Let's create two zk authorizations, one to pause the processor and another to resume it, pause will have registry 1 and resume will have registry 2
     let zk_authorization_pause = ZkAuthorizationInfo {
         label: "pause".to_string(),
         mode: AuthorizationModeInfo::Permissionless,
         registry: 1,
         vk: Binary::from(sp1_vk.bytes32().into_bytes()),
-        domain_vk: Binary::from(sp1_vk.bytes32().into_bytes()),
         validate_last_block_execution: false,
     };
     let zk_authorization_resume = ZkAuthorizationInfo {
@@ -811,7 +812,6 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         mode: AuthorizationModeInfo::Permissionless,
         registry: 2,
         vk: Binary::from(sp1_vk.bytes32().into_bytes()),
-        domain_vk: Binary::from(sp1_vk.bytes32().into_bytes()),
         validate_last_block_execution: false,
     };
     let zk_authorizations = vec![zk_authorization_pause, zk_authorization_resume];

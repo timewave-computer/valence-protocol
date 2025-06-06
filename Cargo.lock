@@ -11353,11 +11353,11 @@ dependencies = [
 name = "valence-verification-gateway"
 version = "0.2.0"
 dependencies = [
- "bincode",
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
- "sp1-sdk",
  "sp1-verifier",
  "thiserror 1.0.69",
 ]

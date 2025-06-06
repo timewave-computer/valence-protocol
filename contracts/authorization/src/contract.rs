@@ -974,10 +974,9 @@ fn execute_zk_authorization(
     // Verify the domain proof with the verification gateway
     let valid_domain: bool = deps.querier.query_wasm_smart(
         verification_gateway,
-        &valence_verification_gateway::msg::QueryMsg::VerifyProof {
-            vk: zk_authorization.domain_vk,
-            proof: domain_proof,
-            inputs: domain_message.clone(),
+        &valence_verification_gateway::msg::QueryMsg::VerifyDomainProof {
+            domain_proof,
+            domain_inputs: domain_message.clone(),
         },
     )?;
     if !valid_domain {
