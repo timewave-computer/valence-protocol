@@ -63,7 +63,7 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
     /**
      * @notice Updates the domainVK
      * @dev Only the owner can perform this action
-     * @param _domainVK The new coprocessor root hash
+     * @param _domainVK The new domainVK
      */
     function updateDomainVK(bytes32 _domainVK) external onlyOwner {
         require(_domainVK != bytes32(0), "Domain VK cannot be zero");
