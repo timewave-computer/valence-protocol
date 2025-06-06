@@ -55,8 +55,8 @@ contract SP1VerificationGateway is VerificationGateway {
         // Call the specific verifier
         ISP1Verifier sp1Verifier = getVerifier();
 
-        sp1Verifier.verifyProof(vk, proof, message);
-        sp1Verifier.verifyProof(domainVK, domainProof, domainMessage);
+        sp1Verifier.verifyProof(vk, message, proof);
+        sp1Verifier.verifyProof(domainVK, domainMessage, domainProof);
 
         return true;
     }
