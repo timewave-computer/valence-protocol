@@ -38,13 +38,16 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
      * @notice Initializes the verification gateway replcaing the constructor with a coprocessor root and verifier address
      * @param _coprocessorRoot The root hash of the coprocessor
      * @param _verifier Address of the verification contract
+     * @param _domainVK The domain verification key that is going to be used for this verification gateway
      */
-    function initialize(bytes32 _coprocessorRoot, address _verifier) external initializer {
+    function initialize(bytes32 _coprocessorRoot, address _verifier, bytes32 _domainVK) external initializer {
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         coprocessorRoot = _coprocessorRoot;
         require(_verifier != address(0), "Verifier cannot be zero address");
         verifier = _verifier;
+        require(_domainVK != bytes32(0), "Domain VK cannot be zero");
+        domainVK = _domainVK;
     }
 
     /**
@@ -58,23 +61,23 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
     }
 
     /**
+     * @notice Updates the domainVK
+     * @dev Only the owner can perform this action
+     * @param _domainVK The new domainVK
+     */
+    function updateDomainVK(bytes32 _domainVK) external onlyOwner {
+        require(_domainVK != bytes32(0), "Domain VK cannot be zero");
+        domainVK = _domainVK;
+    }
+
+    /**
      * @notice Adds a verification key for a specific registry ID
      * @dev Only the sender can add a VK for their own address
      * @param registry The registry ID to associate with the verification key
      * @param vk The verification key to register
-     * @param _domainVk The domain verification key
      */
-    function addRegistry(uint64 registry, bytes32 vk, bytes32 _domainVk) external {
+    function addRegistry(uint64 registry, bytes32 vk) external {
         programVKs[msg.sender][registry] = vk;
-
-        bytes32 cachedDomainVk = domainVK;
-        // Check if the domain VK is initialized, if not check that it's the same as the existing one
-        if (cachedDomainVk == bytes32(0)) {
-            require(_domainVk != bytes32(0), "Domain VK cannot be zero");
-            domainVK = _domainVk;
-        } else {
-            require(cachedDomainVk == _domainVk, "Domain VK mismatch");
-        }
     }
 
     /**

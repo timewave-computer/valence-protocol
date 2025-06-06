@@ -2054,7 +2054,6 @@
       "ZkAuthorizationInfo": {
         "type": "object",
         "required": [
-          "domain_vk",
           "label",
           "mode",
           "registry",
@@ -2062,9 +2061,6 @@
           "vk"
         ],
         "properties": {
-          "domain_vk": {
-            "$ref": "#/definitions/Binary"
-          },
           "label": {
             "type": "string"
           },
@@ -4383,7 +4379,6 @@
         "ZkAuthorization": {
           "type": "object",
           "required": [
-            "domain_vk",
             "label",
             "mode",
             "registry",
@@ -4392,9 +4387,6 @@
             "vk"
           ],
           "properties": {
-            "domain_vk": {
-              "$ref": "#/definitions/Binary"
-            },
             "label": {
               "type": "string"
             },
