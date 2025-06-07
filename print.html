@@ -3105,11 +3105,104 @@ documentation</a>.</p>
 <h3 id="ibc-eureka-2"><a class="header" href="#ibc-eureka-2">IBC Eureka</a></h3>
 <p>This library supports IBC Eureka transfers using an intermediate chain. This allows tokens to be transferred from the origin chain to EVM chains connected with IBC Eureka using standard IBC transfers together with Skip Go capabilities. For more information on how IBC Eureka works with Skip Go, please refer to this <a href="https://docs.skip.build/go/eureka/eureka-overview">Eureka overview</a>.</p>
 <p>This works in the same way as the <strong>Generic IBC Transfer Library</strong>. The only difference is that the <strong>input account</strong> is a <strong>Valence interchain account</strong> and the <strong>receiver</strong> is a remote address on the remote EVM chain. For more details on how IBC Eureka works, check the <a href="libraries/cosmwasm/./generic_ibc_transfer.html#ibc-eureka">Generic IBC Transfer Library IBC Eureka</a> documentation.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-mars-lending-library"><a class="header" href="#valence-mars-lending-library">Valence Mars Lending library</a></h1>
+<p>The Valence Mars Lending library facilitates lending operations on the <a href="https://marsprotocol.io/">Mars Protocol</a> from an input account and manages withdrawal of lent assets to an output account. The library creates and manages a Mars credit account that is owned by the input account, enabling simple lending and withdrawal operations. This library enables Valence Programs to earn yield on deposited assets through Mars Protocol's lending markets while maintaining full control over the lending positions through Mars credit accounts.</p>
+<h2 id="high-level-flow-18"><a class="header" href="#high-level-flow-18">High-level Flow</a></h2>
+<pre class="mermaid">---
+title: Mars Lending Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+      Account))
+  P[Processor]
+  S[Mars Lending
+      Library]
+  MC[Mars Credit
+     Manager]
+  CA[Mars Credit
+     Account]
+  P -- 1/Lend or Withdraw --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Execute Create Credit Account
+  (if needed) --&gt; IA
+  IA -- 4/Create Credit Account --&gt; MC
+  MC -.-&gt; |4'/Create| CA
+  S -- 5/Execute Lending --&gt; IA
+  IA -- 6/Deposit &amp; Lend --&gt; CA
+  S -- 7/Execute Withdrawal --&gt; IA
+  IA -- 8/Reclaim &amp; Withdraw --&gt; CA
+  IA -- 9/Transfer Tokens --&gt; OA
+</pre>
+<h2 id="functions-18"><a class="header" href="#functions-18">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Lend</strong></td><td>-</td><td>Creates a Mars credit account (if one doesn't exist) and lends the entire balance of the specified denom from the input account to the Mars Protocol through the credit account.</td></tr>
+<tr><td><strong>Withdraw</strong></td><td><code>amount: Option&lt;Uint128&gt;</code></td><td>Withdraws lent assets from the Mars credit account to the output account. If no amount is specified, withdraws the entire position.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-18"><a class="header" href="#configuration-18">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Address of the input account that will own the credit account
+    pub input_addr: LibraryAccountType,
+    /// Address of the output account that will receive withdrawn funds
+    pub output_addr: LibraryAccountType,
+    // Address of the Mars credit manager contract
+    pub credit_manager_addr: String,
+    // Denom of the asset we are going to lend
+    pub denom: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="implementation-details"><a class="header" href="#implementation-details">Implementation Details</a></h2>
+<h3 id="credit-account-management"><a class="header" href="#credit-account-management">Credit Account Management</a></h3>
+<p>The library automatically handles Mars credit account lifecycle:</p>
+<ul>
+<li><strong>Account Creation</strong>: When lending is first initiated, the library checks if a credit account exists for the input address. If not, it creates one through the Mars Credit Manager.</li>
+<li><strong>Account Ownership</strong>: The credit account is owned by the input account, ensuring proper access control and security.</li>
+<li><strong>Single Account</strong>: Each input account maintains exactly one credit account through this library.</li>
+</ul>
+<h3 id="lending-process"><a class="header" href="#lending-process">Lending Process</a></h3>
+<ol>
+<li><strong>Balance Check</strong>: Queries the input account balance for the specified denom</li>
+<li><strong>Credit Account Resolution</strong>: Either uses existing credit account or creates a new one</li>
+<li><strong>Deposit &amp; Lend</strong>: Deposits the tokens into the credit account and immediately lends them to Mars Protocol</li>
+<li><strong>Reply Handling</strong>: Uses CosmWasm reply mechanism to handle the two-step process of account creation followed by lending</li>
+</ol>
+<h3 id="withdrawal-process"><a class="header" href="#withdrawal-process">Withdrawal Process</a></h3>
+<ol>
+<li><strong>Credit Account Query</strong>: Retrieves the existing credit account for the input address</li>
+<li><strong>Amount Calculation</strong>: Uses exact amount if specified, otherwise withdraws the entire balance</li>
+<li><strong>Reclaim &amp; Withdraw</strong>: Executes two Mars actions:
+<ul>
+<li><code>Reclaim</code>: Withdraws the lent position back to the credit account</li>
+<li><code>WithdrawToWallet</code>: Transfers the tokens from credit account to the output account</li>
+</ul>
+</li>
+</ol>
+<h3 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h3>
+<ul>
+<li><strong>No Funds</strong>: Returns error if attempting to lend with zero balance</li>
+<li><strong>No Credit Account</strong>: Returns error if attempting to withdraw without an existing credit account</li>
+<li><strong>Mars Integration</strong>: Propagates Mars Protocol errors for lending/withdrawal operations</li>
+</ul>
+<h2 id="mars-protocol-integration"><a class="header" href="#mars-protocol-integration">Mars Protocol Integration</a></h2>
+<p>This library integrates with Mars Protocol's credit account system, which provides:</p>
+<ul>
+<li><strong>Isolated Lending</strong>: Each credit account operates independently</li>
+<li><strong>Flexible Actions</strong>: Support for multiple DeFi actions through a single account</li>
+<li><strong>Risk Management</strong>: Mars Protocol's built-in risk management and liquidation mechanisms</li>
+<li><strong>Composability</strong>: Credit accounts can be used for complex DeFi strategies beyond simple lending</li>
+</ul>
+<h2 id="thanks"><a class="header" href="#thanks">Thanks</a></h2>
+<p>Thank you to Stana and the <a href="https://hydro.cosmos.network/">Hydro</a> team for contributing this library upstream.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
 <p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-forwarder-library-1"><a class="header" href="#valence-forwarder-library-1">Valence Forwarder Library</a></h1>
 <p>The <strong>Valence Forwarder</strong> library allows to <strong>continuously forward funds</strong> from an <strong>input account</strong> to an <strong>output account</strong>, following some time <strong>constraints</strong>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Forwarder library.</p>
-<h2 id="high-level-flow-18"><a class="header" href="#high-level-flow-18">High-level flow</a></h2>
+<h2 id="high-level-flow-19"><a class="header" href="#high-level-flow-19">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---
@@ -3126,12 +3219,12 @@ graph LR
   S -- 3/Do Send funds --&gt; IA
   IA -- 4/Send funds --&gt; OA
 </pre>
-<h2 id="functions-18"><a class="header" href="#functions-18">Functions</a></h2>
+<h2 id="functions-19"><a class="header" href="#functions-19">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Forward</strong></td><td>-</td><td>Forward funds from the configured <strong>input account</strong> to the <strong>output account</strong>, according to the <strong>forwarding configs</strong> &amp; <strong>min interval</strong>.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-18"><a class="header" href="#configuration-18">Configuration</a></h2>
+<h2 id="configuration-19"><a class="header" href="#configuration-19">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>ForwarderConfig</code> type.</p>
 <pre><code class="language-solidity">    /**
      * @dev Configuration for a single token forwarding rule
@@ -3177,7 +3270,7 @@ graph LR
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-cctp-transfer-library"><a class="header" href="#valence-cctp-transfer-library">Valence CCTP Transfer library</a></h1>
 <p>The <strong>Valence CCTP Transfer</strong> library allows to <strong>transfer funds</strong> from an <strong>input account</strong> to a <strong>mint recipient</strong> using the <a href="https://developers.circle.com/stablecoins/cctp-getting-started">Cross-Chain Transfer Protocol (CCTP) v1</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the CCTP Transfer library.</p>
-<h2 id="high-level-flow-19"><a class="header" href="#high-level-flow-19">High-level flow</a></h2>
+<h2 id="high-level-flow-20"><a class="header" href="#high-level-flow-20">High-level flow</a></h2>
 <pre class="mermaid">---
 title: CCTP Transfer Library
 ---
@@ -3204,12 +3297,12 @@ graph LR
 
   EVM --- DEST
 </pre>
-<h2 id="functions-19"><a class="header" href="#functions-19">Functions</a></h2>
+<h2 id="functions-20"><a class="header" href="#functions-20">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>mint recipient</strong> on the <strong>destination domain</strong>.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-19"><a class="header" href="#configuration-19">Configuration</a></h2>
+<h2 id="configuration-20"><a class="header" href="#configuration-20">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>CCTPTransferConfig</code> type. A list of the supported CCTP destination domains that can be used in the <code>destinationDomain</code> field can be found <a href="https://developers.circle.com/stablecoins/supported-domains">here</a>.</p>
 <pre><code class="language-solidity">    /**
      * @dev Configuration struct for token transfer parameters.
@@ -3231,7 +3324,7 @@ graph LR
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-stargate-transfer-library"><a class="header" href="#valence-stargate-transfer-library">Valence Stargate Transfer library</a></h1>
 <p>The <strong>Valence Stargate Transfer</strong> library allows to <strong>transfer funds</strong> from an <strong>input account</strong> to a <strong>recipient</strong> using the <a href="https://stargateprotocol.gitbook.io/stargate/v2-developer-docs">Stargate Protocol v2</a> built on top of LayerZero v2. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Stargate Transfer library.</p>
-<h2 id="high-level-flow-20"><a class="header" href="#high-level-flow-20">High-level flow</a></h2>
+<h2 id="high-level-flow-21"><a class="header" href="#high-level-flow-21">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Stargate Transfer Library
 ---
@@ -3260,12 +3353,12 @@ graph LR
 
   EVM --- DEST
 </pre>
-<h2 id="functions-20"><a class="header" href="#functions-20">Functions</a></h2>
+<h2 id="functions-21"><a class="header" href="#functions-21">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>recipient</strong> on the <strong>destination domain</strong>.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-20"><a class="header" href="#configuration-20">Configuration</a></h2>
+<h2 id="configuration-21"><a class="header" href="#configuration-21">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>StargateTransferConfig</code> type. A list of supported Stargate destination domains that can be used in the <code>destinationDomain</code> field can be found <a href="https://stargateprotocol.gitbook.io/stargate/v2-developer-docs/technical-reference/mainnet-contracts">here</a>.</p>
 <pre><code class="language-solidity">    /**
      * @title StargateTransferConfig
@@ -3299,7 +3392,7 @@ graph LR
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="standard-bridge-transfer-library"><a class="header" href="#standard-bridge-transfer-library">Standard Bridge Transfer library</a></h1>
 <p>The Standard Bridge Transfer library enables transferring funds from an <strong>input account</strong> to a <strong>recipient</strong> using a <a href="https://docs.optimism.io/app-developers/bridging/standard-bridge">StandardBridge contract</a>. This library works with both the L1StandardBridge and L2StandardBridge implementations, allowing token transfers between Ethereum (Layer 1) and its scaling solutions like Optimism or Base (Layer 2). The library facilitates seamless bridging of assets in both directions - from L1 to L2 and from L2 to L1. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Stargate Transfer library.</p>
-<h2 id="high-level-flow-21"><a class="header" href="#high-level-flow-21">High-level flow</a></h2>
+<h2 id="high-level-flow-22"><a class="header" href="#high-level-flow-22">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Standard Bridge Transfer Library
 ---
@@ -3325,12 +3418,12 @@ graph LR
 
   SRC --- DEST
 </pre>
-<h2 id="functions-21"><a class="header" href="#functions-21">Functions</a></h2>
+<h2 id="functions-22"><a class="header" href="#functions-22">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Transfer</strong></td><td>-</td><td>Transfer funds from the configured <strong>input account</strong> to the <strong>recipient</strong> on the destination chain.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-21"><a class="header" href="#configuration-21">Configuration</a></h2>
+<h2 id="configuration-22"><a class="header" href="#configuration-22">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>StandardBridgeTransferConfig</code> type. More information on the config parameters can be found <a href="https://docs.optimism.io/app-developers/bridging/standard-bridge">here</a>.</p>
 <pre><code class="language-solidity">    /**
      * @dev Configuration struct for StandardBridge transfer parameters.
@@ -3356,7 +3449,7 @@ graph LR
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="ibc-eureka-transfer-library"><a class="header" href="#ibc-eureka-transfer-library">IBC Eureka Transfer Library</a></h1>
 <p>The IBC Eureka Transfer library enables transferring ERC20 tokens from an <strong>input account</strong> on an EVM chain to a <strong>recipient</strong> on an IBC Eureka connected chain using the IBC protocol via <a href="https://docs.skip.build/go/eureka/eureka-overview">IBC Eureka's Solidity implementation</a>. This library also takes advantage of <a href="https://docs.skip.build/go/general/getting-started">Skip Go API</a> that provides an <code>EurekaHandler</code> wrapper and the relaying service for the underlying protocol. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the IBC Eureka Transfer library.</p>
-<h2 id="high-level-flow-22"><a class="header" href="#high-level-flow-22">High-level flow</a></h2>
+<h2 id="high-level-flow-23"><a class="header" href="#high-level-flow-23">High-level flow</a></h2>
 <pre class="mermaid">---
 title: IBC Eureka Transfer Library
 ---
@@ -3384,12 +3477,12 @@ graph LR
     ICS -.6/IBC Packet.-&gt; R
     SRC --- DEST
 </pre>
-<h2 id="functions-22"><a class="header" href="#functions-22">Functions</a></h2>
+<h2 id="functions-23"><a class="header" href="#functions-23">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>Transfer</strong></td><td><code>fees</code>: Relay fee structure<br><code>memo</code>: Additional information</td><td>Transfer tokens from the configured <strong>input account</strong> to the <strong>recipient</strong> on the destination IBC chain. The <code>fees</code> parameter specifies relay fees, fee recipient, and quote expiry. The <code>memo</code> parameter can contain additional information that might execute logic on the destination chain.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-22"><a class="header" href="#configuration-22">Configuration</a></h2>
+<h2 id="configuration-23"><a class="header" href="#configuration-23">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>IBCEurekaTransferConfig</code> type.</p>
 <pre><code class="language-solidity">/**
  * @dev Configuration struct for token transfer parameters.
@@ -3528,7 +3621,7 @@ flowchart LR
     AP -- 4/Burn aTokens --&gt; IA
     AP -- 5/Burn debt tokens --&gt; IA
 </pre>
-<h2 id="functions-23"><a class="header" href="#functions-23">Functions</a></h2>
+<h2 id="functions-24"><a class="header" href="#functions-24">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>supply</strong></td><td>amount</td><td>Supplies tokens from the <strong>input account</strong> to the AAVE protocol. The <strong>input account</strong> will receive these corresponding aTokens. If amount is 0 the entire balance will be used.</td></tr>
 <tr><td><strong>borrow</strong></td><td>amount</td><td>Borrows tokens from the AAVE protocol using the collateral previously supplied. The <strong>input account</strong> will receive the borrowed tokens and the debt tokens.</td></tr>
@@ -3538,7 +3631,7 @@ flowchart LR
 </tbody></table>
 </div>
 <p>More details on how the interaction with the AAVE v3 protocol works can be found in the <a href="https://aave.com/docs/developers/smart-contracts/pool">AAVE V3 Pool documentation</a>.</p>
-<h2 id="configuration-23"><a class="header" href="#configuration-23">Configuration</a></h2>
+<h2 id="configuration-24"><a class="header" href="#configuration-24">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>AavePositionManagerConfig</code> type.</p>
 <pre><code class="language-solidity">    /**
      * @title AavePositionManagerConfig
@@ -3616,13 +3709,13 @@ flowchart LR
     PM -- 18/Burn empty NFT --&gt; IA
     IA -- 19/Burn NFT --&gt; NPM
 </pre>
-<h2 id="functions-24"><a class="header" href="#functions-24">Functions</a></h2>
+<h2 id="functions-25"><a class="header" href="#functions-25">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>createPosition</strong></td><td>tickLower, tickUpper, amount0, amount1</td><td>Creates a position on PancakeSwap V3 by providing liquidity in a specific price range and stakes it with the <strong>input account</strong> in MasterChef V3. If amount0 or amount1 is 0, the entire balance of that token will be used. Returns the tokenId of the created position.</td></tr>
 <tr><td><strong>withdrawPosition</strong></td><td>tokenId</td><td>Performs a complete withdrawal of a position: collects accumulated fees, harvests CAKE rewards, unstakes the NFT from MasterChef, removes all liquidity, and burns the NFT. Returns the amounts of fees collected, liquidity withdrawn, and rewards received and deposits all of them in the <strong>output account</strong>.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-24"><a class="header" href="#configuration-24">Configuration</a></h2>
+<h2 id="configuration-25"><a class="header" href="#configuration-25">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>PancakeSwapV3PositionManagerConfig</code> type.</p>
 <pre><code class="language-solidity">/**
  * @notice Configuration parameters for the PancakeSwapV3PositionManager
@@ -3650,7 +3743,7 @@ struct PancakeSwapV3PositionManagerConfig {
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-balancerv2swap-library"><a class="header" href="#valence-balancerv2swap-library">Valence BalancerV2Swap Library</a></h1>
 <p>The <strong>Valence BalancerV2Swap</strong> library enables <strong>token swaps</strong> from an <strong>input account</strong> to an <strong>output account</strong> using the <a href="https://docs-v2.balancer.fi/">Balancer V2 protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the BalancerV2Swap library.</p>
-<h2 id="high-level-flow-23"><a class="header" href="#high-level-flow-23">High-level flow</a></h2>
+<h2 id="high-level-flow-24"><a class="header" href="#high-level-flow-24">High-level flow</a></h2>
 <pre class="mermaid">---
 title: BalancerV2Swap Library
 ---
@@ -3671,7 +3764,7 @@ graph LR
         BV -- 7/Transfer output tokens --&gt; OA
     end
 </pre>
-<h2 id="functions-25"><a class="header" href="#functions-25">Functions</a></h2>
+<h2 id="functions-26"><a class="header" href="#functions-26">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>swap</strong></td><td>poolId, tokenIn, tokenOut, userData, amountIn, minAmountOut, timeout</td><td>Execute a single token swap through a Balancer V2 pool.</td></tr>
 <tr><td><strong>multiSwap</strong></td><td>poolIds, tokens, userDataArray, amountIn, minAmountOut, timeout</td><td>Execute a multi-hop swap through multiple Balancer V2 pools.</td></tr>
@@ -3701,7 +3794,7 @@ graph LR
 </tbody></table>
 </div>
 <p>For more information on how swaps work on Balancer V2, please refer to the <a href="https://docs-v2.balancer.fi/reference/swaps/single-swap.html">Single Swap</a> and <a href="https://docs-v2.balancer.fi/reference/swaps/batch-swaps.html">Batch Swap</a> documentation.</p>
-<h2 id="configuration-25"><a class="header" href="#configuration-25">Configuration</a></h2>
+<h2 id="configuration-26"><a class="header" href="#configuration-26">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>BalancerV2SwapConfig</code> type.</p>
 <pre><code class="language-solidity">/**
  * @title BalancerV2SwapConfig
@@ -3718,7 +3811,7 @@ struct BalancerV2SwapConfig {
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-splitter-library-1"><a class="header" href="#valence-splitter-library-1">Valence Splitter Library</a></h1>
 <p>The EVM Splitter library allows splitting funds from one input account to one or more output accounts, for one or more tokens according to the configured split configurations. Each token can be split using fixed amounts, fixed ratios, or dynamic ratios calculated by an external oracle contract. This library enables Valence Programs to distribute assets across multiple accounts with precise control over allocation strategies.</p>
-<h2 id="high-level-flow-24"><a class="header" href="#high-level-flow-24">High-level Flow</a></h2>
+<h2 id="high-level-flow-25"><a class="header" href="#high-level-flow-25">High-level Flow</a></h2>
 <pre class="mermaid">---
 title: Splitter Library
 ---
@@ -3742,12 +3835,12 @@ graph LR
   IA -- 5/Transfer funds --&gt; OA1
   IA -- 5'/Transfer funds --&gt; OA2
 </pre>
-<h2 id="functions-26"><a class="header" href="#functions-26">Functions</a></h2>
+<h2 id="functions-27"><a class="header" href="#functions-27">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>split</strong></td><td>-</td><td>Splits funds from the configured input account to the output accounts according to the configured split configurations for each token.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-26"><a class="header" href="#configuration-26">Configuration</a></h2>
+<h2 id="configuration-27"><a class="header" href="#configuration-27">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>SplitterConfig</code> type.</p>
 <pre><code class="language-solidity">    /**
      * @title SplitterConfig
@@ -3803,7 +3896,7 @@ graph LR
 <p>Splits tokens based on a fixed percentage of the total balance. The <code>splitData</code> contains the encoded ratio as <code>uint256</code> scaled by 10^18.</p>
 <h3 id="dynamic-ratio"><a class="header" href="#dynamic-ratio">Dynamic Ratio</a></h3>
 <p>Splits tokens based on a ratio calculated by an external oracle contract. The <code>splitData</code> contains an encoded <code>DynamicRatioAmount</code> struct with the oracle contract address and parameters.</p>
-<h2 id="implementation-details"><a class="header" href="#implementation-details">Implementation Details</a></h2>
+<h2 id="implementation-details-1"><a class="header" href="#implementation-details-1">Implementation Details</a></h2>
 <h3 id="validation-rules"><a class="header" href="#validation-rules">Validation Rules</a></h3>
 <p>The library enforces several validation rules during configuration:</p>
 <ul>
@@ -4258,7 +4351,7 @@ This way, when the message batch is being processed, any assertions that do not 
 prevent later messages from executing as expected. If the batch is <em>atomic</em>, the whole batch will abort.
 If the batch is <em>non-atomic</em>, various <a href="middleware/./../authorizations_processors/authorization_contract.html">authorization</a> configuration
 options will dictate the further behavior.</p>
-<h2 id="high-level-flow-25"><a class="header" href="#high-level-flow-25">High-level flow</a></h2>
+<h2 id="high-level-flow-26"><a class="header" href="#high-level-flow-26">High-level flow</a></h2>
 <pre class="mermaid">---
 title: Forwarder Library
 ---

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>EVM - Valence Protocol Documentation</title>
+        <title>Mars Lending - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -171,18 +171,109 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
-<p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
+                        <h1 id="valence-mars-lending-library"><a class="header" href="#valence-mars-lending-library">Valence Mars Lending library</a></h1>
+<p>The Valence Mars Lending library facilitates lending operations on the <a href="https://marsprotocol.io/">Mars Protocol</a> from an input account and manages withdrawal of lent assets to an output account. The library creates and manages a Mars credit account that is owned by the input account, enabling simple lending and withdrawal operations. This library enables Valence Programs to earn yield on deposited assets through Mars Protocol's lending markets while maintaining full control over the lending positions through Mars credit accounts.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level Flow</a></h2>
+<pre class="mermaid">---
+title: Mars Lending Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+      Account))
+  P[Processor]
+  S[Mars Lending
+      Library]
+  MC[Mars Credit
+     Manager]
+  CA[Mars Credit
+     Account]
+  P -- 1/Lend or Withdraw --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Execute Create Credit Account
+  (if needed) --&gt; IA
+  IA -- 4/Create Credit Account --&gt; MC
+  MC -.-&gt; |4'/Create| CA
+  S -- 5/Execute Lending --&gt; IA
+  IA -- 6/Deposit &amp; Lend --&gt; CA
+  S -- 7/Execute Withdrawal --&gt; IA
+  IA -- 8/Reclaim &amp; Withdraw --&gt; CA
+  IA -- 9/Transfer Tokens --&gt; OA
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Lend</strong></td><td>-</td><td>Creates a Mars credit account (if one doesn't exist) and lends the entire balance of the specified denom from the input account to the Mars Protocol through the credit account.</td></tr>
+<tr><td><strong>Withdraw</strong></td><td><code>amount: Option&lt;Uint128&gt;</code></td><td>Withdraws lent assets from the Mars credit account to the output account. If no amount is specified, withdraws the entire position.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Address of the input account that will own the credit account
+    pub input_addr: LibraryAccountType,
+    /// Address of the output account that will receive withdrawn funds
+    pub output_addr: LibraryAccountType,
+    // Address of the Mars credit manager contract
+    pub credit_manager_addr: String,
+    // Denom of the asset we are going to lend
+    pub denom: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="implementation-details"><a class="header" href="#implementation-details">Implementation Details</a></h2>
+<h3 id="credit-account-management"><a class="header" href="#credit-account-management">Credit Account Management</a></h3>
+<p>The library automatically handles Mars credit account lifecycle:</p>
+<ul>
+<li><strong>Account Creation</strong>: When lending is first initiated, the library checks if a credit account exists for the input address. If not, it creates one through the Mars Credit Manager.</li>
+<li><strong>Account Ownership</strong>: The credit account is owned by the input account, ensuring proper access control and security.</li>
+<li><strong>Single Account</strong>: Each input account maintains exactly one credit account through this library.</li>
+</ul>
+<h3 id="lending-process"><a class="header" href="#lending-process">Lending Process</a></h3>
+<ol>
+<li><strong>Balance Check</strong>: Queries the input account balance for the specified denom</li>
+<li><strong>Credit Account Resolution</strong>: Either uses existing credit account or creates a new one</li>
+<li><strong>Deposit &amp; Lend</strong>: Deposits the tokens into the credit account and immediately lends them to Mars Protocol</li>
+<li><strong>Reply Handling</strong>: Uses CosmWasm reply mechanism to handle the two-step process of account creation followed by lending</li>
+</ol>
+<h3 id="withdrawal-process"><a class="header" href="#withdrawal-process">Withdrawal Process</a></h3>
+<ol>
+<li><strong>Credit Account Query</strong>: Retrieves the existing credit account for the input address</li>
+<li><strong>Amount Calculation</strong>: Uses exact amount if specified, otherwise withdraws the entire balance</li>
+<li><strong>Reclaim &amp; Withdraw</strong>: Executes two Mars actions:
+<ul>
+<li><code>Reclaim</code>: Withdraws the lent position back to the credit account</li>
+<li><code>WithdrawToWallet</code>: Transfers the tokens from credit account to the output account</li>
+</ul>
+</li>
+</ol>
+<h3 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h3>
+<ul>
+<li><strong>No Funds</strong>: Returns error if attempting to lend with zero balance</li>
+<li><strong>No Credit Account</strong>: Returns error if attempting to withdraw without an existing credit account</li>
+<li><strong>Mars Integration</strong>: Propagates Mars Protocol errors for lending/withdrawal operations</li>
+</ul>
+<h2 id="mars-protocol-integration"><a class="header" href="#mars-protocol-integration">Mars Protocol Integration</a></h2>
+<p>This library integrates with Mars Protocol's credit account system, which provides:</p>
+<ul>
+<li><strong>Isolated Lending</strong>: Each credit account operates independently</li>
+<li><strong>Flexible Actions</strong>: Support for multiple DeFi actions through a single account</li>
+<li><strong>Risk Management</strong>: Mars Protocol's built-in risk management and liquidation mechanisms</li>
+<li><strong>Composability</strong>: Credit accounts can be used for complex DeFi strategies beyond simple lending</li>
+</ul>
+<h2 id="thanks"><a class="header" href="#thanks">Thanks</a></h2>
+<p>Thank you to Stana and the <a href="https://hydro.cosmos.network/">Hydro</a> team for contributing this library upstream.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/mars_lending.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/ica_ibc_transfer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -192,11 +283,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/mars_lending.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/ica_ibc_transfer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
