@@ -9,4 +9,4 @@ pub const CONTROLLER: Item<Addr> = Item::new("controller");
 pub const APPROVED_LIBRARIES: Map<Addr, Empty> = Map::new("approved_libraries");
 
 /// Account type: 1=TokenCustody, 2=DataStorage, 3=Hybrid
-pub const ACCOUNT_TYPE: Item<u8> = Item::new("account_type"); 
+pub const ACCOUNT_TYPE: Item<u8> = Item::new("account_type");
