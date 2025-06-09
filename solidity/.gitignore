@@ -5,3 +5,6 @@ bin/
 
 # Soldeer
 /dependencies
+
+# Working files
+work/
