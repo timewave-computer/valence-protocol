@@ -31,3 +31,4 @@ e2e/examples/**/*.wasm
 deployment/results
 deployment/configs/local
 deployment/output_program
+.direnv/
