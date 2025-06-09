@@ -112,7 +112,7 @@ The system ensures that by the time attackers observe entropy and attempt addres
 
 ### Salt Algorithm
 
-```
+```text
 salt = hash(controller + libraries_hash + program_id + account_request_id + account_type + block_entropy)
 ```
 

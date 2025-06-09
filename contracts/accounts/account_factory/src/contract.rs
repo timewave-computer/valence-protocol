@@ -315,7 +315,7 @@ mod execute {
     /// - Account request ID (user-provided uniqueness guarantee)
     /// - Account type (different types get different addresses)
     /// - Libraries hash (accounts with different library sets get different addresses)
-    pub fn compute_salt(env: &Env, request: &AccountRequest) -> [u8; 32] {
+    pub fn compute_salt(_env: &Env, request: &AccountRequest) -> [u8; 32] {
         let mut hasher = Sha256::new();
         
         // Historical block-based entropy for temporal variation
