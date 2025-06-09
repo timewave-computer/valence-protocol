@@ -1,5 +1,3 @@
-@aave-v3-origin/=dependencies/aave-v3-origin/src/
-aave-v3-origin/=dependencies/aave-v3-origin/src/contracts/
 forge-std/=dependencies/forge-std/
 @openzeppelin/contracts/=dependencies/openzeppelin-contracts/contracts/
 @openzeppelin/contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.2.0/contracts/

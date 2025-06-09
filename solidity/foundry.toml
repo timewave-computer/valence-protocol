@@ -15,5 +15,4 @@ hyperlane                             = { version = "5.8.3", git = "https://gith
 "@stargatefinance-stg-evm-v2"         = "2.0.2"
 "@layerzerolabs-lz-evm-oapp-v2"       = "3.0.81"
 "@layerzerolabs-lz-evm-protocol-v2"   = "3.0.81"
-aave-v3-origin                        = { version = "3.3.0", git = "https://github.com/aave-dao/aave-v3-origin", tag = "v3.3.0" }
 succinctlabs-sp1-contracts            = "4.0.0"
