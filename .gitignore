@@ -32,3 +32,4 @@ deployment/results
 deployment/configs/local
 deployment/output_program
 .direnv/
+work/
