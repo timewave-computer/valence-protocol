@@ -9,34 +9,25 @@ pragma solidity ^0.8.28;
 interface IAccountFactory {
     /// @notice Data structure for account creation requests
     struct AccountRequest {
-        address controller;      // Address that will control the account
-        address[] libraries;     // Initial approved libraries
-        bytes32 programId;       // Unique program identifier
-        uint256 nonce;           // Unique nonce for this request
-        bytes signature;         // Authorization signature
+        address controller; // Address that will control the account
+        address[] libraries; // Initial approved libraries
+        bytes32 programId; // Unique program identifier
+        uint256 nonce; // Unique nonce for this request
+        bytes signature; // Authorization signature
     }
 
     /// @notice Data structure for batch operations
     struct BatchRequest {
         AccountRequest[] requests;
-        address ferry;          // Ferry service operator address
-        uint256 fee;            // Fee for ferry service
+        address ferry; // Ferry service operator address
+        uint256 fee; // Fee for ferry service
     }
 
     /// @notice Emitted when an account is created
-    event AccountCreated(
-        address indexed account,
-        address indexed controller,
-        bytes32 indexed programId,
-        bytes32 salt
-    );
+    event AccountCreated(address indexed account, address indexed controller, bytes32 indexed programId, bytes32 salt);
 
     /// @notice Emitted when a batch operation is processed
-    event BatchProcessed(
-        address indexed ferry,
-        uint256 requestCount,
-        uint256 totalFee
-    );
+    event BatchProcessed(address indexed ferry, uint256 requestCount, uint256 totalFee);
 
     /**
      * @dev Creates a new account with deterministic address
@@ -72,4 +63,4 @@ interface IAccountFactory {
      * @return created True if account exists
      */
     function isAccountCreated(address account) external view returns (bool created);
-} 
+}
