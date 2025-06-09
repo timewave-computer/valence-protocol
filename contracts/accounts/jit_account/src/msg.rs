@@ -32,10 +32,8 @@ pub enum QueryMsg {
     GetController {},
     /// Check if a library is approved
     #[returns(bool)]
-    IsLibraryApproved {
-        library: String,
-    },
+    IsLibraryApproved { library: String },
     /// Get account type
     #[returns(u8)]
     GetAccountType {},
-} 
+}
