@@ -840,7 +840,7 @@ pub struct FerryService {
     pub operator_id: String,
     pub supported_chains: Vec<String>,
     pub batch_size: usize,
-    pub fee_rate: u128,
+    pub _fee_rate: u128,
     pending_requests: std::sync::Mutex<std::collections::VecDeque<AccountCreationRequest>>,
     processed_batches: std::sync::Mutex<std::collections::HashMap<String, BatchResult>>,
 }
@@ -867,7 +867,7 @@ impl FerryService {
             operator_id,
             supported_chains,
             batch_size: 10,
-            fee_rate: 1000, // Base fee per account
+            _fee_rate: 1000, // Base fee per account
             pending_requests: std::sync::Mutex::new(std::collections::VecDeque::new()),
             processed_batches: std::sync::Mutex::new(std::collections::HashMap::new()),
         }
@@ -1013,7 +1013,7 @@ impl FerryService {
         &self,
         chain: &str,
         gateway_addr: &str,
-        proof: &Value,
+        _proof: &Value,
         request: &AccountCreationRequest,
     ) -> Result<String, Box<dyn std::error::Error>> {
         // Mock proof submission
@@ -1058,7 +1058,7 @@ impl FerryService {
     async fn create_account_with_historical_validation(
         &self,
         chain: &str,
-        factory_addr: &str,
+        _factory_addr: &str,
         request: &AccountCreationRequest,
     ) -> Result<String, Box<dyn std::error::Error>> {
         // Mock validation of historical block age
@@ -1090,6 +1090,7 @@ impl FerryService {
     }
 
     /// Get batch status
+    #[allow(dead_code)]
     pub fn get_batch_status(&self, batch_id: &str) -> Option<BatchResult> {
         let processed = self.processed_batches.lock().unwrap();
         processed.get(batch_id).cloned()

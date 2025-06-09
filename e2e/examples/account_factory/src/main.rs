@@ -25,8 +25,6 @@ pub use constants::*;
 pub use clients::*;
 pub use utils::*;
 
-use crate::clients::{CoprocessorClient, CosmWasmClient, EthereumClient, FerryService, BatchStatus};
-
 /// Main e2e test function
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

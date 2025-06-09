@@ -59,9 +59,9 @@ impl EvmAccountFactoryCircuit {
     ) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update(block_hash);
-        hasher.update(&program_id.to_be_bytes());
-        hasher.update(&account_request_id.to_be_bytes());
-        hasher.update(&[account_type]);
+        hasher.update(program_id.to_be_bytes());
+        hasher.update(account_request_id.to_be_bytes());
+        hasher.update([account_type]);
         hasher.finalize().into()
     }
 
@@ -111,7 +111,7 @@ pub fn circuit(witnesses: Vec<Witness>) -> Vec<u8> {
 
     // Validate account type
     assert!(
-        matches!(account_type, 1 | 2 | 3),
+        matches!(account_type, 1..=3),
         "Account type must be 1 (TokenCustody), 2 (DataStorage), or 3 (Hybrid)"
     );
 
