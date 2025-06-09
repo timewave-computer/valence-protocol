@@ -4,6 +4,9 @@
 # Build results
 /artifacts
 /target
+**/target/
+**/Cargo.lock
+!Cargo.lock
 
 # Cargo+Git helper file (https://github.com/rust-lang/cargo/blob/0.44.1/src/cargo/sources/git/utils.rs#L320-L327)
 .cargo-ok
@@ -31,3 +34,7 @@ e2e/examples/**/*.wasm
 deployment/results
 deployment/configs/local
 deployment/output_program
+
+# Nix development environment
+.direnv/
+.envrc
