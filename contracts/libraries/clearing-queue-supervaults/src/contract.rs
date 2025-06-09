@@ -61,7 +61,7 @@ mod execute {
 
 mod functions {
     use cosmwasm_std::{
-        ensure, Addr, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128, Uint64,
+        ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128, Uint64,
     };
 
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
@@ -88,6 +88,15 @@ mod functions {
             } => try_register_withdraw_obligation(deps, env, cfg, recipient, payout_amount, id),
             FunctionMsgs::SettleNextObligation {} => try_settle_next_obligation(deps, cfg),
         }
+    }
+
+    fn swallow_obligation_registration_err(
+        deps: DepsMut,
+        id: Uint64,
+        err: String,
+    ) -> Result<Response, LibraryError> {
+        OBLIGATION_ID_TO_STATUS_MAP.save(deps.storage, id.u64(), &ObligationStatus::Error(err))?;
+        Ok(Response::default())
     }
 
     fn try_register_withdraw_obligation(
@@ -122,121 +131,36 @@ mod functions {
         // with an error message to not block further obligations from being registered
         let validated_recipient = match deps.api.addr_validate(&recipient) {
             Ok(addr) => addr,
-            Err(e) => {
-                OBLIGATION_ID_TO_STATUS_MAP.save(
-                    deps.storage,
-                    id.u64(),
-                    &ObligationStatus::Error(e.to_string()),
-                )?;
-                return Ok(Response::default());
-            }
+            Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
         };
 
-        // after performing assertions that apply to both mars and supervaults phases,
-        // we branch into phase-specific obligation registration handlers
-        match cfg.supervaults_phase {
-            true => handle_supervaults_phase_obligation_registration(
-                deps,
-                env,
-                cfg,
-                payout_amount,
-                id,
-                validated_recipient,
-            ),
-            false => handle_mars_phase_obligation_registration(
-                deps,
-                env,
-                cfg,
-                payout_amount,
-                id,
-                validated_recipient,
-            ),
-        }
-    }
-
-    /// mars-phase obligations are registered in a straightforward manner.
-    /// as phase 1 payouts are distributed in the deposit denom, we assert
-    /// that the payout amount is non-zero. after that we push the obligation
-    /// to the queue and store its id in the obligation status map.
-    fn handle_mars_phase_obligation_registration(
-        deps: DepsMut,
-        env: Env,
-        cfg: Config,
-        payout_amount: Uint128,
-        id: Uint64,
-        recipient: Addr,
-    ) -> Result<Response, LibraryError> {
-        // we validate the payout amount:
-        // - if amount is non-zero, we proceed
-        // - if amount is zero, we immediately mark the obligation as processed
-        // with an error message to not block further obligations from being registered
-        let payout_coin = if !payout_amount.is_zero() {
-            Coin {
-                amount: payout_amount,
-                denom: cfg.denom.to_string(),
-            }
-        } else {
-            OBLIGATION_ID_TO_STATUS_MAP.save(
-                deps.storage,
-                id.u64(),
-                &ObligationStatus::Error("zero payout amount".to_string()),
-            )?;
-            return Ok(Response::default());
+        let mars_amount = match payout_amount.checked_multiply_ratio(80u128, 100u128) {
+            Ok(amt) => amt,
+            Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
         };
 
-        // construct the valid withdrawal obligation to be queued
-        let withdraw_obligation = WithdrawalObligation {
-            recipient,
-            payout_coin,
-            id,
-            enqueue_block: env.block,
+        let supervaults_amount = match payout_amount.checked_sub(mars_amount) {
+            Ok(amt) => amt,
+            Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
         };
 
-        // push the obligation to the back of the fifo queue
-        CLEARING_QUEUE.push_back(deps.storage, &withdraw_obligation)?;
-
-        // store the id of the registered obligation in the map with
-        // value `InQueue` to indicate that this obligation is not yet
-        // settled/complete.
-        OBLIGATION_ID_TO_STATUS_MAP.save(deps.storage, id.u64(), &ObligationStatus::InQueue)?;
-
-        Ok(Response::new())
-    }
-
-    /// supervaults obligation registration needs to take on some additional steps.
-    /// because phase 2 payouts are made in the supervaults LP shares, we need to
-    /// convert the obligation payout amount (denominated in the deposit token) into
-    /// the supervaults LP shares. after that, the obligation is constructed
-    /// and pushed to the queue & its id obligation status map just like in phase 1.
-    fn handle_supervaults_phase_obligation_registration(
-        deps: DepsMut,
-        env: Env,
-        cfg: Config,
-        payout_amount: Uint128,
-        id: Uint64,
-        recipient: Addr,
-    ) -> Result<Response, LibraryError> {
         // first we query the supervaults to pairwise match the config denom
         // to the supervault pair data
         let supervaults_config: mmvault::state::Config = deps
             .querier
             .query_wasm_smart(&cfg.supervault_addr, &mmvault::msg::QueryMsg::GetConfig {})?;
 
-        // `payout_amount` is expressed in the underlying asset (some btc
-        // derivative), so in order to perform the simulation to know what
-        // that amount of underlying asset is equivalent to in terms of
-        // the supervaults lp shares we build the simulate lp message
         let supervaults_simulate_lp_msg =
             if cfg.denom.eq(&supervaults_config.pair_data.token_0.denom) {
                 mmvault::msg::QueryMsg::SimulateProvideLiquidity {
-                    amount_0: payout_amount,
+                    amount_0: supervaults_amount,
                     amount_1: Uint128::zero(),
                     sender: cfg.supervault_sender,
                 }
             } else if cfg.denom.eq(&supervaults_config.pair_data.token_1.denom) {
                 mmvault::msg::QueryMsg::SimulateProvideLiquidity {
                     amount_0: Uint128::zero(),
-                    amount_1: payout_amount,
+                    amount_1: supervaults_amount,
                     sender: cfg.supervault_sender,
                 }
             } else {
@@ -254,38 +178,27 @@ mod functions {
             Ok(amt) => amt,
             // if the simulation fails for any reason, the request is tagged as complete
             // to not block subsequent withdraw obligations from being registered.
-            Err(e) => {
-                OBLIGATION_ID_TO_STATUS_MAP.save(
-                    deps.storage,
-                    id.u64(),
-                    &ObligationStatus::Error(e.to_string()),
-                )?;
-                return Ok(Response::default());
-            }
+            Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
         };
 
-        // we validate the supervaults lp shares simulation output amount:
-        // - if amount is non-zero, we proceed
-        // - if amount is zero, we immediately mark the obligation as processed
-        // with an error message to not block further obligations from being registered
-        let payout_coin = if !supervaults_lp_equivalent.is_zero() {
+        let supervaults_obligation = if !supervaults_lp_equivalent.is_zero() {
             Coin {
+                denom: supervaults_config.lp_denom,
                 amount: supervaults_lp_equivalent,
-                denom: supervaults_config.lp_denom.to_string(),
             }
         } else {
-            OBLIGATION_ID_TO_STATUS_MAP.save(
-                deps.storage,
-                id.u64(),
-                &ObligationStatus::Error("zero payout amount".to_string()),
-            )?;
-            return Ok(Response::default());
+            return swallow_obligation_registration_err(deps, id, "zero payout amount".to_string());
+        };
+
+        let mars_obligation = Coin {
+            denom: cfg.denom,
+            amount: mars_amount,
         };
 
         // construct the valid withdrawal obligation to be queued
         let withdraw_obligation = WithdrawalObligation {
-            recipient,
-            payout_coin,
+            recipient: validated_recipient,
+            payout_coins: vec![mars_obligation, supervaults_obligation],
             id,
             enqueue_block: env.block,
         };
@@ -298,7 +211,7 @@ mod functions {
         // settled/complete.
         OBLIGATION_ID_TO_STATUS_MAP.save(deps.storage, id.u64(), &ObligationStatus::InQueue)?;
 
-        Ok(Response::new())
+        Ok(Response::default())
     }
 
     fn try_settle_next_obligation(deps: DepsMut, cfg: Config) -> Result<Response, LibraryError> {
@@ -314,24 +227,26 @@ mod functions {
             }
         };
 
-        // ensure that the settlement account is sufficiently topped up
-        // to fulfill the obligation
-        let settlement_acc_bal = deps.querier.query_balance(
-            cfg.settlement_acc_addr.as_str(),
-            obligation.payout_coin.denom.to_string(),
-        )?;
+        for payout_coin in &obligation.payout_coins {
+            // ensure that the settlement account is sufficiently topped up
+            // to fulfill the obligation
+            let settlement_acc_bal = deps.querier.query_balance(
+                cfg.settlement_acc_addr.as_str(),
+                payout_coin.denom.to_string(),
+            )?;
 
-        ensure!(
-            settlement_acc_bal.amount >= obligation.payout_coin.amount,
-            LibraryError::ExecutionError(format!(
-                "insufficient settlement acc balance to fulfill obligation: {} < {}",
-                settlement_acc_bal, obligation.payout_coin
-            ))
-        );
+            ensure!(
+                settlement_acc_bal.amount >= payout_coin.amount,
+                LibraryError::ExecutionError(format!(
+                    "insufficient settlement acc balance to fulfill obligation: {} < {}",
+                    settlement_acc_bal, payout_coin
+                ))
+            );
+        }
 
         let fill_msg = BankMsg::Send {
             to_address: obligation.recipient.to_string(),
-            amount: vec![obligation.payout_coin],
+            amount: obligation.payout_coins,
         };
 
         let input_account_msg =
