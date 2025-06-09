@@ -61,7 +61,7 @@ mod execute {
 
 mod functions {
     use cosmwasm_std::{
-        ensure, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128, Uint64,
+        ensure, BankMsg, Coin, DepsMut, Env, Fraction, MessageInfo, Response, Uint128, Uint64,
     };
 
     use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
@@ -90,6 +90,8 @@ mod functions {
         }
     }
 
+    /// helper function to tag the given obligation as completed with an error and return a
+    /// non-error response in order to not block future obligation processing.
     fn swallow_obligation_registration_err(
         deps: DepsMut,
         id: Uint64,
@@ -129,18 +131,27 @@ mod functions {
         // - if address is valid, we proceed
         // - if address is invalid, we immediately mark the obligation as processed
         // with an error message to not block further obligations from being registered
+        // and return
         let validated_recipient = match deps.api.addr_validate(&recipient) {
             Ok(addr) => addr,
             Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
         };
 
-        let mars_amount = match payout_amount.checked_multiply_ratio(80u128, 100u128) {
-            Ok(amt) => amt,
-            Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
-        };
+        // we apply the configured settlement ratio to get the deposit denom amount.
+        // we do not swallow the error here because any error here means a config error.
+        let mars_amount = payout_amount
+            .checked_multiply_ratio(
+                cfg.settlement_ratio.numerator(),
+                cfg.settlement_ratio.denominator(),
+            )
+            .map_err(|_| {
+                LibraryError::ExecutionError("failed to apply settlement ratio".to_string())
+            })?;
 
         let supervaults_amount = match payout_amount.checked_sub(mars_amount) {
             Ok(amt) => amt,
+            // in case payout amount was 0, this may panic. we swallow the error and mark the
+            // obligation as processed before returning.
             Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
         };
 
@@ -181,18 +192,35 @@ mod functions {
             Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
         };
 
-        let supervaults_obligation = if !supervaults_lp_equivalent.is_zero() {
-            Coin {
+        let supervaults_obligation = match supervaults_lp_equivalent.is_zero() {
+            // if the simulation returns 0, we mark the obligation as completed and return
+            true => {
+                return swallow_obligation_registration_err(
+                    deps,
+                    id,
+                    "zero payout amount".to_string(),
+                )
+            }
+            // otherwise we build the supervaults obligation coin
+            false => Coin {
                 denom: supervaults_config.lp_denom,
                 amount: supervaults_lp_equivalent,
-            }
-        } else {
-            return swallow_obligation_registration_err(deps, id, "zero payout amount".to_string());
+            },
         };
 
-        let mars_obligation = Coin {
-            denom: cfg.denom,
-            amount: mars_amount,
+        // technically this amount cannot be zero but we do a check just in case
+        let mars_obligation = match mars_amount.is_zero() {
+            true => {
+                return swallow_obligation_registration_err(
+                    deps,
+                    id,
+                    "zero payout amount".to_string(),
+                )
+            }
+            false => Coin {
+                denom: cfg.denom,
+                amount: mars_amount,
+            },
         };
 
         // construct the valid withdrawal obligation to be queued
@@ -227,9 +255,10 @@ mod functions {
             }
         };
 
+        // before attempting to settle, we validate that the settlement account
+        // is topped up sufficiently to fulfill the obligation for each of the
+        // payout coins
         for payout_coin in &obligation.payout_coins {
-            // ensure that the settlement account is sufficiently topped up
-            // to fulfill the obligation
             let settlement_acc_bal = deps.querier.query_balance(
                 cfg.settlement_acc_addr.as_str(),
                 payout_coin.denom.to_string(),
