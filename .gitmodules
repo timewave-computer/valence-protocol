@@ -1,0 +1,9 @@
+[submodule "solidity/dependencies/openzeppelin-contracts"]
+	path = solidity/dependencies/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "solidity/dependencies/forge-std"]
+	path = solidity/dependencies/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "solidity/dependencies/aave-v3-origin"]
+	path = solidity/dependencies/aave-v3-origin
+	url = https://github.com/aave-dao/aave-v3-origin
