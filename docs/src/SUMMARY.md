@@ -39,6 +39,7 @@
     - [Forwarder](./libraries/cosmwasm/forwarder.md)
     - [Generic IBC Transfer](./libraries/cosmwasm/generic_ibc_transfer.md)
     - [Neutron IBC Transfer](./libraries/cosmwasm/neutron_ibc_transfer.md)
+    - [Nolus Lending](./libraries/cosmwasm/nolus_lending.md)
     - [Osmosis CL LPer](./libraries/cosmwasm/osmosis_cl_lper.md)
     - [Osmosis CL Withdrawer](./libraries/cosmwasm/osmosis_cl_withdrawer.md)
     - [Osmosis GAMM LPer](./libraries/cosmwasm/osmosis_gamm_lper.md)
