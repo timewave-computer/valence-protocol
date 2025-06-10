@@ -1,7 +1,7 @@
 // Purpose: Integration tests for account factory contract
 use crate::contract::instantiate;
 use crate::msg::InstantiateMsg;
-use cosmwasm_std::testing::{mock_dependencies, mock_env, message_info};
+use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
 use cosmwasm_std::Addr;
 
 #[cfg(test)]
@@ -11,7 +11,7 @@ mod integration_tests {
     #[test]
     fn test_basic_integration() {
         let mut deps = mock_dependencies();
-        
+
         // Just test that we can instantiate the contract
         let msg = InstantiateMsg {
             fee_collector: None,

@@ -368,6 +368,7 @@ async fn test_basic_account_creation(config: &E2EConfig) -> Result<(), Box<dyn E
         libraries: vec![],
         historical_block_height: None,
         target_chain: None,
+        public_key: None,
     };
     
     // Test EVM account creation
@@ -393,6 +394,7 @@ async fn test_basic_account_creation(config: &E2EConfig) -> Result<(), Box<dyn E
                 libraries: vec![],
                 historical_block_height: None,
                 target_chain: None,
+                public_key: None,
             };
             
             let account_addr = cosmwasm_client.create_account(factory_addr, &cosmwasm_request).await?;
@@ -419,6 +421,7 @@ async fn test_deterministic_addressing(config: &E2EConfig) -> Result<(), Box<dyn
         libraries: vec!["lib1".to_string(), "lib2".to_string()],
         historical_block_height: None,
         target_chain: None,
+        public_key: None,
     };
     
     // Test EVM deterministic addressing
@@ -445,6 +448,7 @@ async fn test_deterministic_addressing(config: &E2EConfig) -> Result<(), Box<dyn
                 libraries: vec!["lib1".to_string(), "lib2".to_string()],
                 historical_block_height: None,
                 target_chain: None,
+                public_key: None,
             };
             
             // Compute address before creation
@@ -521,6 +525,7 @@ async fn test_atomic_operations(config: &E2EConfig) -> Result<(), Box<dyn Error>
                 libraries: vec![],
                 historical_block_height: None,
                 target_chain: None,
+                public_key: None,
             },
             signature: vec![0u8; 65], // Mock signature for testing
             expiration: (SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs() + 3600) as u64,
@@ -560,6 +565,7 @@ async fn test_ferry_service_batch(config: &E2EConfig) -> Result<(), Box<dyn Erro
             libraries: vec!["lib1".to_string()],
             historical_block_height: HISTORICAL_BLOCK_HEIGHT,
             signature: None,
+            public_key: None,
         },
         AccountRequest {
             controller: "0x742d35Cc6634C0532925a3b8D698B6CDb4fdC5C8".to_string(),
@@ -568,6 +574,7 @@ async fn test_ferry_service_batch(config: &E2EConfig) -> Result<(), Box<dyn Erro
             libraries: vec!["lib1".to_string()],
             historical_block_height: HISTORICAL_BLOCK_HEIGHT,
             signature: None,
+            public_key: None,
         },
         AccountRequest {
             controller: "cosmos1testuser".to_string(),
@@ -576,6 +583,7 @@ async fn test_ferry_service_batch(config: &E2EConfig) -> Result<(), Box<dyn Erro
             libraries: vec!["lib1".to_string(), "lib2".to_string()],
             historical_block_height: HISTORICAL_BLOCK_HEIGHT,
             signature: None,
+            public_key: None,
         },
     ];
     
@@ -656,6 +664,7 @@ async fn test_cross_chain_consistency(config: &E2EConfig) -> Result<(), Box<dyn 
         libraries: vec!["lib1".to_string()],
         historical_block_height: None,
         target_chain: None,
+        public_key: None,
     };
     
     let test_request_cosmos = AccountCreationRequest {
@@ -665,6 +674,7 @@ async fn test_cross_chain_consistency(config: &E2EConfig) -> Result<(), Box<dyn 
         libraries: vec!["lib1".to_string()],
         historical_block_height: None,
         target_chain: None,
+        public_key: None,
     };
     
     let mut eth_addr = None;
@@ -710,6 +720,7 @@ async fn test_security_scenarios(config: &E2EConfig) -> Result<(), Box<dyn Error
             libraries: vec![],
             historical_block_height: None,
             target_chain: None,
+            public_key: None,
         };
         
         // First creation should succeed
@@ -741,6 +752,7 @@ async fn test_performance_benchmarks(config: &E2EConfig) -> Result<(), Box<dyn E
             libraries: vec![],
             historical_block_height: None,
             target_chain: None,
+            public_key: None,
         };
         
         let _account = eth_client.create_account(factory_addr, &request).await?;
@@ -757,6 +769,7 @@ async fn test_performance_benchmarks(config: &E2EConfig) -> Result<(), Box<dyn E
                 libraries: vec![],
                 historical_block_height: None,
                 target_chain: None,
+                public_key: None,
             })
             .collect();
         
@@ -906,6 +919,7 @@ async fn test_e2e_account_creation_evm(config: &E2EConfig) -> Result<(), Box<dyn
             libraries: vec!["lib1".to_string()],
             historical_block_height: None,
             target_chain: None,
+            public_key: None,
         };
         
         let proof_request = serde_json::json!({
@@ -993,6 +1007,7 @@ async fn test_e2e_account_creation_cosmwasm(config: &E2EConfig) -> Result<(), Bo
                 libraries: vec!["lib1".to_string(), "lib2".to_string()],
                 historical_block_height: None,
                 target_chain: None,
+                public_key: None,
             };
             
             let proof_request = serde_json::json!({
@@ -1081,6 +1096,7 @@ async fn test_ferry_service_architecture(config: &E2EConfig) -> Result<(), Box<d
         libraries: vec!["defi_lib".to_string()],
         historical_block_height: HISTORICAL_BLOCK_HEIGHT,
         signature: None,
+        public_key: None,
     };
     
     let request_id = ferry_service.submit_account_request(
@@ -1146,6 +1162,7 @@ async fn test_historical_block_validation(config: &E2EConfig) -> Result<(), Box<
         libraries: vec!["lib1".to_string()],
         historical_block_height: 18_000_000 - 10, // Recent block
         signature: None,
+        public_key: None,
     };
 
     let request_id = ferry_service.submit_account_request(
@@ -1163,6 +1180,7 @@ async fn test_historical_block_validation(config: &E2EConfig) -> Result<(), Box<
         libraries: vec!["lib1".to_string()],
         historical_block_height: 18_000_000 - 20,
         signature: None,
+        public_key: None,
     };
 
     let request_2 = AccountRequest {
@@ -1172,6 +1190,7 @@ async fn test_historical_block_validation(config: &E2EConfig) -> Result<(), Box<
         libraries: vec!["lib1".to_string()],
         historical_block_height: 18_000_000 - 30, // Different block
         signature: None,
+        public_key: None,
     };
     
     ferry_service.submit_account_request(request_1, "ethereum").await?;
@@ -1248,6 +1267,7 @@ pub struct AccountCreationRequest {
     pub libraries: Vec<String>,
     pub historical_block_height: Option<u64>,
     pub target_chain: Option<String>,
+    pub public_key: Option<Vec<u8>>,
 }
 
 /// Atomic account creation request
@@ -1377,6 +1397,7 @@ pub fn demo_ferry_service() {
             account_request_id: 1,
             historical_block_height: 12345,
             signature: None,
+            public_key: None,
         },
         AccountRequest {
             controller: "neutron1controller2".to_string(),
@@ -1385,6 +1406,7 @@ pub fn demo_ferry_service() {
             account_request_id: 2,
             historical_block_height: 12346,
             signature: None,
+            public_key: None,
         },
         AccountRequest {
             controller: "neutron1controller3".to_string(),
@@ -1393,6 +1415,7 @@ pub fn demo_ferry_service() {
             account_request_id: 3,
             historical_block_height: 12347,
             signature: None,
+            public_key: None,
         },
     ];
 
@@ -1448,6 +1471,7 @@ mod tests {
             account_request_id: 1,
             historical_block_height: 100,
             signature: None,
+            public_key: None,
         };
 
         ferry.queue_request(request).unwrap();
@@ -1464,6 +1488,7 @@ mod tests {
             account_request_id: 2,
             historical_block_height: 101,
             signature: None,
+            public_key: None,
         };
 
         ferry.queue_request(request2).unwrap();
@@ -1496,6 +1521,7 @@ mod tests {
             account_request_id: 1,
             historical_block_height: 100,
             signature: None,
+            public_key: None,
         };
 
         assert!(ferry.queue_request(invalid_request).is_err());
@@ -1508,6 +1534,7 @@ mod tests {
             account_request_id: 1,
             historical_block_height: 100,
             signature: None,
+            public_key: None,
         };
 
         assert!(ferry.queue_request(invalid_request).is_err());
@@ -1520,6 +1547,7 @@ mod tests {
             account_request_id: 1,
             historical_block_height: 100,
             signature: None,
+            public_key: None,
         };
 
         assert!(ferry.queue_request(invalid_request).is_err());
@@ -1538,6 +1566,7 @@ mod tests {
                 account_request_id: i,
                 historical_block_height: 100 + i,
                 signature: None,
+                public_key: None,
             };
             ferry.queue_request(request).unwrap();
         }

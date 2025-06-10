@@ -12,19 +12,19 @@
 // - Full capability accounts (both token custody and data storage)
 // - Ferry service batch processing with fee collection
 
+use cosmwasm_crypto::secp256k1_verify;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     instantiate2_address, to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
     MessageInfo, Response, StdError, StdResult, WasmMsg,
 };
-use cosmwasm_crypto::secp256k1_verify;
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
 
 use crate::msg::{
-    AccountRequest, AccountRequestForSigning, BatchRequest, ComputeAccountAddressResponse, ExecuteMsg, InstantiateMsg,
-    QueryMsg, MAX_BLOCK_AGE,
+    AccountRequest, AccountRequestForSigning, BatchRequest, ComputeAccountAddressResponse,
+    ExecuteMsg, InstantiateMsg, QueryMsg, MAX_BLOCK_AGE,
 };
 use crate::state::{CREATED_ACCOUNTS, FEE_COLLECTOR, JIT_ACCOUNT_CODE_ID, USED_NONCES};
 
@@ -311,7 +311,7 @@ mod execute {
                 // TODO: In production, derive address from public key and verify it matches the controller
                 // For now, we'll skip address derivation and just verify the cryptographic signature
                 // This ensures the signature is cryptographically valid even if address derivation is simplified
-                
+
                 // Verify the signature against the message hash and public key
                 match secp256k1_verify(&message_hash, signature_bytes, public_key_bytes) {
                     Ok(true) => Ok(()),
@@ -322,13 +322,13 @@ mod execute {
             (Some(_), None) => {
                 // Signature provided but no public key
                 Err(ContractError::Std(StdError::generic_err(
-                    "Public key required when signature is provided"
+                    "Public key required when signature is provided",
                 )))
             }
             (None, Some(_)) => {
                 // Public key provided but no signature
                 Err(ContractError::Std(StdError::generic_err(
-                    "Signature required when public key is provided"
+                    "Signature required when public key is provided",
                 )))
             }
             (None, None) => {
