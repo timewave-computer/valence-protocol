@@ -12,4 +12,4 @@ pub const USED_NONCES: Map<(Addr, u64), bool> = Map::new("used_nonces");
 pub const FEE_COLLECTOR: Item<Option<Addr>> = Item::new("fee_collector");
 
 /// JIT account contract code ID for Instantiate2
-pub const JIT_ACCOUNT_CODE_ID: Item<u64> = Item::new("jit_account_code_id"); 
+pub const JIT_ACCOUNT_CODE_ID: Item<u64> = Item::new("jit_account_code_id");

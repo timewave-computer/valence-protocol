@@ -4,4 +4,4 @@ pub mod msg;
 pub mod state;
 
 #[cfg(not(feature = "library"))]
-pub use contract::{execute, instantiate, query}; 
+pub use contract::{execute, instantiate, query};
