@@ -5,17 +5,22 @@ use cosmwasm_std::{Addr, CosmosMsg};
 #[cw_serde]
 pub struct InstantiateMsg {
     pub controller: String,
-    pub account_type: u8, // 1=TokenCustody, 2=DataStorage, 3=Hybrid
 }
 
 #[cw_serde]
 pub enum ExecuteMsg {
     /// Execute a message on behalf of the account
-    Execute { msgs: Vec<CosmosMsg> },
+    Execute { 
+        msgs: Vec<CosmosMsg> 
+    },
     /// Approve a library to execute messages
-    ApproveLibrary { library: String },
+    ApproveLibrary { 
+        library: String 
+    },
     /// Remove approval for a library
-    RemoveLibrary { library: String },
+    RemoveLibrary { 
+        library: String 
+    },
 }
 
 #[cw_serde]
@@ -26,8 +31,7 @@ pub enum QueryMsg {
     GetController {},
     /// Check if a library is approved
     #[returns(bool)]
-    IsLibraryApproved { library: String },
-    /// Get account type
-    #[returns(u8)]
-    GetAccountType {},
+    IsLibraryApproved { 
+        library: String 
+    },
 }

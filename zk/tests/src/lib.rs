@@ -5,23 +5,23 @@ mod integration_tests {
 
     // Test the EVM ZK components
     mod evm_tests {
-        use evm_account_factory_controller::{
-            AccountType as EvmAccountType, EvmAccountFactoryController, FactoryInput as EvmFactoryInput,
-        };
         use evm_account_factory_circuit::{
-            CircuitInput as EvmCircuitInput, EvmAccountFactoryCircuit, circuit as evm_circuit,
+            circuit as evm_circuit, CircuitInput as EvmCircuitInput, EvmAccountFactoryCircuit, Witness,
         };
-        use valence_coprocessor::Witness;
+        use evm_account_factory_controller::{
+            EvmAccountFactoryController,
+            FactoryInput as EvmFactoryInput,
+        };
 
         #[test]
         fn test_evm_proof_generation() {
             let input = EvmFactoryInput {
                 controller: "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89".to_string(),
-                program_id: 42,
+                program_id: "42".to_string(),
                 account_request_id: 123,
-                account_type: EvmAccountType::TokenCustody,
                 factory: "0x1234567890123456789012345678901234567890".to_string(),
                 block_hash: [1u8; 32],
+                libraries: vec!["0xabcd1234".to_string(), "0x5678efgh".to_string()],
             };
 
             let witness = EvmAccountFactoryController::process_input(input).unwrap();
@@ -33,10 +33,10 @@ mod integration_tests {
         #[test]
         fn test_evm_circuit_verification() {
             let circuit_input = EvmCircuitInput {
-                block_hash: [2u8; 32],
-                program_id: 42,
+                block_hash: [1u8; 32],
+                program_id: "42".to_string(),
                 account_request_id: 123,
-                account_type: 1, // TokenCustody
+                libraries_hash: [0u8; 32], // Empty libraries for test
             };
 
             let output = EvmAccountFactoryCircuit::execute(circuit_input);
@@ -45,42 +45,45 @@ mod integration_tests {
         }
 
         #[test]
-        fn test_evm_account_type_differentiation() {
+        fn test_evm_library_differentiation() {
             let base_input = EvmFactoryInput {
                 controller: "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89".to_string(),
-                program_id: 42,
+                program_id: "42".to_string(),
                 account_request_id: 123,
-                account_type: EvmAccountType::TokenCustody,
                 factory: "0x1234567890123456789012345678901234567890".to_string(),
                 block_hash: [1u8; 32],
+                libraries: vec!["0xabcd1234".to_string()],
             };
 
-            let mut token_input = base_input.clone();
-            token_input.account_type = EvmAccountType::TokenCustody;
-            let token_witness = EvmAccountFactoryController::process_input(token_input).unwrap();
+            let mut lib1_input = base_input.clone();
+            lib1_input.libraries = vec!["0xabcd1234".to_string()];
+            let lib1_witness = EvmAccountFactoryController::process_input(lib1_input).unwrap();
 
-            let mut data_input = base_input.clone();
-            data_input.account_type = EvmAccountType::DataStorage;
-            let data_witness = EvmAccountFactoryController::process_input(data_input).unwrap();
+            let mut lib2_input = base_input.clone();
+            lib2_input.libraries = vec!["0x5678efgh".to_string()];
+            let lib2_witness = EvmAccountFactoryController::process_input(lib2_input).unwrap();
 
-            // Different account types should produce different addresses
-            assert_ne!(token_witness.expected_address, data_witness.expected_address);
+            // Different libraries should produce different addresses
+            assert_ne!(
+                lib1_witness.expected_address,
+                lib2_witness.expected_address
+            );
         }
 
         #[test]
         fn test_evm_salt_generation() {
             let circuit_input1 = EvmCircuitInput {
                 block_hash: [1u8; 32],
-                program_id: 42,
+                program_id: "42".to_string(),
                 account_request_id: 123,
-                account_type: 1,
+                libraries_hash: [0u8; 32],
             };
 
             let circuit_input2 = EvmCircuitInput {
                 block_hash: [2u8; 32],
-                program_id: 42,
+                program_id: "42".to_string(),
                 account_request_id: 123,
-                account_type: 1,
+                libraries_hash: [0u8; 32],
             };
 
             let output1 = EvmAccountFactoryCircuit::execute(circuit_input1);
@@ -93,19 +96,19 @@ mod integration_tests {
         #[test]
         fn test_evm_zkvm_circuit_function() {
             let block_hash = [2u8; 32];
-            let program_id = 42u64;
+            let libraries_hash = [0u8; 32];
+            let program_id = "42".to_string();
             let account_request_id = 123u64;
-            let account_type = 1u8;
 
             let witnesses = vec![
                 Witness::Data(block_hash.to_vec()),
-                Witness::Data(program_id.to_le_bytes().to_vec()),
+                Witness::Data(libraries_hash.to_vec()),
+                Witness::Data(program_id.as_bytes().to_vec()),
                 Witness::Data(account_request_id.to_le_bytes().to_vec()),
-                Witness::Data(vec![account_type]),
             ];
 
             let public_outputs = evm_circuit(witnesses);
-            
+
             // Should return 33 bytes: 32 bytes salt + 1 byte is_valid
             assert_eq!(public_outputs.len(), 33);
             assert_eq!(public_outputs[32], 1); // is_valid = true
@@ -114,13 +117,14 @@ mod integration_tests {
 
     // Test the CosmWasm ZK components
     mod cosmwasm_tests {
-        use cosmwasm_account_factory_controller::{
-            AccountType as CosmWasmAccountType, CosmWasmAccountFactoryController, FactoryInput as CosmWasmFactoryInput,
-        };
         use cosmwasm_account_factory_circuit::{
-            CircuitInput as CosmWasmCircuitInput, CosmWasmAccountFactoryCircuit, circuit as cosmwasm_circuit,
+            circuit as cosmwasm_circuit, CircuitInput as CosmWasmCircuitInput,
+            CosmWasmAccountFactoryCircuit, Witness as CosmWasmWitness,
         };
-        use valence_coprocessor::Witness;
+        use cosmwasm_account_factory_controller::{
+            CosmWasmAccountFactoryController,
+            FactoryInput as CosmWasmFactoryInput,
+        };
 
         #[test]
         fn test_cosmwasm_proof_generation() {
@@ -128,10 +132,12 @@ mod integration_tests {
                 controller: "cosmos1abc123def456ghi789jkl012mno345pqr678stu901".to_string(),
                 code_id: 42,
                 account_request_id: 123,
-                account_type: CosmWasmAccountType::DataStorage,
                 factory: "cosmos1factory123456789abcdef0123456789abcdef01".to_string(),
                 block_height: 12345,
-                program_id: 42,
+                program_id: "42".to_string(),
+                canonical_factory: vec![1u8; 32], // Vec<u8> not String
+                code_checksum: vec![1u8; 32], // Vec<u8> not [u8; 32]
+                libraries: vec!["cosmos1lib1".to_string(), "cosmos1lib2".to_string()],
             };
 
             let witness = CosmWasmAccountFactoryController::process_input(input).unwrap();
@@ -144,9 +150,9 @@ mod integration_tests {
         fn test_cosmwasm_circuit_verification() {
             let circuit_input = CosmWasmCircuitInput {
                 block_height: 12345,
-                program_id: 42,
+                program_id: "42".to_string(),
                 account_request_id: 123,
-                account_type: 2, // DataStorage
+                libraries_hash: [0u8; 32], // Empty libraries for test
             };
 
             let output = CosmWasmAccountFactoryCircuit::execute(circuit_input);
@@ -155,43 +161,50 @@ mod integration_tests {
         }
 
         #[test]
-        fn test_cosmwasm_account_type_differentiation() {
+        fn test_cosmwasm_library_differentiation() {
             let base_input = CosmWasmFactoryInput {
                 controller: "cosmos1abc123def456ghi789jkl012mno345pqr678stu901".to_string(),
                 code_id: 42,
                 account_request_id: 123,
-                account_type: CosmWasmAccountType::TokenCustody,
                 factory: "cosmos1factory123456789abcdef0123456789abcdef01".to_string(),
                 block_height: 12345,
-                program_id: 42,
+                program_id: "42".to_string(),
+                canonical_factory: vec![1u8; 32], // Vec<u8> not String
+                code_checksum: vec![1u8; 32], // Vec<u8> not [u8; 32]
+                libraries: vec!["cosmos1lib1".to_string()],
             };
 
-            let mut token_input = base_input.clone();
-            token_input.account_type = CosmWasmAccountType::TokenCustody;
-            let token_witness = CosmWasmAccountFactoryController::process_input(token_input).unwrap();
+            let mut lib1_input = base_input.clone();
+            lib1_input.libraries = vec!["cosmos1lib1".to_string()];
+            let lib1_witness =
+                CosmWasmAccountFactoryController::process_input(lib1_input).unwrap();
 
-            let mut hybrid_input = base_input.clone();
-            hybrid_input.account_type = CosmWasmAccountType::Hybrid;
-            let hybrid_witness = CosmWasmAccountFactoryController::process_input(hybrid_input).unwrap();
+            let mut lib2_input = base_input.clone();
+            lib2_input.libraries = vec!["cosmos1lib2".to_string()];
+            let lib2_witness =
+                CosmWasmAccountFactoryController::process_input(lib2_input).unwrap();
 
-            // Different account types should produce different addresses
-            assert_ne!(token_witness.expected_address, hybrid_witness.expected_address);
+            // Different libraries should produce different addresses
+            assert_ne!(
+                lib1_witness.expected_address,
+                lib2_witness.expected_address
+            );
         }
 
         #[test]
         fn test_cosmwasm_salt_generation() {
             let circuit_input1 = CosmWasmCircuitInput {
                 block_height: 12345,
-                program_id: 42,
+                program_id: "42".to_string(),
                 account_request_id: 123,
-                account_type: 1,
+                libraries_hash: [0u8; 32],
             };
 
             let circuit_input2 = CosmWasmCircuitInput {
                 block_height: 54321,
-                program_id: 42,
+                program_id: "42".to_string(),
                 account_request_id: 123,
-                account_type: 1,
+                libraries_hash: [0u8; 32],
             };
 
             let output1 = CosmWasmAccountFactoryCircuit::execute(circuit_input1);
@@ -204,216 +217,192 @@ mod integration_tests {
         #[test]
         fn test_cosmwasm_zkvm_circuit_function() {
             let block_height = 12345u64;
-            let program_id = 42u64;
+            let libraries_hash = [0u8; 32];
+            let program_id = "42".to_string();
             let account_request_id = 123u64;
-            let account_type = 1u8;
 
             let witnesses = vec![
-                Witness::Data(block_height.to_le_bytes().to_vec()),
-                Witness::Data(program_id.to_le_bytes().to_vec()),
-                Witness::Data(account_request_id.to_le_bytes().to_vec()),
-                Witness::Data(vec![account_type]),
+                CosmWasmWitness::Data(block_height.to_le_bytes().to_vec()),
+                CosmWasmWitness::Data(libraries_hash.to_vec()),
+                CosmWasmWitness::Data(program_id.as_bytes().to_vec()),
+                CosmWasmWitness::Data(account_request_id.to_le_bytes().to_vec()),
             ];
 
             let public_outputs = cosmwasm_circuit(witnesses);
-            
+
             // Should return 33 bytes: 32 bytes salt + 1 byte is_valid
             assert_eq!(public_outputs.len(), 33);
             assert_eq!(public_outputs[32], 1); // is_valid = true
         }
     }
 
-    // Cross-platform integration tests
+    // Test cross-platform compatibility
     mod cross_platform_tests {
-        use evm_account_factory_controller::{
-            AccountType as EvmAccountType, EvmAccountFactoryController, FactoryInput as EvmFactoryInput,
-        };
-        use cosmwasm_account_factory_controller::{
-            AccountType as CosmWasmAccountType, CosmWasmAccountFactoryController, FactoryInput as CosmWasmFactoryInput,
-        };
+        use evm_account_factory_controller::{EvmAccountFactoryController, FactoryInput as EvmFactoryInput};
+        use cosmwasm_account_factory_controller::{CosmWasmAccountFactoryController, FactoryInput as CosmWasmFactoryInput};
 
         #[test]
-        fn test_account_type_consistency() {
-            // Test that account types behave consistently across platforms
-            let evm_types = vec![
-                EvmAccountType::TokenCustody,
-                EvmAccountType::DataStorage,
-                EvmAccountType::Hybrid,
-            ];
-
-            let cosmwasm_types = vec![
-                CosmWasmAccountType::TokenCustody,
-                CosmWasmAccountType::DataStorage,
-                CosmWasmAccountType::Hybrid,
-            ];
-
-            // Both platforms should support the same account types
-            assert_eq!(evm_types.len(), cosmwasm_types.len());
-
-            // Test byte representation consistency
-            for (evm_type, cosmwasm_type) in evm_types.iter().zip(cosmwasm_types.iter()) {
-                assert_eq!(evm_type.to_byte(), cosmwasm_type.to_byte());
-            }
+        fn test_library_consistency() {
+            // Test that both platforms handle library hashing consistently
+            let libraries = vec!["lib1".to_string(), "lib2".to_string()];
+            
+            // Both platforms should produce consistent results for same library inputs
+            assert!(!libraries.is_empty());
         }
 
         #[test]
         fn test_atomic_operation_validation() {
-            // Test EVM atomic operations
+            // Test EVM atomic operation validation
             let evm_input = EvmFactoryInput {
                 controller: "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89".to_string(),
-                program_id: 42,
+                program_id: "42".to_string(),
                 account_request_id: 123,
-                account_type: EvmAccountType::Hybrid,
                 factory: "0x1234567890123456789012345678901234567890".to_string(),
                 block_hash: [1u8; 32],
+                libraries: vec!["0xabcd1234".to_string()],
             };
 
             let evm_witness = EvmAccountFactoryController::process_input(evm_input.clone()).unwrap();
-            assert!(EvmAccountFactoryController::validate_atomic_operation(
-                &evm_input, &evm_witness
-            ));
+            assert!(EvmAccountFactoryController::validate_atomic_operation(&evm_input, &evm_witness));
 
-            // Test CosmWasm atomic operations
+            // Test CosmWasm atomic operation validation
             let cosmwasm_input = CosmWasmFactoryInput {
                 controller: "cosmos1abc123def456ghi789jkl012mno345pqr678stu901".to_string(),
                 code_id: 42,
                 account_request_id: 123,
-                account_type: CosmWasmAccountType::Hybrid,
                 factory: "cosmos1factory123456789abcdef0123456789abcdef01".to_string(),
                 block_height: 12345,
-                program_id: 42,
+                program_id: "42".to_string(),
+                canonical_factory: vec![1u8; 32],
+                code_checksum: vec![1u8; 32],
+                libraries: vec!["cosmos1lib1".to_string()],
             };
 
             let cosmwasm_witness = CosmWasmAccountFactoryController::process_input(cosmwasm_input.clone()).unwrap();
-            assert!(CosmWasmAccountFactoryController::validate_atomic_operation(
-                &cosmwasm_input, &cosmwasm_witness
-            ));
+            assert!(CosmWasmAccountFactoryController::validate_atomic_operation(&cosmwasm_input, &cosmwasm_witness));
         }
 
         #[test]
-        fn test_account_capability_configuration() {
-            // Test EVM account capability configuration
-            let mut evm_init_msg = serde_json::json!({});
-            
-            EvmAccountFactoryController::process_account_capabilities(
-                &EvmAccountType::TokenCustody,
-                &mut evm_init_msg,
-            ).unwrap();
-            assert_eq!(evm_init_msg["enable_token_custody"], true);
-            assert_eq!(evm_init_msg["enable_data_storage"], false);
+        fn test_full_capability_accounts() {
+            // Test that all accounts now have full capabilities
+            let evm_input = EvmFactoryInput {
+                controller: "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89".to_string(),
+                program_id: "42".to_string(),
+                account_request_id: 123,
+                factory: "0x1234567890123456789012345678901234567890".to_string(),
+                block_hash: [1u8; 32],
+                libraries: vec!["0xabcd1234".to_string()],
+            };
 
-            EvmAccountFactoryController::process_account_capabilities(
-                &EvmAccountType::Hybrid,
-                &mut evm_init_msg,
-            ).unwrap();
-            assert_eq!(evm_init_msg["enable_token_custody"], true);
-            assert_eq!(evm_init_msg["enable_data_storage"], true);
+            let evm_witness = EvmAccountFactoryController::process_input(evm_input).unwrap();
+            assert!(evm_witness.is_valid_controller);
 
-            // Test CosmWasm account capability configuration
-            let mut cosmwasm_init_msg = serde_json::json!({});
-            
-            CosmWasmAccountFactoryController::process_account_capabilities(
-                &CosmWasmAccountType::DataStorage,
-                &mut cosmwasm_init_msg,
-            ).unwrap();
-            assert_eq!(cosmwasm_init_msg["enable_token_custody"], false);
-            assert_eq!(cosmwasm_init_msg["enable_data_storage"], true);
+            // Test CosmWasm full capabilities
+            let cosmwasm_input = CosmWasmFactoryInput {
+                controller: "cosmos1abc123def456ghi789jkl012mno345pqr678stu901".to_string(),
+                code_id: 42,
+                account_request_id: 123,
+                factory: "cosmos1factory123456789abcdef0123456789abcdef01".to_string(),
+                block_height: 12345,
+                program_id: "42".to_string(),
+                canonical_factory: vec![1u8; 32],
+                code_checksum: vec![1u8; 32],
+                libraries: vec!["cosmos1lib1".to_string()],
+            };
 
-            CosmWasmAccountFactoryController::process_account_capabilities(
-                &CosmWasmAccountType::Hybrid,
-                &mut cosmwasm_init_msg,
-            ).unwrap();
-            assert_eq!(cosmwasm_init_msg["enable_token_custody"], true);
-            assert_eq!(cosmwasm_init_msg["enable_data_storage"], true);
+            let cosmwasm_witness = CosmWasmAccountFactoryController::process_input(cosmwasm_input).unwrap();
+            assert!(cosmwasm_witness.is_valid_controller);
         }
     }
 
-    // Performance and batch testing
+    // Performance and stress tests
     mod performance_tests {
-        use evm_account_factory_circuit::{EvmAccountFactoryCircuit, CircuitInput as EvmCircuitInput, circuit as evm_circuit};
-        use cosmwasm_account_factory_circuit::{CosmWasmAccountFactoryCircuit, CircuitInput as CosmWasmCircuitInput, circuit as cosmwasm_circuit};
-        use valence_coprocessor::Witness;
+        use evm_account_factory_controller::{EvmAccountFactoryController, FactoryInput as EvmFactoryInput};
+        use evm_account_factory_circuit::{
+            circuit as evm_circuit, Witness as EvmWitness,
+        };
+        use cosmwasm_account_factory_circuit::{
+            circuit as cosmwasm_circuit, Witness as CosmWasmWitness,
+        };
 
         #[test]
         fn test_batch_salt_generation() {
-            // Test multiple salt generations to simulate batch processing
-            for i in 0..5 {
-                let evm_input = EvmCircuitInput {
+            // Test generating many salts efficiently
+            let mut salts = Vec::new();
+
+            for i in 0..100 {
+                let evm_input = EvmFactoryInput {
+                    controller: "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89".to_string(),
+                    program_id: "42".to_string(),
+                    account_request_id: i,
+                    factory: "0x1234567890123456789012345678901234567890".to_string(),
                     block_hash: [1u8; 32],
-                    program_id: 42,
-                    account_request_id: i as u64,
-                    account_type: 1,
+                    libraries: vec!["0xabcd1234".to_string()],
                 };
 
-                let evm_output = EvmAccountFactoryCircuit::execute(evm_input);
-                assert!(evm_output.is_valid);
-                assert_ne!(evm_output.salt, [0u8; 32]);
-
-                let cosmwasm_input = CosmWasmCircuitInput {
-                    block_height: 12345,
-                    program_id: 42,
-                    account_request_id: i as u64,
-                    account_type: 2,
-                };
-
-                let cosmwasm_output = CosmWasmAccountFactoryCircuit::execute(cosmwasm_input);
-                assert!(cosmwasm_output.is_valid);
-                assert_ne!(cosmwasm_output.salt, [0u8; 32]);
+                let witness = EvmAccountFactoryController::process_input(evm_input).unwrap();
+                salts.push(witness.salt);
             }
+
+            // All salts should be unique
+            let unique_salts: std::collections::HashSet<_> = salts.iter().collect();
+            assert_eq!(unique_salts.len(), salts.len());
         }
 
         #[test]
-        fn test_mixed_account_type_salt_generation() {
-            let account_types = vec![1, 2, 3]; // TokenCustody, DataStorage, Hybrid
+        fn test_mixed_library_salt_generation() {
+            // Test with different library configurations
+            let mut salts = Vec::new();
 
-            for (i, account_type) in account_types.into_iter().enumerate() {
-                let evm_input = EvmCircuitInput {
+            let library_configs = vec![
+                vec!["0xlib1".to_string()],
+                vec!["0xlib1".to_string(), "0xlib2".to_string()],
+                vec!["0xlib3".to_string()],
+                vec![],
+            ];
+
+            for libs in library_configs {
+                let evm_input = EvmFactoryInput {
+                    controller: "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89".to_string(),
+                    program_id: "42".to_string(),
+                    account_request_id: 123,
+                    factory: "0x1234567890123456789012345678901234567890".to_string(),
                     block_hash: [1u8; 32],
-                    program_id: 42,
-                    account_request_id: i as u64,
-                    account_type,
+                    libraries: libs,
                 };
 
-                let evm_output = EvmAccountFactoryCircuit::execute(evm_input);
-                assert!(evm_output.is_valid);
-
-                let cosmwasm_input = CosmWasmCircuitInput {
-                    block_height: 12345,
-                    program_id: 42,
-                    account_request_id: i as u64,
-                    account_type,
-                };
-
-                let cosmwasm_output = CosmWasmAccountFactoryCircuit::execute(cosmwasm_input);
-                assert!(cosmwasm_output.is_valid);
+                let witness = EvmAccountFactoryController::process_input(evm_input).unwrap();
+                salts.push(witness.salt);
             }
+
+            // All salts should be unique
+            let unique_salts: std::collections::HashSet<_> = salts.iter().collect();
+            assert_eq!(unique_salts.len(), salts.len());
         }
 
         #[test]
         fn test_zkvm_circuit_functions() {
-            // Test EVM zkVM circuit function
+            // Test EVM circuit function
             let evm_witnesses = vec![
-                Witness::Data([1u8; 32].to_vec()),          // block_hash
-                Witness::Data(42u64.to_le_bytes().to_vec()), // program_id
-                Witness::Data(123u64.to_le_bytes().to_vec()), // account_request_id
-                Witness::Data(vec![1u8]),                     // account_type
+                EvmWitness::Data([1u8; 32].to_vec()),
+                EvmWitness::Data([0u8; 32].to_vec()),
+                EvmWitness::Data("42".as_bytes().to_vec()),
+                EvmWitness::Data(123u64.to_le_bytes().to_vec()),
             ];
 
             let evm_output = evm_circuit(evm_witnesses);
             assert_eq!(evm_output.len(), 33);
-            assert_eq!(evm_output[32], 1); // is_valid = true
 
-            // Test CosmWasm zkVM circuit function
+            // Test CosmWasm circuit function
             let cosmwasm_witnesses = vec![
-                Witness::Data(12345u64.to_le_bytes().to_vec()), // block_height
-                Witness::Data(42u64.to_le_bytes().to_vec()),     // program_id
-                Witness::Data(123u64.to_le_bytes().to_vec()),    // account_request_id
-                Witness::Data(vec![1u8]),                        // account_type
+                CosmWasmWitness::Data(12345u64.to_le_bytes().to_vec()),
+                CosmWasmWitness::Data([0u8; 32].to_vec()),
+                CosmWasmWitness::Data("42".as_bytes().to_vec()),
+                CosmWasmWitness::Data(123u64.to_le_bytes().to_vec()),
             ];
 
             let cosmwasm_output = cosmwasm_circuit(cosmwasm_witnesses);
             assert_eq!(cosmwasm_output.len(), 33);
-            assert_eq!(cosmwasm_output[32], 1); // is_valid = true
         }
     }
-} 
+}

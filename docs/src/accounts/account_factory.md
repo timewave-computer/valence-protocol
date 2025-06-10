@@ -33,7 +33,7 @@ The Valence Account Factory System provides efficient, deterministic deployment 
 **Key Features:**
 - **Deterministic Addressing**: Compute account addresses before creation
 - **Atomic Operations**: Single-transaction account creation with validation
-- **Account Types**: Flexible capabilities (TokenCustody, DataStorage, Hybrid)
+- **Unified Capabilities**: All accounts support both token custody and data storage
 - **Batch Processing**: Ferry services for efficient multi-account creation
 - **Cross-Chain Consistency**: Uniform behavior across blockchain environments
 
@@ -71,22 +71,16 @@ graph TB
 1. **Account Factory Contracts**: Handle deterministic account creation with entropy-based salt generation and account request ID management
 2. **JIT Account Contracts**: Lightweight accounts with controller-bound execution and library approval systems
 3. **Ferry Services**: Off-chain operators providing batch processing for efficient multi-account creation
-4. **ZK Coprocessor Integration** Validates account creation by binding deterministic salt to account derivation
+4. **ZK Coprocessor Integration**: Validates account creation by binding deterministic salt to account derivation
 
-## Account Types and Capabilities
+## Account Capabilities
 
-### Account Type Definitions
+All accounts created by the factory have unified capabilities, supporting both:
 
-Accounts can be instantiated with custody, storage, or both capabilities (hybrid).
+- **Token Custody**: Can hold, transfer, and manage fungible tokens
+- **Data Storage**: Can store and manage non-fungible data objects
 
-```rust
-#[derive(Clone, Debug, PartialEq)]
-pub enum AccountType {
-    TokenCustody = 1,   // Can hold and transfer tokens
-    DataStorage = 2,    // Can store non-fungible data  
-    Hybrid = 3,         // Both token and data capabilities
-}
-```
+This unified approach simplifies the system architecture while providing full functionality for all use cases. Accounts can simultaneously manage tokens and store application-specific data without requiring different account types.
 
 ## Factory Creation
 
@@ -113,7 +107,7 @@ The system ensures that by the time attackers observe entropy and attempt addres
 ### Salt Algorithm
 
 ```text
-salt = hash(controller + libraries_hash + program_id + account_request_id + account_type + block_entropy)
+salt = hash(controller + libraries_hash + program_id + account_request_id + block_entropy)
 ```
 
 This provides:
@@ -146,7 +140,6 @@ function createAccount(
     address controller,
     string memory programId,
     uint64 accountRequestId,
-    uint8 accountType,
     uint256 historicalBlockNumber  // Must be recent
 ) external returns (address) {
     // Validate block age
@@ -158,7 +151,7 @@ function createAccount(
     // Use historical entropy for salt generation
     bytes32 historicalEntropy = blockhash(historicalBlockNumber);
     bytes32 salt = keccak256(abi.encodePacked(
-        controller, programId, accountRequestId, accountType,
+        controller, programId, accountRequestId,
         historicalEntropy, historicalBlockNumber
     ));
     
@@ -205,20 +198,26 @@ fn validate_request(
 
 The Account Factory integrates with the Valence ZK System for salt generation integrity, providing the core security property that prevents front-running attacks.
 
+### Security Model
+
+**ZK Circuit Proves Salt Integrity → Smart Contract Uses Proven Salt for Address Generation**
+
+The security comes from **separation of concerns**:
+- **ZK Circuit**: Proves "this salt was computed correctly from these entropy sources"  
+- **Smart Contract**: Uses that proven salt to deterministically compute and deploy the address
+
 ### Circuit Scope
 
-The ZK circuits focus exclusively on the minimum security-critical operations:
-
-**What's IN the circuit (proven cryptographically):**
+**What's IN the circuit (cryptographically proven):**
 - **Salt Generation Integrity**: Proving the salt was correctly computed from specified entropy sources
-- **Entropy Binding**: Ensuring salt generation uses intended inputs (block data, program_id, account_request_id, account_type)
+- **Entropy Binding**: Ensuring salt generation uses intended inputs (block data, program_id, account_request_id, libraries)
 
-**What's NOT in the circuit (validated on-chain for efficiency):**
+**What's ON-CHAIN (validated by smart contract using proven salt):**
+- Address computation with CREATE2/Instantiate2 using **proven salt**
 - Controller address validation (format checking)
-- Account type validation (range checking 1-3)
-- Address computation (CREATE2/Instantiate2)
-- Atomic operation validation (non-empty fields)
+- Library validation (address format and non-empty checks)
 - Historical block age verification
+- ZK proof verification
 
 ### Circuit Interface
 
@@ -226,39 +225,33 @@ The ZK circuits focus exclusively on the minimum security-critical operations:
 // ZK Circuit Input (private)
 pub struct CircuitInput {
     pub block_hash: [u8; 32],           // Or block_height for CosmWasm
-    pub program_id: u64,
+    pub program_id: String,
     pub account_request_id: u64,
-    pub account_type: u8,
+    pub libraries_hash: [u8; 32],       // Hash of approved libraries
 }
 
 // ZK Circuit Output (public)
 pub struct CircuitOutput {
-    pub salt: [u8; 32],                 // Generated salt
+    pub salt: [u8; 32],                 // Proven salt
     pub is_valid: bool,                 // Always true for valid inputs
 }
 ```
 
-### Security Justification
+### Security Properties
 
-**Why only salt generation in ZK?**
-- **Core Security Property**: Salt generation is what prevents front-running attacks
-- **Privacy**: Entropy sources remain private while proving correct salt derivation
-- **Efficiency**: Everything else can be validated on-chain at lower cost
-- **Simplicity**: Reduces circuit complexity and proof generation time
-
-**On-chain validations are sufficient for:**
-- **Address validation**: Format checking doesn't require privacy
-- **Account type validation**: Simple range check (1-3)
-- **Temporal validation**: Block age limits prevent stale entropy
-- **Replay protection**: Account request ID uniqueness
+**Why this prevents manipulation:**
+- Off-chain actors can only generate valid proofs for correctly computed salts
+- Smart contracts deterministically compute addresses using **proven salts**
+- Historical block validation prevents stale entropy usage
+- ZK proofs are cryptographically bound to specific entropy sources
 
 ### Integration Flow
 
-1. **Off-chain**: ZK circuit generates proof of correct salt generation
-2. **On-chain**: Contract validates proof and performs remaining checks
-3. **Account Creation**: Uses proven salt for deterministic addressing
+1. **Off-chain**: ZK circuit generates proof of correct salt generation from entropy
+2. **On-chain**: Smart contract verifies proof and uses **proven salt** for address computation  
+3. **Deployment**: CREATE2/Instantiate2 guarantees address matches the proven salt
 
-This hybrid approach ensures security while maintaining efficiency and keeping ZK proof generation costs minimal.
+This ensures both **efficiency** (cheap on-chain address computation) and **security** (cryptographically proven salt generation).
 
 ## Implementation Examples
 
@@ -270,13 +263,14 @@ let request = AccountRequest {
     libraries: vec!["library1", "library2"],
     program_id: "my_defi_app",
     account_request_id: 12345,
-    account_type: AccountType::TokenCustody,
+    historical_block_height: 98765,
+    signature: None,
 };
 
 // Compute address before creation
 let address = factory.compute_address(&request)?;
 
-// Create account
+// Create account (with full token custody and data storage capabilities)
 factory.create_account(request)?;
 ```
 
@@ -319,10 +313,10 @@ Ferry operators provide batch processing optimization:
 - Implement signature verification for sensitive operations
 
 ### Performance
-- Choose minimal account type for requirements
 - Use batch operations for multiple accounts
 - Estimate gas requirements before execution
 - Cache frequently computed values
+- Leverage deterministic addressing for coordination
 
 ### Error Handling
 - Check for account request ID collisions
@@ -332,4 +326,4 @@ Ferry operators provide batch processing optimization:
 
 ## Conclusion
 
-The Valence Account Factory System provides secure, efficient cross-chain account creation with deterministic addressing and atomic guarantees. Key advantages include predictable addresses for off-chain coordination, flexible account types for diverse needs, atomic operations with comprehensive validation, and cost-effective batch processing through ferry services. 
+The Valence Account Factory System provides secure, efficient cross-chain account creation with deterministic addressing and atomic guarantees. Key advantages include predictable addresses for off-chain coordination, unified account capabilities supporting both token custody and data storage, atomic operations with comprehensive validation, and cost-effective batch processing through ferry services. 
