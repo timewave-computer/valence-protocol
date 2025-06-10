@@ -294,7 +294,7 @@ mod integration_tests {
         #[test]
         fn test_library_consistency() {
             // Test that both platforms handle library hashing consistently
-            let libraries = vec!["lib1".to_string(), "lib2".to_string()];
+            let libraries = ["lib1".to_string(), "lib2".to_string()];
             
             // Both platforms should produce consistent results for same library inputs
             assert!(!libraries.is_empty());
