@@ -18,7 +18,7 @@ pub struct AccountRequest {
     pub account_request_id: u64,
     pub historical_block_height: u64, // Block height used for entropy
     pub signature: Option<Vec<u8>>,   // Optional for atomic operations
-    pub public_key: Option<Vec<u8>>,  // Required when signature is provided (33 bytes for compressed secp256k1)
+    pub public_key: Option<Vec<u8>>, // Required when signature is provided (33 bytes for compressed secp256k1)
 }
 
 /// Account request data used for signature verification (excludes signature field)
