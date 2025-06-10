@@ -591,6 +591,13 @@ contract OneWayVaultTest is Test {
         vm.expectRevert("Only owner can unpause if paused by stale rate");
         vault.unpause();
 
+        // Update the rate so that owner can unpause and users can deposit again
+        uint256 newRate = initialRate * 2; // Double the rate
+        vm.prank(strategist);
+        vm.expectEmit(false, false, false, true);
+        emit RateUpdated(newRate);
+        vault.update(newRate);
+
         // Owner can unpause
         vm.prank(owner);
         vm.expectEmit(false, false, false, true);
@@ -601,6 +608,15 @@ contract OneWayVaultTest is Test {
         assertFalse(paused);
         assertFalse(pausedByOwner);
         assertFalse(pausedByStaleRate);
+
+        // Users can now deposit again
+        vm.prank(user2);
+        vault.deposit(depositAmount, user2);
+
+        // User got the shares and vault didn't pause
+        assertTrue(vault.balanceOf(user2) > 0);
+        (paused,,) = vault.vaultState();
+        assertFalse(paused);
     }
 
     function test_RateUpdatedDuringStaleRatePause() public {
