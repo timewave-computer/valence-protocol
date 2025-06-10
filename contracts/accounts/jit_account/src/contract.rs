@@ -14,14 +14,14 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Response,
-    StdResult, StdError, ensure,
+    ensure, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Response,
+    StdError, StdResult,
 };
 use cw2::set_contract_version;
 use thiserror::Error;
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{APPROVED_LIBRARIES, CONTROLLER, ACCOUNT_TYPE};
+use crate::state::{ACCOUNT_TYPE, APPROVED_LIBRARIES, CONTROLLER};
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -36,7 +36,7 @@ pub enum ContractError {
 }
 
 /// Initialize a new JIT account with controller binding
-/// 
+///
 /// Sets up the account with an immutable controller address and account type.
 /// The controller is the only entity that can approve/remove libraries and
 /// execute messages directly. The account type determines what capabilities
@@ -50,11 +50,11 @@ pub fn instantiate(
 ) -> StdResult<Response> {
     // Set contract version for migration tracking
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    
+
     // Store controller address (immutable after instantiation)
     let controller = deps.api.addr_validate(&msg.controller)?;
     CONTROLLER.save(deps.storage, &controller)?;
-    
+
     // Store account type configuration
     // 1 = TokenCustody (can hold/transfer tokens)
     // 2 = DataStorage (can store non-fungible data)
@@ -68,7 +68,7 @@ pub fn instantiate(
 }
 
 /// Execute operations on the JIT account
-/// 
+///
 /// Handles library approval/removal (controller only) and message execution
 /// (controller or approved libraries). All operations include authorization
 /// checks to ensure only permitted entities can perform actions.
@@ -82,10 +82,10 @@ pub fn execute(
     match msg {
         // Approve a library for executing messages on behalf of this account
         ExecuteMsg::ApproveLibrary { library } => execute::approve_library(deps, info, library),
-        
+
         // Remove approval for a library
         ExecuteMsg::RemoveLibrary { library } => execute::remove_library(deps, info, library),
-        
+
         // Execute one or more CosmosMsg through this account
         ExecuteMsg::Execute { msgs } => execute::execute_msgs(deps, info, msgs),
     }
@@ -96,7 +96,7 @@ mod execute {
     use super::*;
 
     /// Approve a library to execute messages on behalf of this account
-    /// 
+    ///
     /// Only the controller can approve libraries. Once approved, a library
     /// can call the Execute method to perform operations using this account's
     /// permissions and capabilities.
@@ -107,10 +107,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         // Load controller address and verify sender authorization
         let controller = CONTROLLER.load(deps.storage)?;
-        ensure!(
-            info.sender == controller,
-            ContractError::Unauthorized {}
-        );
+        ensure!(info.sender == controller, ContractError::Unauthorized {});
 
         // Validate and store library address
         let library_addr = deps.api.addr_validate(&library)?;
@@ -122,7 +119,7 @@ mod execute {
     }
 
     /// Remove approval for a library
-    /// 
+    ///
     /// Only the controller can remove library approvals. Once removed,
     /// the library can no longer execute messages through this account.
     pub fn remove_library(
@@ -132,10 +129,7 @@ mod execute {
     ) -> Result<Response, ContractError> {
         // Verify only controller can remove library approvals
         let controller = CONTROLLER.load(deps.storage)?;
-        ensure!(
-            info.sender == controller,
-            ContractError::Unauthorized {}
-        );
+        ensure!(info.sender == controller, ContractError::Unauthorized {});
 
         // Remove library from approved list
         let library_addr = deps.api.addr_validate(&library)?;
@@ -147,7 +141,7 @@ mod execute {
     }
 
     /// Execute messages through this account
-    /// 
+    ///
     /// Can be called by either the controller directly or by any approved library.
     /// This is the primary mechanism for performing operations (token transfers,
     /// data storage, etc.) using this account's identity and permissions.
@@ -157,7 +151,7 @@ mod execute {
         msgs: Vec<CosmosMsg>,
     ) -> Result<Response, ContractError> {
         let controller = CONTROLLER.load(deps.storage)?;
-        
+
         // Authorization check: allow controller or approved libraries to execute
         ensure!(
             info.sender == controller || APPROVED_LIBRARIES.has(deps.storage, info.sender.clone()),
@@ -174,7 +168,7 @@ mod execute {
 }
 
 /// Query account state and configuration
-/// 
+///
 /// Provides read-only access to account information including controller,
 /// library approvals, and account type configuration.
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -185,14 +179,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let controller = CONTROLLER.load(deps.storage)?;
             to_json_binary(&controller)
         }
-        
+
         // Check if a specific library is approved to execute messages
         QueryMsg::IsLibraryApproved { library } => {
             let library_addr = deps.api.addr_validate(&library)?;
             let approved = APPROVED_LIBRARIES.has(deps.storage, library_addr);
             to_json_binary(&approved)
         }
-        
+
         // Get the account type configuration
         // Returns: 1 = TokenCustody, 2 = DataStorage, 3 = Hybrid
         QueryMsg::GetAccountType {} => {
@@ -200,4 +194,4 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&account_type)
         }
     }
-} 
+}
