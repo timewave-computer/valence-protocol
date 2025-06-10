@@ -344,7 +344,7 @@ mod execute {
 
         // Compute what the account address will be
         let account_addr =
-            compute_instantiate2_address(&deps, &env.contract.address, code_id, &salt)?;
+            compute_instantiate2_address(deps, &env.contract.address, code_id, &salt)?;
 
         // Check if account already exists
         if CREATED_ACCOUNTS.has(deps.storage, account_addr.clone()) {
