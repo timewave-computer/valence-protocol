@@ -29,6 +29,7 @@ contract OneWayVaultTest is Test {
     uint32 strategistRatioBps = 5000; // 50%
     uint128 depositCap = 1_000_000 * 10 ** 18; // 1 million tokens
     uint256 initialRate = 10 ** 18; // 1:1 initial rate
+    uint64 maxRateUpdateDelay = 1 days;
 
     // Events from the contract
     event PausedStateChanged(bool paused);
@@ -62,6 +63,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: depositFeeBps,
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
@@ -117,6 +119,7 @@ contract OneWayVaultTest is Test {
             address initializedStrategist,
             uint32 initializedDepositFeeBps,
             uint32 initializedWithdrawRateBps,
+            uint64 initializedmaxRateUpdateDelay,
             uint256 initializedDepositCap,
             OneWayVault.FeeDistributionConfig memory initializedFeeDistribution
         ) = vault.config();
@@ -125,6 +128,7 @@ contract OneWayVaultTest is Test {
         assertEq(initializedStrategist, strategist);
         assertEq(initializedDepositFeeBps, depositFeeBps);
         assertEq(initializedWithdrawRateBps, withdrawRateBps);
+        assertEq(initializedmaxRateUpdateDelay, maxRateUpdateDelay);
         assertEq(initializedDepositCap, depositCap);
         assertEq(initializedFeeDistribution.strategistAccount, strategistFeeReceiver);
         assertEq(initializedFeeDistribution.platformAccount, platformFeeReceiver);
@@ -161,6 +165,7 @@ contract OneWayVaultTest is Test {
             strategist: newStrategist,
             depositFeeBps: newDepositFeeBps,
             withdrawRateBps: newWithdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay, // keep same max time
             depositCap: newDepositCap,
             feeDistribution: newFeeConfig
         });
@@ -175,6 +180,7 @@ contract OneWayVaultTest is Test {
             address updatedStrategist,
             uint32 updatedDepositFeeBps,
             uint32 updatedWithdrawRateBps,
+            ,
             uint256 updatedDepositCap,
             OneWayVault.FeeDistributionConfig memory updatedFeeDistribution
         ) = vault.config();
@@ -195,6 +201,7 @@ contract OneWayVaultTest is Test {
             strategist: address(10),
             depositFeeBps: 200,
             withdrawRateBps: 75,
+            maxRateUpdateDelay: 1 days,
             depositCap: 500_000 * 10 ** 18,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: address(11),
@@ -216,6 +223,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: depositFeeBps,
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
@@ -234,6 +242,7 @@ contract OneWayVaultTest is Test {
             strategist: address(0),
             depositFeeBps: depositFeeBps,
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
@@ -252,6 +261,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: 10001, // > 100%
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
@@ -270,6 +280,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: depositFeeBps,
             withdrawRateBps: 10001, // > 100%
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
@@ -288,6 +299,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: depositFeeBps,
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
@@ -298,6 +310,25 @@ contract OneWayVaultTest is Test {
 
         vm.prank(owner);
         vm.expectRevert("Strategist account fee distribution ratio cannot exceed 100%");
+        vault.updateConfig(abi.encode(invalidConfig));
+
+        // Test max rate update delay is 0
+        invalidConfig = OneWayVault.OneWayVaultConfig({
+            depositAccount: depositAccount,
+            strategist: strategist,
+            depositFeeBps: depositFeeBps,
+            withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: 0, // 0 delay
+            depositCap: depositCap,
+            feeDistribution: OneWayVault.FeeDistributionConfig({
+                strategistAccount: strategistFeeReceiver,
+                platformAccount: platformFeeReceiver,
+                strategistRatioBps: strategistRatioBps
+            })
+        });
+
+        vm.prank(owner);
+        vm.expectRevert("Max rate update delay cannot be zero");
         vault.updateConfig(abi.encode(invalidConfig));
     }
 
@@ -346,6 +377,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: 0,
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
@@ -389,6 +421,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: 0,
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: 5_000 * 10 ** 18, // 5k tokens
             feeDistribution: feeConfig
         });
@@ -445,15 +478,16 @@ contract OneWayVaultTest is Test {
                               PAUSE TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_PauseAndUnpause() public {
+    function test_ManualPauseAndUnpause() public {
         // Test pause by owner
         vm.prank(owner);
         vault.pause();
 
-        (bool paused, bool pausedByOwner) = vault.vaultState();
+        (bool paused, bool pausedByOwner, bool pausedByStaleRate) = vault.vaultState();
 
         assertTrue(paused);
         assertTrue(pausedByOwner);
+        assertFalse(pausedByStaleRate);
 
         // Try to deposit while paused
         vm.prank(user1);
@@ -464,35 +498,38 @@ contract OneWayVaultTest is Test {
         vm.prank(owner);
         vault.unpause();
 
-        (paused, pausedByOwner) = vault.vaultState();
+        (paused, pausedByOwner, pausedByStaleRate) = vault.vaultState();
 
         assertFalse(paused);
         assertFalse(pausedByOwner);
+        assertFalse(pausedByStaleRate);
 
         // Test pause by strategist
         vm.prank(strategist);
         vault.pause();
 
-        (paused, pausedByOwner) = vault.vaultState();
+        (paused, pausedByOwner, pausedByStaleRate) = vault.vaultState();
 
         assertTrue(paused);
         assertFalse(pausedByOwner);
+        assertFalse(pausedByStaleRate);
 
         // Try to unpause by strategist (should work since not paused by owner)
         vm.prank(strategist);
         vault.unpause();
 
-        (paused, pausedByOwner) = vault.vaultState();
+        (paused, pausedByOwner, pausedByStaleRate) = vault.vaultState();
 
         assertFalse(paused);
         assertFalse(pausedByOwner);
+        assertFalse(pausedByStaleRate);
 
         // Test pause by owner, then try to unpause by strategist (should fail)
         vm.prank(owner);
         vault.pause();
 
         vm.prank(strategist);
-        vm.expectRevert("Only owner can unpause");
+        vm.expectRevert("Only owner can unpause if paused by owner");
         vault.unpause();
 
         // Owner can still unpause
@@ -505,6 +542,118 @@ contract OneWayVaultTest is Test {
         vm.prank(user1);
         vm.expectRevert("Only owner or strategist allowed");
         vault.pause();
+    }
+
+    function test_StaleRateTrigger() public {
+        // Let's make a first deposit which will succeed and user will get shares
+        uint256 depositAmount = 10_000 * 10 ** 18;
+        vm.prank(user1);
+        vault.deposit(depositAmount, user1);
+        // Check that user has shares
+        assertTrue(vault.balanceOf(user1) > 0);
+
+        // Let's not update the rate for a long time
+        vm.warp(block.timestamp + maxRateUpdateDelay + 1 days); // Warp past max delay
+        // Now if user2 tries to deposit he will not get shares and vault will be paused
+        vm.prank(user2);
+        vm.expectEmit(false, false, false, true);
+        emit PausedStateChanged(true);
+        vault.deposit(depositAmount, user2);
+
+        // Check that vault is paused
+        (bool paused, bool pausedByOwner, bool pausedByStaleRate) = vault.vaultState();
+        assertTrue(paused);
+        assertFalse(pausedByOwner);
+        assertTrue(pausedByStaleRate);
+        // Check that user2 got no shares
+        assertEq(vault.balanceOf(user2), 0);
+
+        // Check that we can't withdraw or redeem while paused
+        vm.prank(user1);
+        vm.expectRevert("Vault is paused");
+        vault.withdraw(1, "neutron123", user1);
+
+        vm.prank(user1);
+        vm.expectRevert("Vault is paused");
+        vault.redeem(1, "neutron123", user1);
+
+        // Depositing or minting while paused should also fail
+        vm.prank(user1);
+        vm.expectRevert("Vault is paused");
+        vault.deposit(depositAmount, user1);
+
+        vm.prank(user1);
+        vm.expectRevert("Vault is paused");
+        vault.mint(10_000, user1);
+
+        // Only owner can unpause, strategist cant
+        vm.prank(strategist);
+        vm.expectRevert("Only owner can unpause if paused by stale rate");
+        vault.unpause();
+
+        // Owner can unpause
+        vm.prank(owner);
+        vm.expectEmit(false, false, false, true);
+        emit PausedStateChanged(false);
+        vault.unpause();
+        // Check that vault is unpaused
+        (paused, pausedByOwner, pausedByStaleRate) = vault.vaultState();
+        assertFalse(paused);
+        assertFalse(pausedByOwner);
+        assertFalse(pausedByStaleRate);
+    }
+
+    function test_RateUpdatedDuringStaleRatePause() public {
+        // Let's not update the rate for a long time
+        vm.warp(block.timestamp + maxRateUpdateDelay + 1 days); // Warp past max delay
+
+        uint256 depositAmount = 10_000 * 10 ** 18;
+        vm.prank(user2);
+        vm.expectEmit(false, false, false, true);
+        emit PausedStateChanged(true);
+        vault.deposit(depositAmount, user2);
+
+        // Do a rate update - this should update the rate but not unpause the vault
+        uint256 newRate = initialRate * 2; // Double the rate
+        vm.prank(strategist);
+        vm.expectEmit(false, false, false, true);
+        emit RateUpdated(newRate);
+        vault.update(newRate);
+
+        // Check that vault is still paused
+        (bool paused, bool pausedByOwner, bool pausedByStaleRate) = vault.vaultState();
+        assertTrue(paused);
+        assertFalse(pausedByOwner);
+        assertTrue(pausedByStaleRate);
+    }
+
+    function test_CannotUpdateWhenManuallyPaused() public {
+        // Let's make a first deposit which will succeed and user will get shares
+        uint256 depositAmount = 10_000 * 10 ** 18;
+        vm.prank(user1);
+        vault.deposit(depositAmount, user1);
+        // Check that user has shares
+        assertTrue(vault.balanceOf(user1) > 0);
+
+        // Pause the vault by owner
+        vm.prank(owner);
+        vault.pause();
+
+        // Now try to update the rate - should revert
+        uint256 newRate = initialRate * 2;
+        vm.prank(strategist);
+        vm.expectRevert("Vault is paused by owner or strategist");
+        vault.update(newRate);
+
+        // Unpause the vault
+        vm.prank(owner);
+        vault.unpause();
+
+        // Now we can update the rate
+        vm.prank(strategist);
+        vm.expectEmit(false, false, false, true);
+        emit RateUpdated(newRate);
+        vault.update(newRate);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -579,13 +728,6 @@ contract OneWayVaultTest is Test {
         vault.update(initialRate * 2);
     }
 
-    function test_UpdateRateWithZeroShares() public {
-        // Try to update rate when no shares exist
-        vm.prank(strategist);
-        vm.expectRevert("Zero shares");
-        vault.update(initialRate * 2);
-    }
-
     /*//////////////////////////////////////////////////////////////
                         WITHDRAWAL REQUEST TESTS
     //////////////////////////////////////////////////////////////*/
@@ -652,6 +794,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: depositFeeBps,
             withdrawRateBps: 0, // Zero withdraw fee
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
@@ -832,6 +975,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: depositFeeBps,
             withdrawRateBps: 0,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
@@ -946,6 +1090,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: depositFeeBps,
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: 100_000 * 10 ** 18,
             feeDistribution: feeConfig
         });
@@ -1039,6 +1184,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: 0,
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
@@ -1076,6 +1222,7 @@ contract OneWayVaultTest is Test {
             strategist: strategist,
             depositFeeBps: 0,
             withdrawRateBps: withdrawRateBps,
+            maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
         });
