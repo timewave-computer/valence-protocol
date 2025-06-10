@@ -21,7 +21,7 @@ mod integration_tests {
                 account_request_id: 123,
                 factory: "0x1234567890123456789012345678901234567890".to_string(),
                 block_hash: [1u8; 32],
-                libraries: vec!["0xabcd1234".to_string(), "0x5678efgh".to_string()],
+                libraries: vec!["0x1111111111111111111111111111111111111111".to_string(), "0x2222222222222222222222222222222222222222".to_string()],
             };
 
             let witness = EvmAccountFactoryController::process_input(input).unwrap();
@@ -52,15 +52,14 @@ mod integration_tests {
                 account_request_id: 123,
                 factory: "0x1234567890123456789012345678901234567890".to_string(),
                 block_hash: [1u8; 32],
-                libraries: vec!["0xabcd1234".to_string()],
+                libraries: vec!["0x1111111111111111111111111111111111111111".to_string()],
             };
 
-            let mut lib1_input = base_input.clone();
-            lib1_input.libraries = vec!["0xabcd1234".to_string()];
+            let lib1_input = base_input.clone();
             let lib1_witness = EvmAccountFactoryController::process_input(lib1_input).unwrap();
 
             let mut lib2_input = base_input.clone();
-            lib2_input.libraries = vec!["0x5678efgh".to_string()];
+            lib2_input.libraries = vec!["0x2222222222222222222222222222222222222222".to_string()];
             let lib2_witness = EvmAccountFactoryController::process_input(lib2_input).unwrap();
 
             // Different libraries should produce different addresses
@@ -112,6 +111,60 @@ mod integration_tests {
             // Should return 33 bytes: 32 bytes salt + 1 byte is_valid
             assert_eq!(public_outputs.len(), 33);
             assert_eq!(public_outputs[32], 1); // is_valid = true
+        }
+
+        #[test]
+        fn test_batch_salt_generation() {
+            // Test generating many salts efficiently
+            let mut salts = Vec::new();
+
+            for i in 0..100 {
+                let evm_input = EvmFactoryInput {
+                    controller: "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89".to_string(),
+                    program_id: "42".to_string(),
+                    account_request_id: i,
+                    factory: "0x1234567890123456789012345678901234567890".to_string(),
+                    block_hash: [1u8; 32],
+                    libraries: vec!["0x1111111111111111111111111111111111111111".to_string()],
+                };
+
+                let witness = EvmAccountFactoryController::process_input(evm_input).unwrap();
+                salts.push(witness.salt);
+            }
+
+            // All salts should be unique
+            let unique_salts: std::collections::HashSet<_> = salts.iter().collect();
+            assert_eq!(unique_salts.len(), salts.len());
+        }
+
+        #[test]
+        fn test_mixed_library_salt_generation() {
+            // Test with different library configurations
+            let mut salts = Vec::new();
+
+            let library_configs = vec![
+                vec!["0x1111111111111111111111111111111111111111".to_string()],
+                vec!["0x1111111111111111111111111111111111111111".to_string(), "0x2222222222222222222222222222222222222222".to_string()],
+                vec!["0x3333333333333333333333333333333333333333".to_string()],
+            ];
+
+            for libs in library_configs {
+                let evm_input = EvmFactoryInput {
+                    controller: "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89".to_string(),
+                    program_id: "42".to_string(),
+                    account_request_id: 123,
+                    factory: "0x1234567890123456789012345678901234567890".to_string(),
+                    block_hash: [1u8; 32],
+                    libraries: libs,
+                };
+
+                let witness = EvmAccountFactoryController::process_input(evm_input).unwrap();
+                salts.push(witness.salt);
+            }
+
+            // All salts should be unique
+            let unique_salts: std::collections::HashSet<_> = salts.iter().collect();
+            assert_eq!(unique_salts.len(), salts.len());
         }
     }
 
@@ -174,15 +227,12 @@ mod integration_tests {
                 libraries: vec!["cosmos1lib1".to_string()],
             };
 
-            let mut lib1_input = base_input.clone();
-            lib1_input.libraries = vec!["cosmos1lib1".to_string()];
-            let lib1_witness =
-                CosmWasmAccountFactoryController::process_input(lib1_input).unwrap();
+            let lib1_input = base_input.clone();
+            let lib1_witness = CosmWasmAccountFactoryController::process_input(lib1_input).unwrap();
 
             let mut lib2_input = base_input.clone();
             lib2_input.libraries = vec!["cosmos1lib2".to_string()];
-            let lib2_witness =
-                CosmWasmAccountFactoryController::process_input(lib2_input).unwrap();
+            let lib2_witness = CosmWasmAccountFactoryController::process_input(lib2_input).unwrap();
 
             // Different libraries should produce different addresses
             assert_ne!(
@@ -259,7 +309,7 @@ mod integration_tests {
                 account_request_id: 123,
                 factory: "0x1234567890123456789012345678901234567890".to_string(),
                 block_hash: [1u8; 32],
-                libraries: vec!["0xabcd1234".to_string()],
+                libraries: vec!["0x1111111111111111111111111111111111111111".to_string()],
             };
 
             let evm_witness = EvmAccountFactoryController::process_input(evm_input.clone()).unwrap();
@@ -291,7 +341,7 @@ mod integration_tests {
                 account_request_id: 123,
                 factory: "0x1234567890123456789012345678901234567890".to_string(),
                 block_hash: [1u8; 32],
-                libraries: vec!["0xabcd1234".to_string()],
+                libraries: vec!["0x1111111111111111111111111111111111111111".to_string()],
             };
 
             let evm_witness = EvmAccountFactoryController::process_input(evm_input).unwrap();
@@ -326,39 +376,14 @@ mod integration_tests {
         };
 
         #[test]
-        fn test_batch_salt_generation() {
-            // Test generating many salts efficiently
-            let mut salts = Vec::new();
-
-            for i in 0..100 {
-                let evm_input = EvmFactoryInput {
-                    controller: "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89".to_string(),
-                    program_id: "42".to_string(),
-                    account_request_id: i,
-                    factory: "0x1234567890123456789012345678901234567890".to_string(),
-                    block_hash: [1u8; 32],
-                    libraries: vec!["0xabcd1234".to_string()],
-                };
-
-                let witness = EvmAccountFactoryController::process_input(evm_input).unwrap();
-                salts.push(witness.salt);
-            }
-
-            // All salts should be unique
-            let unique_salts: std::collections::HashSet<_> = salts.iter().collect();
-            assert_eq!(unique_salts.len(), salts.len());
-        }
-
-        #[test]
         fn test_mixed_library_salt_generation() {
             // Test with different library configurations
             let mut salts = Vec::new();
 
             let library_configs = vec![
-                vec!["0xlib1".to_string()],
-                vec!["0xlib1".to_string(), "0xlib2".to_string()],
-                vec!["0xlib3".to_string()],
-                vec![],
+                vec!["0x1111111111111111111111111111111111111111".to_string()],
+                vec!["0x1111111111111111111111111111111111111111".to_string(), "0x2222222222222222222222222222222222222222".to_string()],
+                vec!["0x3333333333333333333333333333333333333333".to_string()],
             ];
 
             for libs in library_configs {

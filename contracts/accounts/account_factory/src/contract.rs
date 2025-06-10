@@ -281,9 +281,14 @@ mod execute {
 
     /// Validate request signature for atomic operations
     ///
-    /// Simplified signature validation - in production this would use proper
-    /// cryptographic verification (e.g., secp256k1, ed25519) to authenticate
-    /// the request origin.
+    /// TODO: This is a placeholder implementation. In production, this must use proper
+    /// cryptographic signature verification (e.g., secp256k1, ed25519) to authenticate
+    /// the request origin against the controller's public key.
+    /// 
+    /// Production implementation should:
+    /// 1. Extract the public key from the controller address or message
+    /// 2. Verify the signature against the serialized request data
+    /// 3. Use standard cryptographic libraries for verification
     fn validate_signature(request: &AccountRequest) -> Result<(), ContractError> {
         // Check if signature exists and is not empty
         match &request.signature {
@@ -291,8 +296,8 @@ mod execute {
                 if signature.is_empty() {
                     return Err(ContractError::InvalidSignature {});
                 }
-                // In production, this would verify the cryptographic signature
-                // For now, we just check that it exists and is not empty
+                // TODO: Implement proper cryptographic signature verification
+                // Currently only checking for non-empty signature - NOT SECURE FOR PRODUCTION
                 Ok(())
             }
             None => Err(ContractError::InvalidSignature {}),
@@ -354,12 +359,13 @@ mod execute {
         };
 
         // Create the Wasm instantiation message
-        let msg = CosmosMsg::Wasm(WasmMsg::Instantiate {
+        let msg = CosmosMsg::Wasm(WasmMsg::Instantiate2 {
             admin: None,
             code_id,
             msg: to_json_binary(&instantiate_msg)?,
             funds: vec![],
             label: format!("valence-account-{}", request.program_id),
+            salt: Binary::from(salt.to_vec()),
         });
 
         Ok((account_addr, vec![msg]))

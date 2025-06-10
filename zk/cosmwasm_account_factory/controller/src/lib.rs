@@ -227,7 +227,7 @@ impl CosmWasmAccountFactoryController {
     }
 
     /// Validate account request ID
-    fn validate_account_request_id(account_request_id: u64) -> bool {
+    fn validate_account_request_id(_account_request_id: u64) -> bool {
         // In production, you might want to enforce non-zero request IDs
         // For now, allow zero for testing purposes
         true

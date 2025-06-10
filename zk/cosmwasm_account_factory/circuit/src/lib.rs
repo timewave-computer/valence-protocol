@@ -3,11 +3,10 @@
 
 extern crate alloc;
 
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use alloc::vec;
 
 /// Input data for the CosmWasm account factory circuit
 #[derive(Debug, Clone, Serialize, Deserialize)]

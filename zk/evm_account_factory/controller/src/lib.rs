@@ -127,21 +127,49 @@ impl EvmAccountFactoryController {
         hasher.finalize().into()
     }
 
-    /// Compute CREATE2 address
+    /// Compute CREATE2 address following EVM specification
+    /// address = keccak256(0xff + deployer_address + salt + keccak256(init_code))[12:]
     fn compute_create2_address(
         factory: &str,
         salt: &[u8; 32],
     ) -> Result<String, String> {
-        // Simplified CREATE2 address computation
-        // In reality, this would use the actual EVM CREATE2 derivation
+        // Parse factory address (remove 0x prefix and convert to bytes)
+        if !factory.starts_with("0x") || factory.len() != 42 {
+            return Err("Invalid factory address format".to_string());
+        }
+        
+        let factory_bytes = hex::decode(&factory[2..])
+            .map_err(|_| "Invalid factory address hex".to_string())?;
+        
+        if factory_bytes.len() != 20 {
+            return Err("Factory address must be 20 bytes".to_string());
+        }
+        
+        // For this implementation, we use a simplified init_code hash
+        // In production, this would be the actual JitAccount bytecode hash
+        let init_code_hash = {
+            let mut hasher = Sha256::new();
+            hasher.update(b"JitAccount_init_code_placeholder");
+            hasher.finalize()
+        };
+        
+        // Compute CREATE2 address: keccak256(0xff + factory + salt + init_code_hash)[12:]
+        let mut data = Vec::with_capacity(1 + 20 + 32 + 32);
+        data.push(0xff);                    // CREATE2 prefix
+        data.extend_from_slice(&factory_bytes); // Factory address (20 bytes)
+        data.extend_from_slice(salt);       // Salt (32 bytes)
+        data.extend_from_slice(&init_code_hash); // Init code hash (32 bytes)
+        
+        // Use SHA256 as placeholder for keccak256
+        // TODO: In production, use proper keccak256 implementation
         let mut hasher = Sha256::new();
-        hasher.update(factory.as_bytes());
-        hasher.update(salt);
-
+        hasher.update(&data);
         let hash = hasher.finalize();
-
-        // Convert to Ethereum address format (simplified)
-        Ok(format!("0x{}", hex::encode(&hash[..20])))
+        
+        // Take last 20 bytes (equivalent to [12:] for 32-byte hash)
+        let address_bytes = &hash[12..32];
+        
+        Ok(format!("0x{}", hex::encode(address_bytes)))
     }
 
     /// Validate controller address
@@ -188,7 +216,7 @@ impl EvmAccountFactoryController {
     }
 
     /// Validate account request ID
-    fn validate_account_request_id(account_request_id: u64) -> bool {
+    fn validate_account_request_id(_account_request_id: u64) -> bool {
         // In production, you might want to enforce non-zero request IDs
         // For now, allow zero for testing purposes
         true
