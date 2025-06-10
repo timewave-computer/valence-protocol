@@ -59,9 +59,9 @@ impl ReverseSplitterTestSuite {
         let reverse_splitter_code_id = inner.app_mut().store_code(Box::new(reverse_splitter_code));
 
         let dyn_ratio_code = ContractWrapper::new(
-            valence_test_dynamic_ratio::contract::execute,
-            valence_test_dynamic_ratio::contract::instantiate,
-            valence_test_dynamic_ratio::contract::query,
+            valence_dynamic_ratio_query_provider::contract::execute,
+            valence_dynamic_ratio_query_provider::contract::instantiate,
+            valence_dynamic_ratio_query_provider::contract::query,
         );
 
         let dyn_ratio_code_id = inner.app_mut().store_code(Box::new(dyn_ratio_code));
@@ -94,7 +94,7 @@ impl ReverseSplitterTestSuite {
     }
 
     pub fn dyn_ratio_contract_init(&mut self, denom: &str, ratio: Decimal) -> Addr {
-        let init_msg = valence_test_dynamic_ratio::msg::InstantiateMsg {
+        let init_msg = valence_dynamic_ratio_query_provider::msg::InstantiateMsg {
             denom_ratios: [(denom.to_string(), ratio)].into(),
         };
         self.contract_init(self.dyn_ratio_code_id, "dynamic_ratio", &init_msg, &[])

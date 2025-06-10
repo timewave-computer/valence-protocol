@@ -1,5 +1,5 @@
 [package]
-name    = "valence-test-dynamic-ratio"
+name    = "valence-dynamic-ratio-query-provider"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
