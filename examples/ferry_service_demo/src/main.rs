@@ -1,5 +1,5 @@
 //! Ferry Service Demo for Account Factory
-//! 
+//!
 //! This example demonstrates a basic ferry service that batches account creation requests
 //! and submits them to the account factory for efficient processing.
 
@@ -63,8 +63,11 @@ impl FerryService {
         }
 
         self.pending_requests.push(request);
-        println!("✓ Queued request. Total pending: {}", self.pending_requests.len());
-        
+        println!(
+            "✓ Queued request. Total pending: {}",
+            self.pending_requests.len()
+        );
+
         Ok(())
     }
 
@@ -85,16 +88,19 @@ impl FerryService {
 
         let requests = std::mem::take(&mut self.pending_requests);
         let total_fee = (requests.len() as u128) * self.fee_per_request;
-        
+
         let batch = BatchRequest {
             requests: requests.clone(),
             ferry: self.ferry_address.clone(),
             fee_amount: total_fee,
         };
 
-        println!("🚢 Ferry processing batch of {} requests with total fee: {}", 
-                requests.len(), total_fee);
-        
+        println!(
+            "🚢 Ferry processing batch of {} requests with total fee: {}",
+            requests.len(),
+            total_fee
+        );
+
         Some(batch)
     }
 
@@ -106,23 +112,23 @@ impl FerryService {
     /// Compute salt for account request (for demonstration)
     pub fn compute_salt(&self, request: &AccountRequest) -> [u8; 32] {
         let mut hasher = Sha256::new();
-        
+
         // Add entropy source (block height)
         hasher.update(&request.historical_block_height.to_be_bytes());
-        
+
         // Add deterministic request data
         hasher.update(request.controller.as_bytes());
         hasher.update(request.program_id.as_bytes());
         hasher.update(&request.account_request_id.to_be_bytes());
         hasher.update(&[request.account_type]);
-        
+
         // Include library configuration hash
         let mut lib_hasher = Sha256::new();
         for lib in &request.libraries {
             lib_hasher.update(lib.as_bytes());
         }
         hasher.update(lib_hasher.finalize());
-        
+
         hasher.finalize().into()
     }
 }
@@ -130,10 +136,10 @@ impl FerryService {
 /// Demo function showing ferry service usage
 fn demo_ferry_service() {
     println!("=== Account Factory Ferry Service Demo ===\n");
-    
+
     let mut ferry = FerryService::new(
         "neutron1ferry123456789abcdef".to_string(),
-        3, // Batch size of 3
+        3,    // Batch size of 3
         1000, // 1000 units fee per request
     );
 
@@ -173,9 +179,11 @@ fn demo_ferry_service() {
         println!("Queuing request {}...", i + 1);
         let salt = ferry.compute_salt(&request);
         println!("  Computed salt: {}", hex::encode(&salt[..8])); // Show first 8 bytes
-        
-        ferry.queue_request(request).expect("Failed to queue request");
-        
+
+        ferry
+            .queue_request(request)
+            .expect("Failed to queue request");
+
         // Try to process batch (will only succeed when batch size is reached)
         if let Some(batch) = ferry.try_process_batch() {
             println!("📦 Batch ready for submission to account factory!");
@@ -201,16 +209,16 @@ fn demo_ferry_service() {
     println!("💰 Fee optimization: {} requests processed in 2 batches", 3);
     println!("🔒 Security: All requests validated before batching");
     println!("⚡ Efficiency: Reduced on-chain transactions through batching\n");
-    
+
     demo_salt_consistency();
 }
 
 /// Demonstrate salt generation consistency
 fn demo_salt_consistency() {
     println!("=== Salt Generation Consistency Demo ===\n");
-    
+
     let ferry = FerryService::new("ferry".to_string(), 5, 100);
-    
+
     // Create identical requests
     let request1 = AccountRequest {
         controller: "neutron1controller".to_string(),
@@ -221,32 +229,32 @@ fn demo_salt_consistency() {
         historical_block_height: 12345,
         signature: None,
     };
-    
+
     let request2 = request1.clone();
-    
+
     let salt1 = ferry.compute_salt(&request1);
     let salt2 = ferry.compute_salt(&request2);
-    
+
     println!("Request 1 salt: {}", hex::encode(&salt1));
     println!("Request 2 salt: {}", hex::encode(&salt2));
     println!("Salts match: {}", salt1 == salt2);
     assert_eq!(salt1, salt2);
     println!("✅ Salt generation is deterministic\n");
-    
+
     // Test different controllers produce different salts
     let mut request3 = request1.clone();
     request3.controller = "neutron1different_controller".to_string();
-    
+
     let salt3 = ferry.compute_salt(&request3);
     println!("Different controller salt: {}", hex::encode(&salt3));
     println!("Different from original: {}", salt1 != salt3);
     assert_ne!(salt1, salt3);
     println!("✅ Different controllers produce different salts\n");
-    
+
     // Test different libraries produce different salts
     let mut request4 = request1.clone();
     request4.libraries = vec!["neutron1different_lib".to_string()];
-    
+
     let salt4 = ferry.compute_salt(&request4);
     println!("Different libraries salt: {}", hex::encode(&salt4));
     println!("Different from original: {}", salt1 != salt4);
@@ -376,20 +384,29 @@ mod tests {
         let salt1 = ferry.compute_salt(&request1);
         let salt2 = ferry.compute_salt(&request2);
 
-        assert_eq!(salt1, salt2, "Identical requests should produce identical salts");
+        assert_eq!(
+            salt1, salt2,
+            "Identical requests should produce identical salts"
+        );
 
         // Test different controllers produce different salts
         let mut request3 = request1.clone();
         request3.controller = "different_controller".to_string();
 
         let salt3 = ferry.compute_salt(&request3);
-        assert_ne!(salt1, salt3, "Different controllers should produce different salts");
+        assert_ne!(
+            salt1, salt3,
+            "Different controllers should produce different salts"
+        );
 
         // Test different libraries produce different salts
         let mut request4 = request1.clone();
         request4.libraries = vec!["different_lib".to_string()];
 
         let salt4 = ferry.compute_salt(&request4);
-        assert_ne!(salt1, salt4, "Different libraries should produce different salts");
+        assert_ne!(
+            salt1, salt4,
+            "Different libraries should produce different salts"
+        );
     }
-} 
+}
