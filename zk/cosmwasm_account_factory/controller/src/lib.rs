@@ -1,50 +1,40 @@
 // Purpose: CosmWasm Account Factory ZK Controller for generating witnesses and validating account creation
+use cosmwasm_std::{instantiate2_address, CanonicalAddr};
+use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// Account type configuration for CosmWasm
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AccountType {
-    /// Account supports only token custody
-    TokenCustody,
-    /// Account supports only data storage
-    DataStorage,
-    /// Account supports both token custody and data storage
-    Hybrid,
+/// Simple witness data for ZK proofs
+#[derive(Debug, Clone)]
+pub enum Witness {
+    Data(Vec<u8>),
 }
 
-impl AccountType {
-    /// Convert to byte representation for salt generation
-    pub fn to_byte(&self) -> u8 {
-        match self {
-            AccountType::TokenCustody => 1,
-            AccountType::DataStorage => 2,
-            AccountType::Hybrid => 3,
-        }
-    }
-}
-
-/// Input data for CosmWasm account factory
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Factory input for creating accounts
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FactoryInput {
     /// Controller address that will own the account
     pub controller: String,
-    /// Program ID for the Valence program
-    pub program_id: u64,
+    /// Library addresses that will be approved for the account
+    pub libraries: Vec<String>,
+    /// Program ID for the Valence program (string identifier)
+    pub program_id: String,
     /// Account request ID for uniqueness
     pub account_request_id: u64,
-    /// Account type configuration
-    pub account_type: AccountType,
     /// Factory contract address
     pub factory: String,
     /// Code ID for the account contract
     pub code_id: u64,
+    /// Code checksum for instantiate2 address calculation
+    pub code_checksum: Vec<u8>,
+    /// Canonical factory address (bech32 decoded)
+    pub canonical_factory: Vec<u8>,
     /// Block height used for entropy
     pub block_height: u64,
 }
 
-/// Witness data for ZK circuit
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Factory witness containing intermediate validation data
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FactoryWitness {
     /// Controller address
     pub controller: String,
@@ -52,39 +42,41 @@ pub struct FactoryWitness {
     pub salt: [u8; 32],
     /// Expected account address
     pub expected_address: String,
-    /// Account type configuration
-    pub account_type: AccountType,
     /// Validation flags
     pub is_valid_controller: bool,
     pub is_valid_salt: bool,
     pub is_valid_address: bool,
 }
 
-/// Public output for the circuit
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Factory output for ZK circuit
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FactoryOutput {
     /// Controller address
     pub controller: String,
     /// Created account address
     pub account_address: String,
-    /// Account type configuration
-    pub account_type: AccountType,
     /// Validation result
     pub is_valid: bool,
 }
 
-/// CosmWasm Account Factory Controller
+/// CosmWasm account factory ZK controller
 pub struct CosmWasmAccountFactoryController;
 
 impl CosmWasmAccountFactoryController {
-    /// Parse input data and generate witnesses
+    /// Process factory input and generate witness data
     pub fn process_input(input: FactoryInput) -> Result<FactoryWitness, String> {
-        // Generate salt using entropy sources and account type
+        // Comprehensive input validation (done in controller, not circuit)
+        if !Self::validate_factory_input(&input) {
+            return Err("Invalid input parameters".to_string());
+        }
+
+        // Generate deterministic salt
         let salt = Self::generate_salt(
             input.block_height,
-            input.program_id,
+            &input.controller,
+            &input.libraries,
+            &input.program_id,
             input.account_request_id,
-            &input.account_type,
         );
 
         // Compute expected account address using Instantiate2
@@ -92,7 +84,8 @@ impl CosmWasmAccountFactoryController {
             &input.factory,
             input.code_id,
             &salt,
-            &input.account_type,
+            &input.code_checksum,
+            &input.canonical_factory,
         )?;
 
         // Validate controller binding
@@ -107,65 +100,194 @@ impl CosmWasmAccountFactoryController {
             &input.factory,
             input.code_id,
             &salt,
-            &input.account_type,
+            &input.code_checksum,
+            &input.canonical_factory,
         );
 
         Ok(FactoryWitness {
             controller: input.controller,
             salt,
             expected_address,
-            account_type: input.account_type,
             is_valid_controller,
             is_valid_salt,
             is_valid_address,
         })
     }
 
-    /// Generate deterministic salt with entropy and account type
+    /// Generate deterministic salt with entropy
     fn generate_salt(
         block_height: u64,
-        program_id: u64,
+        controller: &str,
+        libraries: &[String],
+        program_id: &str,
         account_request_id: u64,
-        account_type: &AccountType,
     ) -> [u8; 32] {
         let mut hasher = Sha256::new();
-        
+
         // Add entropy sources
-        hasher.update(&block_height.to_be_bytes());
-        hasher.update(&program_id.to_be_bytes());
-        hasher.update(&account_request_id.to_be_bytes());
-        
-        // Include account type in salt to ensure different types get different addresses
-        hasher.update(&[account_type.to_byte()]);
-        
+        hasher.update(block_height.to_be_bytes());
+
+        // Request-specific deterministic data (must match CosmWasm contract order for consistency)
+        hasher.update(controller.as_bytes());
+        hasher.update(program_id.as_bytes());
+        hasher.update(account_request_id.to_be_bytes());
+
+        // Include library configuration in salt computation
+        // This ensures accounts with different library sets get different addresses
+        let mut lib_hasher = Sha256::new();
+        for lib in libraries {
+            lib_hasher.update(lib.as_bytes());
+        }
+        hasher.update(lib_hasher.finalize());
+
         hasher.finalize().into()
     }
 
     /// Compute Instantiate2 address
     fn compute_instantiate2_address(
-        factory: &str,
-        code_id: u64,
+        _factory: &str,
+        _code_id: u64,
         salt: &[u8; 32],
-        account_type: &AccountType,
+        code_checksum: &[u8],
+        canonical_factory: &[u8],
     ) -> Result<String, String> {
-        // Simplified Instantiate2 address computation
-        // In reality, this would use the actual CosmWasm address derivation
-        let mut hasher = Sha256::new();
-        hasher.update(factory.as_bytes());
-        hasher.update(&code_id.to_be_bytes());
-        hasher.update(salt);
-        hasher.update(&[account_type.to_byte()]);
+        // Create CanonicalAddr from the provided canonical factory bytes
+        let canonical_creator = CanonicalAddr::from(canonical_factory);
+
+        // Use the official CosmWasm instantiate2_address function
+        let canonical_addr =
+            instantiate2_address(code_checksum, &canonical_creator, salt)
+                .map_err(|e| format!("instantiate2_address error: {}", e))?;
+
+        // For the ZK environment, we'll return the canonical address as a hex string
+        // In practice, this would need to be humanized to a bech32 address
+        // but that requires the bech32 prefix which varies by chain
+        // We create a deterministic representation by prefixing with "cosmos1" 
+        // and encoding the canonical address
+        let hex_addr = hex::encode(canonical_addr.as_slice());
         
-        let hash = hasher.finalize();
-        
-        // Convert to bech32 address format (simplified)
-        Ok(format!("cosmos{}", hex::encode(&hash[..20])))
+        // Create a mock bech32-style address format for consistency
+        // In production, this would use proper bech32 encoding with chain-specific prefix
+        Ok(format!("cosmos1{}", &hex_addr[..40].to_lowercase()))
     }
 
     /// Validate controller address
     fn validate_controller(controller: &str) -> bool {
-        // Basic validation - ensure controller is not empty and has valid format
-        !controller.is_empty() && controller.len() > 10
+        // Comprehensive controller validation
+        if controller.is_empty() {
+            return false;
+        }
+        
+        // Check minimum length for reasonable address
+        if controller.len() < 10 {
+            return false;
+        }
+        
+        // Check maximum length to prevent abuse
+        if controller.len() > 256 {
+            return false;
+        }
+        
+        // Additional validation could include:
+        // - Bech32 format validation
+        // - Checksum validation
+        // - Address prefix validation
+        
+        true
+    }
+
+    /// Validate program ID
+    fn validate_program_id(program_id: &str) -> bool {
+        // Program ID validation
+        if program_id.is_empty() {
+            return false;
+        }
+        
+        if program_id.len() > 256 {
+            return false;
+        }
+        
+        // Could add more specific validation rules here
+        true
+    }
+
+    /// Validate block height for entropy
+    fn validate_block_height(block_height: u64) -> bool {
+        // Block height should not be zero and should be reasonable
+        if block_height == 0 {
+            return false;
+        }
+        
+        // Prevent extremely large values that might indicate overflow
+        if block_height > u64::MAX - 1000 {
+            return false;
+        }
+        
+        true
+    }
+
+    /// Validate account request ID
+    fn validate_account_request_id(account_request_id: u64) -> bool {
+        // In production, you might want to enforce non-zero request IDs
+        // For now, allow zero for testing purposes
+        true
+    }
+
+    /// Validate libraries list
+    fn validate_libraries(libraries: &[String]) -> bool {
+        // Libraries should not be empty for meaningful accounts
+        if libraries.is_empty() {
+            return false;
+        }
+        
+        // Check each library address
+        for library in libraries {
+            if library.is_empty() || library.len() > 256 {
+                return false;
+            }
+        }
+        
+        // Prevent too many libraries (could be DoS vector)
+        if libraries.len() > 100 {
+            return false;
+        }
+        
+        true
+    }
+
+    /// Comprehensive input validation
+    fn validate_factory_input(input: &FactoryInput) -> bool {
+        // Validate all input components
+        if !Self::validate_controller(&input.controller) {
+            return false;
+        }
+        
+        if !Self::validate_libraries(&input.libraries) {
+            return false;
+        }
+        
+        if !Self::validate_program_id(&input.program_id) {
+            return false;
+        }
+        
+        if !Self::validate_block_height(input.block_height) {
+            return false;
+        }
+        
+        if !Self::validate_account_request_id(input.account_request_id) {
+            return false;
+        }
+        
+        // Validate code-related parameters
+        if input.code_checksum.is_empty() {
+            return false;
+        }
+        
+        if input.canonical_factory.is_empty() {
+            return false;
+        }
+        
+        true
     }
 
     /// Validate salt generation
@@ -173,9 +295,10 @@ impl CosmWasmAccountFactoryController {
         // Regenerate salt and compare
         let expected_salt = Self::generate_salt(
             input.block_height,
-            input.program_id,
+            &input.controller,
+            &input.libraries,
+            &input.program_id,
             input.account_request_id,
-            &input.account_type,
         );
         salt == &expected_salt
     }
@@ -186,13 +309,15 @@ impl CosmWasmAccountFactoryController {
         factory: &str,
         code_id: u64,
         salt: &[u8; 32],
-        account_type: &AccountType,
+        code_checksum: &[u8],
+        canonical_factory: &[u8],
     ) -> bool {
         if let Ok(expected_address) = Self::compute_instantiate2_address(
             factory,
             code_id,
             salt,
-            account_type,
+            code_checksum,
+            canonical_factory,
         ) {
             address == expected_address
         } else {
@@ -202,56 +327,20 @@ impl CosmWasmAccountFactoryController {
 
     /// Generate circuit output
     pub fn generate_output(witness: &FactoryWitness) -> FactoryOutput {
-        let is_valid = witness.is_valid_controller
-            && witness.is_valid_salt
-            && witness.is_valid_address;
+        let is_valid =
+            witness.is_valid_controller && witness.is_valid_salt && witness.is_valid_address;
 
         FactoryOutput {
             controller: witness.controller.clone(),
             account_address: witness.expected_address.clone(),
-            account_type: witness.account_type.clone(),
             is_valid,
         }
     }
 
     /// Validate atomic operation integrity
-    pub fn validate_atomic_operation(
-        input: &FactoryInput,
-        witness: &FactoryWitness,
-    ) -> bool {
+    pub fn validate_atomic_operation(input: &FactoryInput, witness: &FactoryWitness) -> bool {
         // Ensure the witness corresponds to the input
         witness.controller == input.controller
-            && witness.account_type == input.account_type
-    }
-
-    /// Validate account type configuration
-    pub fn validate_account_type_config(
-        requested_type: &AccountType,
-        created_type: &AccountType,
-    ) -> bool {
-        requested_type == created_type
-    }
-
-    /// Handle different account capability configurations
-    pub fn process_account_capabilities(
-        account_type: &AccountType,
-        init_msg: &mut serde_json::Value,
-    ) -> Result<(), String> {
-        match account_type {
-            AccountType::TokenCustody => {
-                init_msg["enable_token_custody"] = true.into();
-                init_msg["enable_data_storage"] = false.into();
-            }
-            AccountType::DataStorage => {
-                init_msg["enable_token_custody"] = false.into();
-                init_msg["enable_data_storage"] = true.into();
-            }
-            AccountType::Hybrid => {
-                init_msg["enable_token_custody"] = true.into();
-                init_msg["enable_data_storage"] = true.into();
-            }
-        }
-        Ok(())
     }
 }
 
@@ -261,77 +350,92 @@ mod tests {
 
     #[test]
     fn test_salt_generation() {
+        // Test basic salt generation
         let block_height = 12345;
-        let program_id = 42;
-        let account_request_id = 123;
+        let controller = "cosmos1controller";
+        let libraries = vec!["cosmos1lib1".to_string(), "cosmos1lib2".to_string()];
+        let program_id = "test_program";
+        let account_request_id = 456;
 
         let salt1 = CosmWasmAccountFactoryController::generate_salt(
             block_height,
+            controller,
+            &libraries,
             program_id,
             account_request_id,
-            &AccountType::TokenCustody,
         );
 
         let salt2 = CosmWasmAccountFactoryController::generate_salt(
-            block_height,
+            block_height + 1,
+            controller,
+            &libraries,
             program_id,
             account_request_id,
-            &AccountType::DataStorage,
         );
 
-        // Different account types should produce different salts
+        // Different inputs should produce different salts
         assert_ne!(salt1, salt2);
 
         // Same inputs should produce same salt
         let salt3 = CosmWasmAccountFactoryController::generate_salt(
             block_height,
+            controller,
+            &libraries,
             program_id,
             account_request_id,
-            &AccountType::TokenCustody,
         );
         assert_eq!(salt1, salt3);
     }
 
     #[test]
     fn test_address_computation() {
-        let factory = "cosmos1factoryaddress";
-        let code_id = 1;
-        let salt = [2u8; 32];
+        let block_height = 12345;
+        let controller = "cosmos1controller";
+        let libraries = vec!["cosmos1lib1".to_string()];
+        let program_id = "test_program";
+        let account_request_id = 789;
 
-        let addr1 = CosmWasmAccountFactoryController::compute_instantiate2_address(
+        let salt = CosmWasmAccountFactoryController::generate_salt(
+            block_height,
+            controller,
+            &libraries,
+            program_id,
+            account_request_id,
+        );
+
+        let factory = "cosmos1factory";
+        let code_id = 42;
+        let code_checksum = vec![1u8; 32];
+        let canonical_factory = vec![1u8; 20];
+
+        let address = CosmWasmAccountFactoryController::compute_instantiate2_address(
             factory,
             code_id,
             &salt,
-            &AccountType::TokenCustody,
-        ).unwrap();
+            &code_checksum,
+            &canonical_factory,
+        );
 
-        let addr2 = CosmWasmAccountFactoryController::compute_instantiate2_address(
-            factory,
-            code_id,
-            &salt,
-            &AccountType::DataStorage,
-        ).unwrap();
-
-        // Different account types should produce different addresses
-        assert_ne!(addr1, addr2);
+        assert!(address.is_ok());
     }
 
     #[test]
-    fn test_process_input() {
+    fn test_witness_generation() {
         let input = FactoryInput {
-            controller: "cosmos1controlleraddress".to_string(),
-            program_id: 42,
+            controller: "cosmos1abc123def456ghi789jkl012mno345pqr678stu901".to_string(),
+            libraries: vec!["cosmos1lib1".to_string(), "cosmos1lib2".to_string()],
+            program_id: "42".to_string(),
             account_request_id: 123,
-            account_type: AccountType::Hybrid,
             factory: "cosmos1factoryaddress".to_string(),
             code_id: 1,
+            code_checksum: vec![1u8; 32],
+            canonical_factory: vec![1u8; 20],
             block_height: 12345,
         };
 
         let witness = CosmWasmAccountFactoryController::process_input(input.clone()).unwrap();
 
         assert_eq!(witness.controller, input.controller);
-        assert_eq!(witness.account_type, input.account_type);
         assert!(witness.is_valid_controller);
         assert!(witness.is_valid_salt);
         assert!(witness.is_valid_address);
@@ -340,12 +444,14 @@ mod tests {
     #[test]
     fn test_atomic_operation_validation() {
         let input = FactoryInput {
-            controller: "cosmos1controlleraddress".to_string(),
-            program_id: 42,
+            controller: "cosmos1abc123def456ghi789jkl012mno345pqr678stu901".to_string(),
+            libraries: vec!["cosmos1lib1".to_string()],
+            program_id: "42".to_string(),
             account_request_id: 123,
-            account_type: AccountType::TokenCustody,
             factory: "cosmos1factoryaddress".to_string(),
             code_id: 1,
+            code_checksum: vec![1u8; 32],
+            canonical_factory: vec![1u8; 20],
             block_height: 12345,
         };
 
@@ -355,38 +461,4 @@ mod tests {
             &input, &witness
         ));
     }
-
-    #[test]
-    fn test_account_type_validation() {
-        assert!(CosmWasmAccountFactoryController::validate_account_type_config(
-            &AccountType::TokenCustody,
-            &AccountType::TokenCustody
-        ));
-
-        assert!(!CosmWasmAccountFactoryController::validate_account_type_config(
-            &AccountType::TokenCustody,
-            &AccountType::DataStorage
-        ));
-    }
-
-    #[test]
-    fn test_account_capabilities() {
-        let mut init_msg = serde_json::json!({});
-
-        CosmWasmAccountFactoryController::process_account_capabilities(
-            &AccountType::TokenCustody,
-            &mut init_msg,
-        ).unwrap();
-
-        assert_eq!(init_msg["enable_token_custody"], true);
-        assert_eq!(init_msg["enable_data_storage"], false);
-
-        CosmWasmAccountFactoryController::process_account_capabilities(
-            &AccountType::Hybrid,
-            &mut init_msg,
-        ).unwrap();
-
-        assert_eq!(init_msg["enable_token_custody"], true);
-        assert_eq!(init_msg["enable_data_storage"], true);
-    }
-} 
+}

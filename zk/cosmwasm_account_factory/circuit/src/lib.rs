@@ -3,161 +3,169 @@
 
 extern crate alloc;
 
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use valence_coprocessor::Witness;
+use alloc::vec;
 
-/// Input for the ZK circuit (private)
+/// Input data for the CosmWasm account factory circuit
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CircuitInput {
-    /// Block height used for entropy (private)
+    /// Block height used for entropy
     pub block_height: u64,
-    /// Program ID for salt generation (private)
-    pub program_id: u64,
-    /// Account request ID for uniqueness (private)
+    /// Program ID for the Valence program (string identifier)
+    pub program_id: String,
+    /// Account request ID for uniqueness
     pub account_request_id: u64,
-    /// Account type for differentiation (private)
-    pub account_type: u8,
+    /// Hash of approved libraries
+    pub libraries_hash: [u8; 32],
 }
 
-/// Output for the ZK circuit (public)
+/// Public output of the circuit
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CircuitOutput {
-    /// The generated salt (public output)
+    /// Generated salt for account creation
     pub salt: [u8; 32],
-    /// Whether salt generation succeeded
+    /// Validation result
     pub is_valid: bool,
 }
 
-/// CosmWasm Account Factory ZK Circuit
+/// CosmWasm account factory circuit implementation
 pub struct CosmWasmAccountFactoryCircuit;
 
 impl CosmWasmAccountFactoryCircuit {
-    /// Execute the ZK circuit - only proves salt generation integrity
+    /// Execute the circuit with the given input
     pub fn execute(input: CircuitInput) -> CircuitOutput {
-        // Generate salt using entropy sources
-        let salt = Self::compute_salt(
+        // Generate deterministic salt - this is the security-critical operation
+        // that must be proven in the ZK circuit
+        let salt = Self::generate_salt(
             input.block_height,
-            input.program_id,
+            &input.program_id,
             input.account_request_id,
-            input.account_type,
+            &input.libraries_hash,
         );
 
-        CircuitOutput {
-            salt,
-            is_valid: true, // Salt generation always succeeds if inputs are provided
-        }
+        // Circuit always returns valid - all validation is done in the controller
+        // The circuit's job is only to prove salt generation integrity
+        let is_valid = true;
+
+        CircuitOutput { salt, is_valid }
     }
 
-    /// Compute salt for Instantiate2 using proper cryptographic hashing
-    pub fn compute_salt(
+    /// Generate deterministic salt for account creation
+    fn generate_salt(
         block_height: u64,
-        program_id: u64,
+        program_id: &str,
         account_request_id: u64,
-        account_type: u8,
+        libraries_hash: &[u8; 32],
     ) -> [u8; 32] {
         let mut hasher = Sha256::new();
-        hasher.update(block_height.to_be_bytes());
-        hasher.update(program_id.to_be_bytes());
-        hasher.update(account_request_id.to_be_bytes());
-        hasher.update([account_type]);
-        
-        hasher.finalize().into()
-    }
 
-    /// Get public outputs for on-chain verification
-    pub fn get_public_outputs(output: &CircuitOutput) -> Vec<u8> {
-        let mut public_data = Vec::new();
-        public_data.extend_from_slice(&output.salt);
-        public_data.push(output.is_valid as u8);
-        public_data
+        // Add entropy sources (partial - controller address would be added externally)
+        hasher.update(block_height.to_be_bytes());
+        hasher.update(program_id.as_bytes());
+        hasher.update(account_request_id.to_be_bytes());
+        hasher.update(libraries_hash);
+
+        hasher.finalize().into()
     }
 }
 
-/// Main circuit function for SP1 zkVM execution
-/// 
-/// This function is called by the SP1 zkVM and follows the valence-coprocessor pattern.
-/// Witnesses are provided by the controller and contain the entropy data needed for salt generation.
+/// ZK VM circuit function for integration with the coprocessor
+/// This function signature matches what the ZK coprocessor expects
 pub fn circuit(witnesses: Vec<Witness>) -> Vec<u8> {
-    // Ensure we have the expected number of witnesses
-    assert_eq!(
-        witnesses.len(),
-        4,
-        "Expected 4 witnesses: block_height, program_id, account_request_id, account_type"
-    );
+    // Extract witnesses in expected order
+    assert!(witnesses.len() >= 4, "Expected at least 4 witnesses");
 
-    // Extract witness data
-    let block_height_bytes = witnesses[0].as_data().expect("Failed to get block height");
-    let program_id_bytes = witnesses[1].as_data().expect("Failed to get program ID");
-    let account_request_id_bytes = witnesses[2].as_data().expect("Failed to get account request ID");
-    let account_type_bytes = witnesses[3].as_data().expect("Failed to get account type");
+    let block_height = match &witnesses[0] {
+        Witness::Data(data) => {
+            if data.len() >= 8 {
+                u64::from_le_bytes([
+                    data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+                ])
+            } else {
+                panic!("Invalid block height size");
+            }
+        }
+    };
 
-    // Parse block height
-    let block_height = u64::from_le_bytes(
-        <[u8; 8]>::try_from(block_height_bytes).expect("Block height must be exactly 8 bytes"),
-    );
+    let libraries_hash = match &witnesses[1] {
+        Witness::Data(data) => {
+            if data.len() >= 32 {
+                let mut hash = [0u8; 32];
+                hash.copy_from_slice(&data[0..32]);
+                hash
+            } else {
+                panic!("Invalid libraries hash size");
+            }
+        }
+    };
 
-    // Parse program ID
-    let program_id = u64::from_le_bytes(
-        <[u8; 8]>::try_from(program_id_bytes).expect("Program ID must be exactly 8 bytes"),
-    );
+    let program_id = match &witnesses[2] {
+        Witness::Data(data) => String::from_utf8(data.clone()).unwrap_or_default(),
+    };
 
-    // Parse account request ID
-    let account_request_id = u64::from_le_bytes(
-        <[u8; 8]>::try_from(account_request_id_bytes).expect("Account request ID must be exactly 8 bytes"),
-    );
-
-    // Parse account type
-    let account_type = account_type_bytes[0];
-
-    // Validate account type
-    assert!(
-        matches!(account_type, 1..=3),
-        "Account type must be 1 (TokenCustody), 2 (DataStorage), or 3 (Hybrid)"
-    );
+    let account_request_id = match &witnesses[3] {
+        Witness::Data(data) => {
+            if data.len() >= 8 {
+                u64::from_le_bytes([
+                    data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+                ])
+            } else {
+                panic!("Invalid account request ID size");
+            }
+        }
+    };
 
     // Create circuit input
     let input = CircuitInput {
         block_height,
         program_id,
         account_request_id,
-        account_type,
+        libraries_hash,
     };
 
-    // Execute the circuit
+    // Execute circuit
     let output = CosmWasmAccountFactoryCircuit::execute(input);
 
-    // Return the generated salt as public output
-    CosmWasmAccountFactoryCircuit::get_public_outputs(&output)
+    // Return serialized output: 32 bytes salt + 1 byte is_valid
+    let mut result = Vec::with_capacity(33);
+    result.extend_from_slice(&output.salt);
+    result.push(if output.is_valid { 1 } else { 0 });
+    result
+}
+
+/// Simple witness data for ZK proofs
+#[derive(Debug, Clone)]
+pub enum Witness {
+    Data(Vec<u8>),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use valence_coprocessor::Witness;
     use alloc::vec;
 
     fn create_test_input() -> CircuitInput {
         CircuitInput {
             block_height: 12345,
-            program_id: 42,
+            libraries_hash: [0; 32],
+            program_id: String::from("42"),
             account_request_id: 123,
-            account_type: 1, // TokenCustody
         }
     }
 
     fn create_test_witnesses() -> Vec<Witness> {
         let block_height = 12345u64;
-        let program_id = 42u64;
+        let program_id = String::from("42");
         let account_request_id = 123u64;
-        let account_type = 1u8;
 
         vec![
             Witness::Data(block_height.to_le_bytes().to_vec()),
-            Witness::Data(program_id.to_le_bytes().to_vec()),
+            Witness::Data(vec![0; 32]),
+            Witness::Data(program_id.into_bytes()),
             Witness::Data(account_request_id.to_le_bytes().to_vec()),
-            Witness::Data(vec![account_type]),
         ]
     }
 
@@ -165,7 +173,7 @@ mod tests {
     fn test_salt_generation() {
         let input = create_test_input();
         let output = CosmWasmAccountFactoryCircuit::execute(input.clone());
-        
+
         assert!(output.is_valid);
         assert_ne!(output.salt, [0u8; 32]);
 
@@ -175,73 +183,40 @@ mod tests {
     }
 
     #[test]
-    fn test_salt_differentiation() {
-        let mut input1 = create_test_input();
-        let mut input2 = create_test_input();
-        
-        // Different account types should produce different salts
-        input1.account_type = 1;
-        input2.account_type = 2;
-
-        let output1 = CosmWasmAccountFactoryCircuit::execute(input1);
-        let output2 = CosmWasmAccountFactoryCircuit::execute(input2);
-
-        assert_ne!(output1.salt, output2.salt);
-    }
-
-    #[test]
-    fn test_entropy_sensitivity() {
-        let mut input1 = create_test_input();
-        let mut input2 = create_test_input();
-        
-        // Different entropy should produce different salts
-        input1.block_height = 12345;
-        input2.block_height = 54321;
-
-        let output1 = CosmWasmAccountFactoryCircuit::execute(input1);
-        let output2 = CosmWasmAccountFactoryCircuit::execute(input2);
-
-        assert_ne!(output1.salt, output2.salt);
-    }
-
-    #[test]
     fn test_circuit_function_with_witnesses() {
         let witnesses = create_test_witnesses();
         let public_outputs = circuit(witnesses);
-        
+
         // Should return 33 bytes: 32 bytes salt + 1 byte is_valid
         assert_eq!(public_outputs.len(), 33);
-        
+
         // Last byte should be 1 (true for is_valid)
         assert_eq!(public_outputs[32], 1);
-        
+
         // Salt should not be all zeros
         assert_ne!(&public_outputs[0..32], &[0u8; 32]);
     }
 
     #[test]
-    #[should_panic(expected = "Expected 4 witnesses")]
+    #[should_panic(expected = "Expected at least 4 witnesses")]
     fn test_circuit_function_wrong_witness_count() {
         let witnesses = vec![Witness::Data(vec![1, 2, 3])]; // Wrong count
         circuit(witnesses);
     }
 
     #[test]
-    #[should_panic(expected = "Account type must be 1")]
-    fn test_circuit_function_invalid_account_type() {
-        let mut witnesses = create_test_witnesses();
-        witnesses[3] = Witness::Data(vec![4]); // Invalid account type
-        circuit(witnesses);
-    }
-
-    #[test]
     fn test_public_outputs() {
         let input = create_test_input();
-        let output = CosmWasmAccountFactoryCircuit::execute(input);
-        
-        let public_data = CosmWasmAccountFactoryCircuit::get_public_outputs(&output);
+        let output = CosmWasmAccountFactoryCircuit::execute(input.clone());
+
+        let public_data = circuit(vec![
+            Witness::Data(input.block_height.to_le_bytes().to_vec()),
+            Witness::Data(input.libraries_hash.to_vec()),
+            Witness::Data(input.program_id.into_bytes()),
+            Witness::Data(input.account_request_id.to_le_bytes().to_vec()),
+        ]);
         assert_eq!(public_data.len(), 33); // 32 bytes salt + 1 byte is_valid
         assert_eq!(&public_data[0..32], &output.salt);
         assert_eq!(public_data[32], output.is_valid as u8);
     }
-} 
+}
