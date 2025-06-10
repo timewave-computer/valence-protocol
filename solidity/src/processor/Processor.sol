@@ -6,6 +6,8 @@ import {QueueMap} from "./libs/QueueMap.sol";
 import {ProcessorBase} from "./ProcessorBase.sol";
 import {ProcessorErrors} from "./libs/ProcessorErrors.sol";
 import {ProcessorEvents} from "./libs/ProcessorEvents.sol";
+import {IProcessorMessageTypes} from "./interfaces/IProcessorMessageTypes.sol";
+import {ProcessorMessageDecoder} from "./libs/ProcessorMessageDecoder.sol";
 
 contract Processor is IMessageRecipient, ProcessorBase {
     // Use the library for the Queue type
@@ -59,6 +61,80 @@ contract Processor is IMessageRecipient, ProcessorBase {
      * @param _body The message payload
      */
     function execute(bytes calldata _body) external payable override {
-        // TODO: Implement the execute function
+        // Check if the processor is paused
+        if (paused) {
+            revert ProcessorErrors.ProcessorPaused();
+        }
+
+        // Check if the sender is authorized
+        if (!authorizedAddresses[msg.sender]) {
+            revert ProcessorErrors.UnauthorizedAccess();
+        }
+
+        // Decode the processor message
+        IProcessorMessageTypes.ProcessorMessage memory message = ProcessorMessageDecoder.decode(_body);
+
+        // Handle the message based on its type
+        if (message.messageType == IProcessorMessageTypes.ProcessorMessageType.Pause) {
+            _handlePause();
+        } else if (message.messageType == IProcessorMessageTypes.ProcessorMessageType.Resume) {
+            _handleResume();
+        } else if (message.messageType == IProcessorMessageTypes.ProcessorMessageType.SendMsgs) {
+            _handleSendMsgs(ProcessorMessageDecoder.decodeSendMsgs(message.message));
+        } else if (message.messageType == IProcessorMessageTypes.ProcessorMessageType.InsertMsgs) {
+            _handleInsertMsgs(ProcessorMessageDecoder.decodeInsertMsgs(message.message));
+        } else if (message.messageType == IProcessorMessageTypes.ProcessorMessageType.EvictMsgs) {
+            _handleEvictMsgs(ProcessorMessageDecoder.decodeEvictMsgs(message.message));
+        } else {
+            revert ProcessorErrors.UnsupportedOperation();
+        }
+    }
+
+    /**
+     * @notice Handles SendMsgs by adding them to the appropriate queue
+     * @param sendMsgs The SendMsgs message to process
+     */
+    function _handleSendMsgs(IProcessorMessageTypes.SendMsgs memory sendMsgs) internal {
+        // Encode the complete message for storage
+        bytes memory encodedMessage = abi.encode(sendMsgs);
+        
+        if (sendMsgs.priority == IProcessorMessageTypes.Priority.High) {
+            highPriorityQueue.pushBack(encodedMessage);
+        } else {
+            mediumPriorityQueue.pushBack(encodedMessage);
+        }
+        
+        emit ProcessorEvents.MessageBatchAdded(sendMsgs.executionId, sendMsgs.priority);
+    }
+
+    /**
+     * @notice Handles InsertMsgs by inserting them at a specific position in the queue
+     * @param insertMsgs The InsertMsgs message to process
+     */
+    function _handleInsertMsgs(IProcessorMessageTypes.InsertMsgs memory insertMsgs) internal {
+        // Encode the complete message for storage
+        bytes memory encodedMessage = abi.encode(insertMsgs);
+        
+        if (insertMsgs.priority == IProcessorMessageTypes.Priority.High) {
+            highPriorityQueue.insertAt(insertMsgs.queuePosition, encodedMessage);
+        } else {
+            mediumPriorityQueue.insertAt(insertMsgs.queuePosition, encodedMessage);
+        }
+        
+        emit ProcessorEvents.MessageBatchAdded(insertMsgs.executionId, insertMsgs.priority);
+    }
+
+    /**
+     * @notice Handles EvictMsgs by removing messages from a specific queue position
+     * @param evictMsgs The EvictMsgs message to process
+     */
+    function _handleEvictMsgs(IProcessorMessageTypes.EvictMsgs memory evictMsgs) internal {
+        if (evictMsgs.priority == IProcessorMessageTypes.Priority.High) {
+            highPriorityQueue.removeAt(evictMsgs.queuePosition);
+        } else {
+            mediumPriorityQueue.removeAt(evictMsgs.queuePosition);
+        }
+        
+        emit ProcessorEvents.MessageBatchRemoved(evictMsgs.priority, evictMsgs.queuePosition);
     }
 }

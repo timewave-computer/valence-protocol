@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {IProcessor} from "../interfaces/IProcessor.sol";
+import {IProcessorMessageTypes} from "../interfaces/IProcessorMessageTypes.sol";
 
 library ProcessorEvents {
     /**
@@ -31,4 +32,18 @@ library ProcessorEvents {
      * @param executedCount The number of functions that were executed successfully before failure or completion
      */
     event CallbackSent(uint64 indexed executionId, IProcessor.ExecutionResult result, uint256 executedCount);
+
+    /**
+     * @notice Emitted when a message batch is added to a queue
+     * @param executionId The unique identifier for the execution
+     * @param priority The priority queue the message was added to
+     */
+    event MessageBatchAdded(uint64 indexed executionId, IProcessorMessageTypes.Priority priority);
+
+    /**
+     * @notice Emitted when a message batch is removed from a queue
+     * @param priority The priority queue the message was removed from
+     * @param queuePosition The position in the queue where the message was removed
+     */
+    event MessageBatchRemoved(IProcessorMessageTypes.Priority priority, uint64 queuePosition);
 }
