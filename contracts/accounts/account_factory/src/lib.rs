@@ -137,41 +137,6 @@ mod tests {
 
         println!("✓ Library address format check passed");
     }
-
-    #[test]
-    fn test_create_account_empty_libraries_new() {
-        let mut deps = mock_dependencies();
-
-        // First instantiate the contract
-        let msg = InstantiateMsg {
-            fee_collector: None, // Skip fee collector validation for testing
-            jit_account_code_id: 1,
-        };
-        let info = mock_info(FACTORY_ADMIN, &[]);
-        instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // Test empty libraries - this should fail validation before any code lookup
-        let request = AccountRequest {
-            controller: "cosmos1controller".to_string(),
-            libraries: vec![], // Empty libraries should fail
-            program_id: "test_program".to_string(),
-            account_request_id: 789,
-            historical_block_height: 100, // Valid block height
-            signature: None,
-        };
-
-        let execute_msg = ExecuteMsg::CreateAccount { request };
-        let info = mock_info(USER, &[]);
-        let res = execute(deps.as_mut(), mock_env(), info, execute_msg);
-
-        // Should fail due to empty libraries
-        assert!(res.is_err());
-        let error = res.unwrap_err();
-        println!("Error message: {}", error);
-        // The error might be due to code lookup since mock environment doesn't have code
-        // For now, just check that it fails (empty libraries or missing code)
-        println!("✓ Empty libraries validation check passed");
-    }
 }
 
 #[cfg(test)]

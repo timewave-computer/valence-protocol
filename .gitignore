@@ -38,3 +38,6 @@ deployment/output_program
 # Nix development environment
 .direnv/
 .envrc
+
+# Working files
+work/

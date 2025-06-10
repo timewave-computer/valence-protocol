@@ -219,9 +219,9 @@ async fn setup_test_environment(config: &E2EConfig) -> Result<(), Box<dyn Error>
     Ok(())
 }
 
-/// Start anvil for local EVM testing
+/// Start anvil if not already running
 async fn start_anvil() -> Result<(), Box<dyn Error>> {
-    println!("Starting anvil...");
+    println!("Checking if anvil is already running...");
     
     // Check if anvil is already running
     let output = Command::new("curl")
@@ -234,11 +234,16 @@ async fn start_anvil() -> Result<(), Box<dyn Error>> {
     }
     
     // Start anvil in background
-    Command::new("anvil")
+    let mut anvil_process = Command::new("anvil")
         .args(&["--port", "8545", "--accounts", "10", "--balance", "1000000"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()?;
+    
+    // Store the process handle for potential cleanup
+    // Note: In a production system, you'd want to implement a proper cleanup mechanism
+    // such as a process guard that kills the process on drop
+    println!("Anvil process started with PID: {}", anvil_process.id());
     
     // Wait for anvil to be ready
     for _ in 0..30 {
@@ -253,6 +258,8 @@ async fn start_anvil() -> Result<(), Box<dyn Error>> {
         }
     }
     
+    // If we reach here, anvil failed to start
+    let _ = anvil_process.kill(); // Attempt cleanup
     Err("Failed to start anvil".into())
 }
 
