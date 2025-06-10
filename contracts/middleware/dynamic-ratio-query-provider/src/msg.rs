@@ -1,7 +1,7 @@
-use std::collections::{HashMap};
+use std::collections::HashMap;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Decimal};
+use cosmwasm_std::Decimal;
 
 #[cw_serde]
 pub struct DenomSplitMap {
@@ -16,7 +16,5 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    UpdateRatios {
-        split_cfg: DenomSplitMap,
-    }
+    UpdateRatios { split_cfg: DenomSplitMap },
 }

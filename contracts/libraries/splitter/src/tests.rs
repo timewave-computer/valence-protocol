@@ -6,9 +6,11 @@ use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
+use std::collections::HashMap;
+use valence_dynamic_ratio_query_provider::msg::DenomSplitMap;
 use valence_library_utils::{
     denoms::CheckedDenom,
-    msg::{ExecuteMsg, InstantiateMsg},
+    msg::{DynamicRatioQueryMsg, DynamicRatioResponse, ExecuteMsg, InstantiateMsg},
     testing::{LibraryTestSuite, LibraryTestSuiteBase},
 };
 
@@ -102,9 +104,18 @@ impl SplitterTestSuite {
         addr
     }
 
-    pub fn dyn_ratio_contract_init(&mut self, denom: &str, ratio: Decimal) -> Addr {
+    pub fn dyn_ratio_contract_init(&mut self, denom: &str, receiver: &str, ratio: Decimal) -> Addr {
+        let mut denom_split = HashMap::new();
+        denom_split.insert(receiver.to_string(), ratio);
+
+        let mut denom_split_cfg = HashMap::new();
+        denom_split_cfg.insert(denom.to_string(), denom_split);
+
         let init_msg = valence_dynamic_ratio_query_provider::msg::InstantiateMsg {
-            denom_ratios: [(denom.to_string(), ratio)].into(),
+            admin: self.inner.owner().to_string(),
+            split_cfg: DenomSplitMap {
+                split_cfg: denom_split_cfg,
+            },
         };
         self.contract_init(self.dyn_ratio_code_id, "dynamic_ratio", &init_msg, &[])
     }
@@ -928,11 +939,11 @@ fn split_native_single_token_dyn_ratio_single_output() {
     let mut suite = SplitterTestSuite::new(Some(vec![(ONE_MILLION, NTRN.into())]));
 
     let output_addr = suite.api().addr_make("output_account");
-    let dyn_ratio_addr = suite.dyn_ratio_contract_init(NTRN, Decimal::one());
+    let dyn_ratio_addr = suite.dyn_ratio_contract_init(NTRN, output_addr.as_str(), Decimal::one());
 
     let cfg = suite.splitter_config(vec![UncheckedSplitConfig::with_native_dyn_ratio(
         &dyn_ratio_addr,
-        "",
+        output_addr.as_str(),
         NTRN,
         &output_addr,
     )]);
@@ -958,11 +969,12 @@ fn split_cw20_single_token_dyn_ratio_single_output() {
         suite.cw20_token_init(MEME, "MEME", ONE_MILLION, suite.input_addr().to_string());
 
     let output_addr = suite.api().addr_make("output_account");
-    let dyn_ratio_addr = suite.dyn_ratio_contract_init(cw20_addr.as_ref(), Decimal::one());
+    let dyn_ratio_addr =
+        suite.dyn_ratio_contract_init(cw20_addr.as_ref(), output_addr.as_str(), Decimal::one());
 
     let cfg = suite.splitter_config(vec![UncheckedSplitConfig::with_cw20_dyn_ratio(
         &dyn_ratio_addr,
-        "",
+        output_addr.as_str(),
         &cw20_addr,
         &output_addr,
     )]);

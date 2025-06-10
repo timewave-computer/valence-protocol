@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
+use cosmwasm_std::{
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+};
 use valence_library_utils::msg::{DynamicRatioQueryMsg, DynamicRatioResponse};
 
 use crate::{
@@ -17,7 +19,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
-
     let admin_addr = deps.api.addr_validate(&msg.admin)?;
 
     ADMIN.save(deps.storage, &admin_addr)?;
@@ -46,7 +47,7 @@ pub fn execute(
                 DENOM_SPLITS.save(deps.storage, denom.to_string(), &split)?;
             }
             Ok(Response::new().add_attribute("method", "execute"))
-        },
+        }
     }
 }
 
@@ -66,17 +67,17 @@ pub fn query(deps: Deps, _env: Env, msg: DynamicRatioQueryMsg) -> StdResult<Bina
                 // get the receiver share from the denom map
                 let receiver_share = match configured_splits.get(receiver.as_str()) {
                     Some(share) => share,
-                    None => return Err(
-                        StdError::generic_err(format!("denom {denom} does not have an entry for receiver {receiver}"))
-                    ),
+                    None => {
+                        return Err(StdError::generic_err(format!(
+                            "denom {denom} does not have an entry for receiver {receiver}"
+                        )))
+                    }
                 };
 
-                denom_ratios.insert(receiver.to_string(), *receiver_share);
+                denom_ratios.insert(denom.to_string(), *receiver_share);
             }
 
-            to_json_binary(&DynamicRatioResponse {
-                denom_ratios,
-            })
+            to_json_binary(&DynamicRatioResponse { denom_ratios })
         }
     }
 }
