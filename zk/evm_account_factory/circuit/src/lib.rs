@@ -70,7 +70,7 @@ impl EvmAccountFactoryCircuit {
         // Add entropy sources (partial - controller address would be added externally)
         hasher.update(block_hash);
         hasher.update(program_id.as_bytes());
-        hasher.update(account_request_id.to_be_bytes());
+        hasher.update(account_request_id.to_le_bytes());
         hasher.update(libraries_hash);
 
         hasher.finalize().into()
@@ -150,7 +150,7 @@ mod tests {
         CircuitInput {
             block_hash: [2u8; 32],
             libraries_hash: [0u8; 32],
-            program_id: "42".to_string(),
+            program_id: String::from("42"),
             account_request_id: 123,
         }
     }
@@ -158,14 +158,14 @@ mod tests {
     fn create_test_witnesses() -> Vec<Witness> {
         let block_hash = [2u8; 32];
         let libraries_hash = [0u8; 32];
-        let program_id = "42".to_string();
+        let program_id = String::from("42");
         let account_request_id = 123u64;
 
         vec![
             Witness::Data(block_hash.to_vec()),
             Witness::Data(libraries_hash.to_vec()),
             Witness::Data(program_id.into_bytes()),
-            Witness::Data(account_request_id.to_be_bytes().to_vec()),
+            Witness::Data(account_request_id.to_le_bytes().to_vec()),
         ]
     }
 
@@ -212,7 +212,7 @@ mod tests {
             Witness::Data(input.block_hash.to_vec()),
             Witness::Data(input.libraries_hash.to_vec()),
             Witness::Data(input.program_id.into_bytes()),
-            Witness::Data(input.account_request_id.to_be_bytes().to_vec()),
+            Witness::Data(input.account_request_id.to_le_bytes().to_vec()),
         ]);
 
         // Should be 32 bytes for salt + 1 byte for is_valid flag

@@ -10272,6 +10272,7 @@ checksum = "ced87ca4be083373936a67f8de945faa23b6b42384bd5b64434850802c6dccd0"
 name = "valence-account-factory"
 version = "0.2.0"
 dependencies = [
+ "cosmwasm-crypto 2.2.1",
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
  "cw-multi-test",
