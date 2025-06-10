@@ -168,12 +168,9 @@ mod functions {
                 LibraryError::ExecutionError("failed to apply settlement ratio".to_string())
             })?;
 
-        let supervaults_amount = match payout_amount.checked_sub(mars_amount) {
-            Ok(amt) => amt,
-            // in case payout amount was 0, this may panic. we swallow the error and mark the
-            // obligation as processed before returning.
-            Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
-        };
+        // this should never error given that mars_amount is at most the payout_amount
+        let supervaults_amount = payout_amount.checked_sub(mars_amount)
+            .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
         // first we query the supervaults to pairwise match the config denom
         // to the supervault pair data
@@ -201,16 +198,9 @@ mod functions {
             };
 
         // perform the supervaults liquidity provision simulation
-        let supervaults_lp_equivalent: Uint128 = match deps
+        let supervaults_lp_equivalent: Uint128 = deps
             .querier
-            .query_wasm_smart(cfg.supervault_addr, &supervaults_simulate_lp_msg)
-        {
-            // if response is successful, we proceed
-            Ok(amt) => amt,
-            // if the simulation fails for any reason, the request is tagged as complete
-            // to not block subsequent withdraw obligations from being registered.
-            Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
-        };
+            .query_wasm_smart(cfg.supervault_addr, &supervaults_simulate_lp_msg)?;
 
         let supervaults_obligation = match supervaults_lp_equivalent.is_zero() {
             // if the simulation returns 0, we mark the obligation as completed and return
