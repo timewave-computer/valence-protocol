@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use valence_dynamic_ratio_query_provider::msg::DenomSplitMap;
 use valence_library_utils::{
     denoms::CheckedDenom,
-    msg::{DynamicRatioQueryMsg, DynamicRatioResponse, ExecuteMsg, InstantiateMsg},
+    msg::{ExecuteMsg, InstantiateMsg},
     testing::{LibraryTestSuite, LibraryTestSuiteBase},
 };
 

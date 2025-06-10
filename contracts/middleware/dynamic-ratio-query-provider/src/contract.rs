@@ -26,7 +26,7 @@ pub fn instantiate(
     // save the specified denom splits. no validation here as it
     // is done by the splitter.
     for (denom, split) in msg.split_cfg.split_cfg.iter() {
-        DENOM_SPLITS.save(deps.storage, denom.to_string(), &split)?;
+        DENOM_SPLITS.save(deps.storage, denom.to_string(), split)?;
     }
 
     Ok(Response::new().add_attribute("method", "instantiate"))
@@ -44,7 +44,7 @@ pub fn execute(
             // save the specified denom splits. no validation here as it
             // is done by the splitter.
             for (denom, split) in split_cfg.split_cfg.iter() {
-                DENOM_SPLITS.save(deps.storage, denom.to_string(), &split)?;
+                DENOM_SPLITS.save(deps.storage, denom.to_string(), split)?;
             }
             Ok(Response::new().add_attribute("method", "execute"))
         }
