@@ -30,17 +30,11 @@ pub struct BatchRequest {
 #[cw_serde]
 pub enum ExecuteMsg {
     /// Create a single account with historical block validation
-    CreateAccount { 
-        request: AccountRequest,
-    },
+    CreateAccount { request: AccountRequest },
     /// Create account and process request atomically
-    CreateAccountWithRequest { 
-        request: AccountRequest,
-    },
+    CreateAccountWithRequest { request: AccountRequest },
     /// Process multiple account creations in batch
-    CreateAccountsBatch { 
-        batch: BatchRequest,
-    },
+    CreateAccountsBatch { batch: BatchRequest },
 }
 
 #[cw_serde]
@@ -48,14 +42,10 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     /// Compute the deterministic address for an account
     #[returns(ComputeAccountAddressResponse)]
-    ComputeAccountAddress { 
-        request: AccountRequest,
-    },
+    ComputeAccountAddress { request: AccountRequest },
     /// Check if an account has been created
     #[returns(bool)]
-    IsAccountCreated { 
-        account: String,
-    },
+    IsAccountCreated { account: String },
     /// Check if an account request ID has been used
     #[returns(bool)]
     IsAccountRequestIdUsed {
