@@ -101,6 +101,16 @@ mod functions {
         Ok(Response::default())
     }
 
+    /// registers a withdraw obligation by pushing it to the clearing queue and
+    /// creating a obligation status map entry.
+    /// because the clearing queue operates in a FIFO manner, we must prevent
+    /// invalid obligations from being registered to prevent blocking the queue.
+    /// some of the ways that an obligation may block the queue are:
+    /// - invalid recipient address
+    /// - payout coins with zero-amounts
+    /// for that reason, registration should swallow any errors that may lead
+    /// to a blocked queue by immediately tagging the obligation as completed
+    /// with error.
     fn try_register_withdraw_obligation(
         deps: DepsMut,
         env: Env,
@@ -136,6 +146,16 @@ mod functions {
             Ok(addr) => addr,
             Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
         };
+
+        // validate the payout amount. in case 0 is passed in, we immediately tag the
+        // obligation as completed and return
+        if payout_amount.is_zero() {
+            return swallow_obligation_registration_err(
+                deps,
+                id,
+                "cannot register obligation with zero payout amount".to_string(),
+            );
+        }
 
         // we apply the configured settlement ratio to get the deposit denom amount.
         // we do not swallow the error here because any error here means a config error.
