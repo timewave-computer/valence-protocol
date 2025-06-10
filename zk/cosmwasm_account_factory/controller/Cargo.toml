@@ -3,10 +3,16 @@ name = "cosmwasm-account-factory-controller"
 version = "0.1.0"
 edition = "2021"
 description = "CosmWasm Account Factory ZK Controller"
+license = "Apache-2.0"
+repository = "https://github.com/timewave-computer/valence-protocol"
+authors = ["Timewave Computer <info@timewave.computer>"]
 
 [workspace]
 
 [dependencies]
+# CosmWasm core types and functions
+cosmwasm-std = { version = "2.1.3", features = ["std"] }
+
 # Cryptographic dependencies
 sha2 = "0.10"
 hex = "0.4"

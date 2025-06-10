@@ -7,7 +7,7 @@
 // Key Features:
 // - Controller-bound execution (only controller can approve libraries)
 // - Library approval system (libraries can execute once approved)
-// - Account type enforcement (TokenCustody, DataStorage, or Hybrid)
+// - Full capabilities (both token custody and data storage)
 // - Minimal state storage for gas efficiency
 // - Message forwarding to authorized libraries
 
@@ -21,7 +21,7 @@ use cw2::set_contract_version;
 use thiserror::Error;
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{ACCOUNT_TYPE, APPROVED_LIBRARIES, CONTROLLER};
+use crate::state::{APPROVED_LIBRARIES, CONTROLLER};
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -37,10 +37,10 @@ pub enum ContractError {
 
 /// Initialize a new JIT account with controller binding
 ///
-/// Sets up the account with an immutable controller address and account type.
+/// Sets up the account with an immutable controller address.
 /// The controller is the only entity that can approve/remove libraries and
-/// execute messages directly. The account type determines what capabilities
-/// the account has (token operations, data storage, or both).
+/// execute messages directly. All accounts have full capabilities for both
+/// token operations and data storage.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -55,16 +55,9 @@ pub fn instantiate(
     let controller = deps.api.addr_validate(&msg.controller)?;
     CONTROLLER.save(deps.storage, &controller)?;
 
-    // Store account type configuration
-    // 1 = TokenCustody (can hold/transfer tokens)
-    // 2 = DataStorage (can store non-fungible data)
-    // 3 = Hybrid (both token and data capabilities)
-    ACCOUNT_TYPE.save(deps.storage, &msg.account_type)?;
-
     Ok(Response::new()
         .add_attribute("method", "instantiate")
-        .add_attribute("controller", controller)
-        .add_attribute("account_type", msg.account_type.to_string()))
+        .add_attribute("controller", controller))
 }
 
 /// Execute operations on the JIT account
@@ -145,6 +138,8 @@ mod execute {
     /// Can be called by either the controller directly or by any approved library.
     /// This is the primary mechanism for performing operations (token transfers,
     /// data storage, etc.) using this account's identity and permissions.
+    ///
+    /// All accounts have full capabilities for both token and data operations.
     pub fn execute_msgs(
         deps: DepsMut,
         info: MessageInfo,
@@ -159,7 +154,7 @@ mod execute {
         );
 
         // Forward all provided messages for execution
-        // The account acts as a proxy, executing messages with its own permissions
+        // All accounts have full capabilities for token and data operations
         Ok(Response::new()
             .add_messages(msgs)
             .add_attribute("method", "execute_msgs")
@@ -169,8 +164,8 @@ mod execute {
 
 /// Query account state and configuration
 ///
-/// Provides read-only access to account information including controller,
-/// library approvals, and account type configuration.
+/// Provides read-only access to account information including controller
+/// and library approvals.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
@@ -185,13 +180,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let library_addr = deps.api.addr_validate(&library)?;
             let approved = APPROVED_LIBRARIES.has(deps.storage, library_addr);
             to_json_binary(&approved)
-        }
-
-        // Get the account type configuration
-        // Returns: 1 = TokenCustody, 2 = DataStorage, 3 = Hybrid
-        QueryMsg::GetAccountType {} => {
-            let account_type = ACCOUNT_TYPE.load(deps.storage)?;
-            to_json_binary(&account_type)
         }
     }
 }

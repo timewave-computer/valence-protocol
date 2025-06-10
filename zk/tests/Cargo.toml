@@ -3,6 +3,9 @@ name = "zk-integration-tests"
 version = "0.1.0"
 edition = "2021"
 description = "Integration tests for ZK account factory components"
+license = "Apache-2.0"
+repository = "https://github.com/timewave-computer/valence-protocol"
+authors = ["Timewave Computer <info@timewave.computer>"]
 
 [workspace]
 

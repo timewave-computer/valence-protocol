@@ -33,16 +33,12 @@
             rustToolchain
             cargo-watch
             cargo-edit
-            cargo-udeps
-            cargo-audit
-            cargo-tarpaulin
 
             # Solidity and Foundry
             foundry-bin
 
             # Node.js and npm (might be needed for some tools)
             nodejs_20
-            nodePackages.npm
 
             # System dependencies
             pkg-config
@@ -52,20 +48,11 @@
             just
             jq
 
-            # CosmWasm dependencies
-            cosmwasm-check
-
             # Additional tools
             protobuf
             clang
             llvm
 
-            # Database tools (might be needed)
-            sqlite
-
-            # Docker (for contract optimization)
-            docker
-            docker-compose
           ] ++ lib.optionals stdenv.isDarwin [
             # macOS specific dependencies
             darwin.apple_sdk.frameworks.Security
@@ -90,7 +77,6 @@
             echo "  • Cargo $(cargo --version)"
             echo "  • Forge $(forge --version 2>/dev/null || echo 'not available')"
             echo "  • Just $(just --version)"
-            echo "  • CosmWasm Check $(cosmwasm-check --version 2>/dev/null || echo 'not available')"
             echo "  • Soldeer $(soldeer --version 2>/dev/null || echo 'installing...')"
             echo ""
             echo "📁 Project structure:"
@@ -123,9 +109,6 @@
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
           BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/${pkgs.lib.getVersion pkgs.clang}/include";
         };
-
-        # Package outputs
-        packages.default = pkgs.hello; # Placeholder
 
         # Formatter
         formatter = pkgs.nixpkgs-fmt;

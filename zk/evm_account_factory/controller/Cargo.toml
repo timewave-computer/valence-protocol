@@ -3,6 +3,9 @@ name = "evm-account-factory-controller"
 version = "0.1.0"
 edition = "2021"
 description = "EVM Account Factory ZK Controller"
+license = "Apache-2.0"
+repository = "https://github.com/timewave-computer/valence-protocol"
+authors = ["Timewave Computer <info@timewave.computer>"]
 
 [workspace]
 

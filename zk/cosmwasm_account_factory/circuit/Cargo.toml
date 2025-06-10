@@ -3,6 +3,9 @@ name = "cosmwasm-account-factory-circuit"
 version = "0.1.0"
 edition = "2021"
 description = "CosmWasm Account Factory ZK Circuit"
+license = "Apache-2.0"
+repository = "https://github.com/timewave-computer/valence-protocol"
+authors = ["Timewave Computer <info@timewave.computer>"]
 
 [workspace]
 

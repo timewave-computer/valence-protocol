@@ -9,14 +9,14 @@
 // - Deterministic addressing via salt-based Instantiate2
 // - Atomic account creation with request validation
 // - Nonce-based replay protection
-// - Account type configuration (TokenCustody, DataStorage, Hybrid)
+// - Full capability accounts (both token custody and data storage)
 // - Ferry service batch processing with fee collection
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, WasmMsg,
+    instantiate2_address, to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
+    MessageInfo, Response, StdError, StdResult, WasmMsg,
 };
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
@@ -124,9 +124,10 @@ mod execute {
         validate_request(&deps, &env, &request)?;
 
         // Create the account and update state
-        let account_addr = create_account_internal(deps, env, request)?;
+        let (account_addr, msgs) = create_account_internal(deps, env, request)?;
 
         Ok(Response::new()
+            .add_messages(msgs)
             .add_attribute("method", "create_account")
             .add_attribute("account", account_addr))
     }
@@ -150,9 +151,10 @@ mod execute {
         }
 
         // Create account atomically
-        let account_addr = create_account_internal(deps, env, request)?;
+        let (account_addr, msgs) = create_account_internal(deps, env, request)?;
 
         Ok(Response::new()
+            .add_messages(msgs)
             .add_attribute("method", "create_account_with_request")
             .add_attribute("account", account_addr))
     }
@@ -165,9 +167,16 @@ mod execute {
     pub fn create_accounts_batch(
         deps: DepsMut,
         env: Env,
-        _info: MessageInfo,
+        info: MessageInfo,
         batch: BatchRequest,
     ) -> Result<Response, ContractError> {
+        // Validate batch is not empty
+        if batch.requests.is_empty() {
+            return Err(ContractError::Std(StdError::generic_err(
+                "Batch cannot be empty",
+            )));
+        }
+
         let mut accounts = Vec::new();
         let mut messages = Vec::new();
 
@@ -177,7 +186,7 @@ mod execute {
             validate_request(&deps, &env, &request)?;
 
             // Prepare account creation without actually executing
-            let (account_addr, msgs) = prepare_account_creation(deps.as_ref(), &env, &request)?;
+            let (account_addr, msgs) = prepare_account_creation(&deps.as_ref(), &env, &request)?;
             accounts.push(account_addr.clone());
             messages.extend(msgs);
 
@@ -194,7 +203,14 @@ mod execute {
         // Handle ferry service fee collection
         if batch.fee_amount > 0 {
             if let Some(fee_collector) = FEE_COLLECTOR.load(deps.storage)? {
-                let total_fee = Coin::new(batch.fee_amount, "untrn"); // Assuming Neutron native token
+                // Use the denomination from the sent funds, or default to the first fund sent
+                let denom = if !info.funds.is_empty() {
+                    info.funds[0].denom.clone()
+                } else {
+                    "untrn".to_string() // Default fallback
+                };
+
+                let total_fee = Coin::new(batch.fee_amount, denom);
                 messages.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
                     to_address: fee_collector.to_string(),
                     amount: vec![total_fee],
@@ -224,6 +240,23 @@ mod execute {
             .addr_validate(&request.controller)
             .map_err(|_| ContractError::InvalidController {})?;
 
+        // Validate libraries list (should not be empty for meaningful accounts)
+        if request.libraries.is_empty() {
+            return Err(ContractError::Std(StdError::generic_err(
+                "Libraries list cannot be empty. Accounts must have at least one approved library.",
+            )));
+        }
+
+        // Validate all library addresses are valid
+        for library in &request.libraries {
+            deps.api.addr_validate(library).map_err(|_| {
+                ContractError::Std(StdError::generic_err(format!(
+                    "Invalid library address: {}",
+                    library
+                )))
+            })?;
+        }
+
         // Check historical block age is within acceptable range
         if env.block.height > request.historical_block_height + MAX_BLOCK_AGE {
             return Err(ContractError::HistoricalBlockTooOld {
@@ -252,11 +285,18 @@ mod execute {
     /// cryptographic verification (e.g., secp256k1, ed25519) to authenticate
     /// the request origin.
     fn validate_signature(request: &AccountRequest) -> Result<(), ContractError> {
-        // Simplified signature validation - in practice would use proper cryptographic verification
-        if request.signature.as_ref().unwrap().is_empty() {
-            return Err(ContractError::InvalidSignature {});
+        // Check if signature exists and is not empty
+        match &request.signature {
+            Some(signature) => {
+                if signature.is_empty() {
+                    return Err(ContractError::InvalidSignature {});
+                }
+                // In production, this would verify the cryptographic signature
+                // For now, we just check that it exists and is not empty
+                Ok(())
+            }
+            None => Err(ContractError::InvalidSignature {}),
         }
-        Ok(())
     }
 
     /// Internal account creation logic
@@ -267,11 +307,11 @@ mod execute {
         deps: DepsMut,
         env: Env,
         request: AccountRequest,
-    ) -> Result<Addr, ContractError> {
+    ) -> Result<(Addr, Vec<CosmosMsg>), ContractError> {
         let controller = deps.api.addr_validate(&request.controller)?;
 
         // Prepare account creation messages and compute address
-        let (account_addr, _msgs) = prepare_account_creation(deps.as_ref(), &env, &request)?;
+        let (account_addr, msgs) = prepare_account_creation(&deps.as_ref(), &env, &request)?;
 
         // Update state to mark nonce as used and account as created
         USED_NONCES.save(
@@ -281,10 +321,7 @@ mod execute {
         )?;
         CREATED_ACCOUNTS.save(deps.storage, account_addr.clone(), &true)?;
 
-        // Note: In practice, the _msgs would be added to the response
-        // For now, we just track state changes
-
-        Ok(account_addr)
+        Ok((account_addr, msgs))
     }
 
     /// Prepare account creation messages and compute address
@@ -292,7 +329,7 @@ mod execute {
     /// This function handles the deterministic address computation using
     /// Instantiate2 and prepares the instantiation message for the JIT account.
     fn prepare_account_creation(
-        deps: Deps,
+        deps: &Deps,
         env: &Env,
         request: &AccountRequest,
     ) -> Result<(Addr, Vec<CosmosMsg>), ContractError> {
@@ -301,7 +338,8 @@ mod execute {
         let code_id = JIT_ACCOUNT_CODE_ID.load(deps.storage)?;
 
         // Compute what the account address will be
-        let account_addr = compute_instantiate2_address(&env.contract.address, code_id, &salt)?;
+        let account_addr =
+            compute_instantiate2_address(&deps, &env.contract.address, code_id, &salt)?;
 
         // Check if account already exists
         if CREATED_ACCOUNTS.has(deps.storage, account_addr.clone()) {
@@ -313,7 +351,6 @@ mod execute {
         // Prepare JIT account instantiation message
         let instantiate_msg = crate::msg::JitAccountInstantiateMsg {
             controller: request.controller.clone(),
-            account_type: 1, // Default to TokenCustody for now
         };
 
         // Create the Wasm instantiation message
@@ -338,7 +375,6 @@ mod execute {
     /// - Controller address (ensures isolation between controllers)
     /// - Program ID (allows multiple programs per controller)
     /// - Account request ID (user-provided uniqueness guarantee)
-    /// - Account type (different types get different addresses)
     /// - Libraries hash (accounts with different library sets get different addresses)
     pub fn compute_salt(_env: &Env, request: &AccountRequest) -> [u8; 32] {
         let mut hasher = Sha256::new();
@@ -350,7 +386,6 @@ mod execute {
         hasher.update(request.controller.as_bytes());
         hasher.update(request.program_id.as_bytes());
         hasher.update(request.account_request_id.to_be_bytes());
-        hasher.update([request.account_type]);
 
         // Include library configuration in salt computation
         // This ensures accounts with different library approvals get different addresses
@@ -368,20 +403,33 @@ mod execute {
     /// This follows the CosmWasm Instantiate2 addressing algorithm to predict
     /// what address an account will have before actually creating it.
     pub fn compute_instantiate2_address(
+        deps: &Deps,
         factory_addr: &Addr,
         code_id: u64,
         salt: &[u8; 32],
     ) -> Result<Addr, ContractError> {
-        // Simplified Instantiate2 address computation
-        // In practice, this would follow the exact CosmWasm Instantiate2 algorithm
-        let mut hasher = Sha256::new();
-        hasher.update(factory_addr.as_bytes());
-        hasher.update(code_id.to_be_bytes());
-        hasher.update(salt);
+        // For the ZK controller to work properly, we need to get the code checksum
+        // Query the code info to get the checksum
+        let code_info = deps
+            .querier
+            .query_wasm_code_info(code_id)
+            .map_err(ContractError::Std)?;
 
-        let hash = hasher.finalize();
-        let addr_str = format!("cosmos1{}", hex::encode(&hash[..20]));
-        Ok(Addr::unchecked(addr_str))
+        // Use the official CosmWasm Instantiate2 derivation
+        // 1. Turn the human address into its canonical form
+        let canonical_creator = deps
+            .api
+            .addr_canonicalize(factory_addr.as_str())
+            .map_err(ContractError::Std)?;
+
+        // 2. Compute the raw (canonical) address using the built-in function
+        let raw = instantiate2_address(code_info.checksum.as_slice(), &canonical_creator, salt)
+            .map_err(|e| ContractError::Std(cosmwasm_std::StdError::generic_err(e.to_string())))?;
+
+        // 3. Convert back to human-readable Bech32
+        let human = deps.api.addr_humanize(&raw).map_err(ContractError::Std)?;
+
+        Ok(human)
     }
 }
 
@@ -394,7 +442,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let salt = execute::compute_salt(&env, &request);
             let code_id = JIT_ACCOUNT_CODE_ID.load(deps.storage)?;
             let account =
-                execute::compute_instantiate2_address(&env.contract.address, code_id, &salt)
+                execute::compute_instantiate2_address(&deps, &env.contract.address, code_id, &salt)
                     .map_err(|e| StdError::generic_err(e.to_string()))?;
 
             to_json_binary(&ComputeAccountAddressResponse { account })
