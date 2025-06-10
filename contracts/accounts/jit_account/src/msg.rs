@@ -11,15 +11,15 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     /// Execute a message on behalf of the account
     Execute { 
-        msgs: Vec<CosmosMsg> 
+        msgs: Vec<CosmosMsg>,
     },
     /// Approve a library to execute messages
     ApproveLibrary { 
-        library: String 
+        library: String,
     },
     /// Remove approval for a library
     RemoveLibrary { 
-        library: String 
+        library: String,
     },
 }
 
@@ -32,6 +32,6 @@ pub enum QueryMsg {
     /// Check if a library is approved
     #[returns(bool)]
     IsLibraryApproved { 
-        library: String 
+        library: String,
     },
 }
