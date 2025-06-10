@@ -284,7 +284,7 @@ mod execute {
     /// TODO: This is a placeholder implementation. In production, this must use proper
     /// cryptographic signature verification (e.g., secp256k1, ed25519) to authenticate
     /// the request origin against the controller's public key.
-    /// 
+    ///
     /// Production implementation should:
     /// 1. Extract the public key from the controller address or message
     /// 2. Verify the signature against the serialized request data
