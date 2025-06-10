@@ -8,3 +8,6 @@ description = "Helpers for lending integrations"
 [dependencies]
 cosmwasm-std    = { workspace = true }
 cosmwasm-schema = { workspace = true }
+serde           = { workspace = true }
+schemars        = { workspace = true }
+prost           = "0.12"
