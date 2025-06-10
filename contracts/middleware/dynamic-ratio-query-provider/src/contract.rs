@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    ensure, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 use valence_library_utils::msg::{DynamicRatioQueryMsg, DynamicRatioResponse};
 
@@ -36,13 +36,19 @@ pub fn instantiate(
 pub fn execute(
     deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> StdResult<Response> {
     match msg {
         ExecuteMsg::UpdateRatios { split_cfg } => {
+            let admin = ADMIN.load(deps.storage)?;
+            ensure!(
+                info.sender == admin,
+                StdError::generic_err("unauthorized ratio update")
+            );
+
             // save the specified denom splits. no validation here as it
-            // is done by the splitter.
+            // is on splitter level.
             for (denom, split) in split_cfg.split_cfg.iter() {
                 DENOM_SPLITS.save(deps.storage, denom.to_string(), split)?;
             }
