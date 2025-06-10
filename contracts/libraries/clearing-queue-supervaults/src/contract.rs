@@ -164,79 +164,85 @@ mod functions {
                 cfg.settlement_ratio.numerator(),
                 cfg.settlement_ratio.denominator(),
             )
-            .map_err(|_| {
-                LibraryError::ExecutionError("failed to apply settlement ratio".to_string())
-            })?;
-
-        // this should never error given that mars_amount is at most the payout_amount
-        let supervaults_amount = payout_amount.checked_sub(mars_amount)
             .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
-        // first we query the supervaults to pairwise match the config denom
-        // to the supervault pair data
-        let supervaults_config: mmvault::state::Config = deps
-            .querier
-            .query_wasm_smart(&cfg.supervault_addr, &mmvault::msg::QueryMsg::GetConfig {})?;
+        let mut payout_coins: Vec<Coin> = vec![];
 
-        let supervaults_simulate_lp_msg =
-            if cfg.denom.eq(&supervaults_config.pair_data.token_0.denom) {
-                mmvault::msg::QueryMsg::SimulateProvideLiquidity {
-                    amount_0: supervaults_amount,
-                    amount_1: Uint128::zero(),
-                    sender: cfg.supervault_sender,
-                }
-            } else if cfg.denom.eq(&supervaults_config.pair_data.token_1.denom) {
-                mmvault::msg::QueryMsg::SimulateProvideLiquidity {
-                    amount_0: Uint128::zero(),
-                    amount_1: supervaults_amount,
-                    sender: cfg.supervault_sender,
-                }
-            } else {
-                return Err(LibraryError::ConfigurationError(
-                    "supervault config denom mismatch".to_string(),
-                ));
-            };
+        // push the mars obligation to the payout coins array
+        payout_coins.push(Coin {
+            denom: cfg.denom.to_string(),
+            amount: mars_amount,
+        });
 
-        // perform the supervaults liquidity provision simulation
-        let supervaults_lp_equivalent: Uint128 = deps
-            .querier
-            .query_wasm_smart(cfg.supervault_addr, &supervaults_simulate_lp_msg)?;
+        // this should never error given that mars_amount is at most the payout_amount
+        let supervaults_amount = payout_amount
+            .checked_sub(mars_amount)
+            .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
-        let supervaults_obligation = match supervaults_lp_equivalent.is_zero() {
-            // if the simulation returns 0, we mark the obligation as completed and return
-            true => {
-                return swallow_obligation_registration_err(
-                    deps,
-                    id,
-                    "zero payout amount".to_string(),
-                )
-            }
-            // otherwise we build the supervaults obligation coin
-            false => Coin {
+        // if supervaults amount is non-zero, we perform the deposit simulation
+        // to estimate the supervaults lp shares amount equivalent to the supervaults_amount
+        // of deposit token
+        if !supervaults_amount.is_zero() {
+            // first we query the supervaults to pairwise match the config denom
+            // to the supervault pair data
+            let supervaults_config: mmvault::state::Config = deps
+                .querier
+                .query_wasm_smart(&cfg.supervault_addr, &mmvault::msg::QueryMsg::GetConfig {})?;
+
+            let supervaults_simulate_lp_msg =
+                if cfg.denom.eq(&supervaults_config.pair_data.token_0.denom) {
+                    mmvault::msg::QueryMsg::SimulateProvideLiquidity {
+                        amount_0: supervaults_amount,
+                        amount_1: Uint128::zero(),
+                        sender: cfg.supervault_sender,
+                    }
+                } else if cfg.denom.eq(&supervaults_config.pair_data.token_1.denom) {
+                    mmvault::msg::QueryMsg::SimulateProvideLiquidity {
+                        amount_0: Uint128::zero(),
+                        amount_1: supervaults_amount,
+                        sender: cfg.supervault_sender,
+                    }
+                } else {
+                    return Err(LibraryError::ConfigurationError(
+                        "supervault config denom mismatch".to_string(),
+                    ));
+                };
+
+            // perform the supervaults liquidity provision simulation.
+            // we know that the offer_amount here is non-zero, so we surface
+            // any errors that may happen during this query (e.g. due to
+            // exceeded cap, changed api, etc)
+            let supervaults_lp_equivalent: Uint128 = deps
+                .querier
+                .query_wasm_smart(cfg.supervault_addr, &supervaults_simulate_lp_msg)?;
+
+            // push the supervaults obligation to the payout coins array
+            payout_coins.push(Coin {
                 denom: supervaults_config.lp_denom,
                 amount: supervaults_lp_equivalent,
-            },
-        };
+            });
+        }
 
-        // technically this amount cannot be zero but we do a check just in case
-        let mars_obligation = match mars_amount.is_zero() {
-            true => {
-                return swallow_obligation_registration_err(
-                    deps,
-                    id,
-                    "zero payout amount".to_string(),
-                )
-            }
-            false => Coin {
-                denom: cfg.denom,
-                amount: mars_amount,
-            },
-        };
+        // filter out any zero-amount denoms as attempting to settle them later
+        // would fail
+        let filtered_payout: Vec<Coin> = payout_coins
+            .into_iter()
+            .filter(|c| !c.amount.is_zero())
+            .collect();
+
+        // if both coins were 0-amount, there is nothing to transfer; return
+        if filtered_payout.is_empty() {
+            return swallow_obligation_registration_err(
+                deps,
+                id,
+                "both obligations 0-amount".to_string(),
+            );
+        }
 
         // construct the valid withdrawal obligation to be queued
         let withdraw_obligation = WithdrawalObligation {
             recipient: validated_recipient,
-            payout_coins: vec![mars_obligation, supervaults_obligation],
+            payout_coins: filtered_payout,
             id,
             enqueue_block: env.block,
         };
