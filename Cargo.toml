@@ -11,6 +11,7 @@ members = [
   "contracts/middleware/broker",
   "contracts/middleware/asserter",
   "contracts/middleware/verification-gateway",
+  "contracts/middleware/dynamic-ratio-query-provider",
   "packages/*",
   "program-manager",
   "e2e",
@@ -69,7 +70,7 @@ valence-interchain-account           = { path = "contracts/accounts/interchain_a
 valence-storage-account              = { path = "contracts/accounts/storage_account", features = ["library"] }
 valence-processor                    = { path = "contracts/processor", features = ["library"] }
 valence-splitter-library             = { path = "contracts/libraries/splitter", features = ["library"] }
-valence-test-dynamic-ratio           = { path = "contracts/testing/test-dynamic-ratio", features = ["library"] }
+valence-dynamic-ratio-query-provider = { path = "contracts/middleware/dynamic-ratio-query-provider", features = ["library"] }
 valence-test-library                 = { path = "contracts/testing/test-library", features = ["library"] }
 valence-test-icq-lib                 = { path = "contracts/testing/test-icq-lib", features = ["library"] }
 valence-workflow-registry            = { path = "contracts/workflow-registry", features = ["library"] }

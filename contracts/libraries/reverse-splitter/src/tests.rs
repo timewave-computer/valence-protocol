@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::msg::{
     Config, FunctionMsgs, LibraryConfig, QueryMsg, SplitAmount, SplitConfig, UncheckedSplitConfig,
 };
@@ -6,6 +8,7 @@ use cw20::Cw20Coin;
 use cw_multi_test::{error::AnyResult, App, AppResponse, ContractWrapper, Executor};
 use cw_ownable::Ownership;
 use getset::{Getters, Setters};
+use valence_dynamic_ratio_query_provider::msg::DenomSplitMap;
 use valence_library_utils::{
     denoms::{CheckedDenom, UncheckedDenom},
     msg::ExecuteMsg,
@@ -59,9 +62,9 @@ impl ReverseSplitterTestSuite {
         let reverse_splitter_code_id = inner.app_mut().store_code(Box::new(reverse_splitter_code));
 
         let dyn_ratio_code = ContractWrapper::new(
-            valence_test_dynamic_ratio::contract::execute,
-            valence_test_dynamic_ratio::contract::instantiate,
-            valence_test_dynamic_ratio::contract::query,
+            valence_dynamic_ratio_query_provider::contract::execute,
+            valence_dynamic_ratio_query_provider::contract::instantiate,
+            valence_dynamic_ratio_query_provider::contract::query,
         );
 
         let dyn_ratio_code_id = inner.app_mut().store_code(Box::new(dyn_ratio_code));
@@ -93,9 +96,18 @@ impl ReverseSplitterTestSuite {
         addr
     }
 
-    pub fn dyn_ratio_contract_init(&mut self, denom: &str, ratio: Decimal) -> Addr {
-        let init_msg = valence_test_dynamic_ratio::msg::InstantiateMsg {
-            denom_ratios: [(denom.to_string(), ratio)].into(),
+    pub fn dyn_ratio_contract_init(&mut self, denom: &str, src: &str, ratio: Decimal) -> Addr {
+        let mut denom_split = HashMap::new();
+        denom_split.insert(src.to_string(), ratio);
+
+        let mut denom_split_cfg = HashMap::new();
+        denom_split_cfg.insert(denom.to_string(), denom_split);
+
+        let init_msg = valence_dynamic_ratio_query_provider::msg::InstantiateMsg {
+            admin: self.inner.owner().to_string(),
+            split_cfg: DenomSplitMap {
+                split_cfg: denom_split_cfg,
+            },
         };
         self.contract_init(self.dyn_ratio_code_id, "dynamic_ratio", &init_msg, &[])
     }
@@ -840,12 +852,18 @@ fn split_native_single_token_dyn_ratio_single_input() {
     let input2_addr =
         suite.account_init_with_balances("input_account_2", vec![(TEN_MILLION, STARS.into())]);
 
-    let dyn_ratio_addr = suite.dyn_ratio_contract_init(STARS, Decimal::percent(10u64));
+    let dyn_ratio_addr =
+        suite.dyn_ratio_contract_init(STARS, input2_addr.as_str(), Decimal::percent(10u64));
 
     let cfg = suite.reverse_splitter_config(
         vec![
             UncheckedSplitConfig::with_native_ratio(Decimal::one(), NTRN, &input1_addr),
-            UncheckedSplitConfig::with_native_dyn_ratio(&dyn_ratio_addr, "", STARS, &input2_addr),
+            UncheckedSplitConfig::with_native_dyn_ratio(
+                &dyn_ratio_addr,
+                input2_addr.as_str(),
+                STARS,
+                &input2_addr,
+            ),
         ],
         UncheckedDenom::Native(NTRN.into()),
     );
@@ -876,14 +894,18 @@ fn split_cw20_single_token_dyn_ratio_single_output() {
     let cw20_addr =
         suite.cw20_token_init(MEME, "MEME", vec![(TEN_MILLION, input2_addr.to_string())]);
 
-    let dyn_ratio_addr = suite.dyn_ratio_contract_init(cw20_addr.as_ref(), Decimal::percent(10u64));
+    let dyn_ratio_addr = suite.dyn_ratio_contract_init(
+        cw20_addr.as_ref(),
+        input2_addr.as_str(),
+        Decimal::percent(10u64),
+    );
 
     let cfg = suite.reverse_splitter_config(
         vec![
             UncheckedSplitConfig::with_native_ratio(Decimal::one(), NTRN, &input1_addr),
             UncheckedSplitConfig::with_cw20_dyn_ratio(
                 &dyn_ratio_addr,
-                "",
+                input2_addr.as_str(),
                 &cw20_addr,
                 &input2_addr,
             ),
