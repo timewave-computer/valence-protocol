@@ -209,7 +209,7 @@ pub fn process_function(
                 .add_attribute("denom", cfg.denom.clone())
                 .add_attribute("amount", amount.to_string()))
         }
-        FunctionMsgs::Repay { amount, denom } => {
+        FunctionMsgs::Repay { amount } => {
             // Query for the created credit account
             let credit_accounts: Vec<valence_lending_utils::mars::Account> =
                 deps.querier.query_wasm_smart(
@@ -227,7 +227,7 @@ pub fn process_function(
             })?;
 
             // The coin that we want to repay
-            let repay_coin: Coin = Coin::new(amount, denom);
+            let repay_coin: Coin = Coin::new(amount, cfg.denom.clone());
 
             // Prepare repay message
             let repay_message = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -256,7 +256,7 @@ pub fn process_function(
                 .add_attribute("denom", repay_coin.denom)
                 .add_attribute("amount", repay_coin.amount.to_string()))
         }
-        FunctionMsgs::RepayFromWallet { denom, amount } => {
+        FunctionMsgs::RepayFromWallet { amount } => {
             // Query for the created credit account
             let credit_accounts: Vec<valence_lending_utils::mars::Account> =
                 deps.querier.query_wasm_smart(
@@ -274,7 +274,7 @@ pub fn process_function(
             })?;
 
             // The coin that we want to repay
-            let repay_coin: Coin = Coin::new(amount, denom);
+            let repay_coin: Coin = Coin::new(amount, cfg.denom.clone());
 
             // Prepare repay message
             let repay_message = CosmosMsg::Wasm(WasmMsg::Execute {
