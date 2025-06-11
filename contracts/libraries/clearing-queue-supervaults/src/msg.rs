@@ -1,8 +1,9 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{ensure, Addr, Deps, DepsMut, Uint128, Uint64};
+use cosmwasm_std::{ensure, Addr, Decimal, Deps, DepsMut, Uint128, Uint64};
 use cw_ownable::cw_ownable_query;
 use valence_library_utils::{
-    error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
+    error::LibraryError, liquidity_utils::DecimalRange, msg::LibraryConfigValidation,
+    LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 
@@ -22,10 +23,8 @@ pub struct Config {
     pub supervault_addr: Addr,
     /// supervaults provider addr
     pub supervault_sender: Addr,
-    /// vault phase flag:
-    /// - true -> supervaults phase
-    /// - false -> mars phase
-    pub supervaults_phase: bool,
+    /// settlement ratio (w.r.t. Mars position)
+    pub settlement_ratio: Decimal,
 }
 
 #[cw_serde]
@@ -43,10 +42,8 @@ pub struct LibraryConfig {
     pub supervault_addr: String,
     /// supervaults provider addr
     pub supervaults_sender: String,
-    /// vault phase flag:
-    /// - true -> supervaults phase
-    /// - false -> mars phase
-    pub supervaults_phase: bool,
+    /// settlement ratio (w.r.t. Mars position)
+    pub settlement_ratio: Decimal,
 }
 
 #[cw_serde]
@@ -71,7 +68,7 @@ impl LibraryConfig {
         latest_id: Option<Uint64>,
         supervault_addr: String,
         supervaults_sender: String,
-        supervaults_phase: bool,
+        settlement_ratio: Decimal,
     ) -> Self {
         LibraryConfig {
             settlement_acc_addr: settlement_acc_addr.into(),
@@ -79,14 +76,14 @@ impl LibraryConfig {
             latest_id,
             supervault_addr,
             supervaults_sender,
-            supervaults_phase,
+            settlement_ratio,
         }
     }
 
     fn do_validate(
         &self,
         api: &dyn cosmwasm_std::Api,
-    ) -> Result<(Addr, String, Uint64, Addr, Addr, bool), LibraryError> {
+    ) -> Result<(Addr, String, Uint64, Addr, Addr, Decimal), LibraryError> {
         // validate the input account
         let settlement_acc_addr = self.settlement_acc_addr.to_addr(api)?;
 
@@ -101,13 +98,16 @@ impl LibraryConfig {
         let validated_supervault_addr = api.addr_validate(&self.supervault_addr)?;
         let validated_supervaults_sender = api.addr_validate(&self.supervaults_sender)?;
 
+        // validate that the settlement ratio is between 0 and 1
+        DecimalRange::new(Decimal::zero(), Decimal::one()).contains(self.settlement_ratio)?;
+
         Ok((
             settlement_acc_addr,
             self.denom.to_string(),
             id,
             validated_supervault_addr,
             validated_supervaults_sender,
-            self.supervaults_phase,
+            self.settlement_ratio,
         ))
     }
 }
@@ -126,7 +126,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             latest_id,
             supervault_addr,
             supervault_sender,
-            supervaults_phase,
+            settlement_ratio,
         ) = self.do_validate(deps.api)?;
         Ok(Config {
             settlement_acc_addr,
@@ -134,7 +134,7 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
             latest_id,
             supervault_addr,
             supervault_sender,
-            supervaults_phase,
+            settlement_ratio,
         })
     }
 }
@@ -163,8 +163,10 @@ impl LibraryConfigUpdate {
             config.supervault_sender = deps.api.addr_validate(&addr)?;
         }
 
-        if let Some(is_supervaults) = self.supervaults_phase {
-            config.supervaults_phase = is_supervaults;
+        if let Some(ratio) = self.settlement_ratio {
+            // validate that the settlement ratio is between 0 and 1
+            DecimalRange::new(Decimal::zero(), Decimal::one()).contains(ratio)?;
+            config.settlement_ratio = ratio;
         }
 
         valence_library_base::save_config(deps.storage, &config)?;
