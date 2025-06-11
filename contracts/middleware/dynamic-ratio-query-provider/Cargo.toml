@@ -14,6 +14,7 @@ library = []
 [dependencies]
 cosmwasm-schema       = { workspace = true }
 cosmwasm-std          = { workspace = true }
+cw2                   = { workspace = true }
 cw-ownable            = { workspace = true }
 cw-storage-plus       = { workspace = true }
 cw-utils              = { workspace = true }
