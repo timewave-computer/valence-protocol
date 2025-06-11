@@ -1,7 +1,7 @@
 use cosmwasm_schema::write_api;
 
+use valence_dynamic_ratio_query_provider::msg::{ExecuteMsg, InstantiateMsg};
 use valence_library_utils::msg::DynamicRatioQueryMsg;
-use valence_test_dynamic_ratio::msg::{ExecuteMsg, InstantiateMsg};
 
 fn main() {
     write_api! {
