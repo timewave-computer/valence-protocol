@@ -9,6 +9,12 @@ use valence_macros::{valence_library_query, ValenceLibraryInterface};
 pub enum FunctionMsgs {
     /// Message to lend tokens.
     Lend {},
+    /// Message to borrow tokens.
+    Borrow { amount: Uint128 },
+    /// Message to repay tokens from a wallet.
+    RepayFromWallet { denom: String, amount: Uint128 },
+    /// Message to repay tokens from the account.
+    Repay { amount: Uint128, denom: String },
     /// Message to withdraw tokens. If amount is not specified, full amount will be withdrawn.
     Withdraw { amount: Option<Uint128> },
 }

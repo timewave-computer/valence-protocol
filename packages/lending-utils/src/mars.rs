@@ -49,6 +49,8 @@ pub enum ExecuteMsg {
         account_kind: Option<AccountKind>,
         actions: Vec<Action>,
     },
+    /// Repay coin of specified denom and amount to the Red Bank
+    RepayFromWallet { account_id: String },
 }
 
 /// The list of actions that users can perform on their positions
@@ -58,6 +60,12 @@ pub enum Action {
     Deposit(Coin),
     /// Withdraw coin of specified denom and amount to a wallet address
     WithdrawToWallet { coin: ActionCoin, recipient: String },
+    /// Borrow coin of specified denom and amount from the Red Bank
+    Borrow(ActionCoin),
+    /// Repay coin of specified denom and amount to the Red Bank
+    Repay(ActionCoin),
+    /// Repay coin of specified denom and amount to the Red Bank from a wallet address
+    RepayFromWallet(ActionCoin),
     /// Lend coin to the Red Bank
     Lend(ActionCoin),
     /// Reclaim the coins that were lent to the Red Bank.
