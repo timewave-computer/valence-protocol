@@ -201,6 +201,7 @@ pub fn process_function(
             });
             // Execute on behalf of input_addr
             let execute_msg = execute_on_behalf_of(vec![borrow_message], &cfg.input_addr)?;
+
             Ok(Response::new()
                 .add_message(execute_msg)
                 .add_attribute("method", "borrow")
@@ -245,8 +246,11 @@ pub fn process_function(
                 )?,
                 funds: vec![],
             });
+            // Execute on behalf of input_addr
+            let execute_msg = execute_on_behalf_of(vec![repay_message], &cfg.input_addr)?;
+
             Ok(Response::new()
-                .add_message(repay_message)
+                .add_message(execute_msg)
                 .add_attribute("method", "repay")
                 .add_attribute("account_id", credit_acc.id.clone())
                 .add_attribute("denom", repay_coin.denom)
@@ -280,8 +284,11 @@ pub fn process_function(
                 })?,
                 funds: vec![repay_coin.clone()],
             });
+            // Execute on behalf of input_addr
+            let execute_msg = execute_on_behalf_of(vec![repay_message], &cfg.input_addr)?;
+
             Ok(Response::new()
-                .add_message(repay_message)
+                .add_message(execute_msg)
                 .add_attribute("method", "repay")
                 .add_attribute("account_id", credit_acc.id.clone())
                 .add_attribute("denom", repay_coin.denom)
