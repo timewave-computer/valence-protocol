@@ -18,6 +18,8 @@ let
   package = buildGoModule {
     inherit pname version src vendorHash;
 
+    nativeBuildInputs = [ patchelf ];
+
     sourceRoot = "${src.name}/${pname}";
 
     ldflags = [ "-w" ];
