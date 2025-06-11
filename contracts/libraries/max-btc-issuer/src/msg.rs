@@ -48,6 +48,12 @@ impl LibraryConfig {
         let output_addr = self.output_addr.to_addr(api)?;
         let maxbtc_issuer_addr = api.addr_validate(&self.maxbtc_issuer_addr)?;
 
+        if self.btc_denom.is_empty() {
+            return Err(LibraryError::ConfigurationError(
+                "Invalid maxBTC Issuer config: btc_denom cannot be empty.".to_string(),
+            ));
+        }
+
         Ok((input_addr, output_addr, maxbtc_issuer_addr))
     }
 }
@@ -92,6 +98,11 @@ impl LibraryConfigUpdate {
 
         // Next update btc_denom (if needed)
         if let Some(btc_denom) = self.btc_denom {
+            if btc_denom.is_empty() {
+                return Err(LibraryError::ConfigurationError(
+                    "Invalid maxBTC Issuer config: btc_denom cannot be empty.".to_string(),
+                ));
+            }
             config.btc_denom = btc_denom;
         }
 
