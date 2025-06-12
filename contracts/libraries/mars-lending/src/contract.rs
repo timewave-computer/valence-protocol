@@ -189,7 +189,7 @@ pub fn process_function(
                     &valence_lending_utils::mars::ExecuteMsg::UpdateCreditAccount {
                         account_id: Some(credit_acc.id.clone()),
                         account_kind: Some(valence_lending_utils::mars::AccountKind::Default),
-                        actions: vec![valence_lending_utils::mars::Action::Borrow(coin)],
+                        actions: vec![valence_lending_utils::mars::Action::Borrow(coin.clone())],
                     },
                 )?,
                 funds: vec![],
@@ -200,7 +200,10 @@ pub fn process_function(
             Ok(Response::new()
                 .add_message(execute_msg)
                 .add_attribute("method", "borrow")
-                .add_attribute("account_id", credit_acc.id.clone()))
+                .add_attribute("account_id", credit_acc.id.clone())
+                .add_attribute("denom", coin.denom.clone())
+                .add_attribute("amount", coin.amount.to_string())
+                .add_attribute("owner", cfg.input_addr.to_string()))
         }
         FunctionMsgs::Repay { coin } => {
             // Query for the created credit account
@@ -245,7 +248,10 @@ pub fn process_function(
             Ok(Response::new()
                 .add_message(execute_msg)
                 .add_attribute("method", "repay")
-                .add_attribute("account_id", credit_acc.id.clone()))
+                .add_attribute("account_id", credit_acc.id.clone())
+                .add_attribute("denom", coin.denom.clone())
+                .add_attribute("amount", coin.amount.to_string())
+                .add_attribute("owner", cfg.input_addr.to_string()))
         }
     }
 }
