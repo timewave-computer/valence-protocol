@@ -19,6 +19,27 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 // Unique ID for reply handling
 const CREATE_CREDIT_ACC_REPLY_ID: u64 = 1;
 
+// Helper function to get credit account for an owner
+fn get_credit_account(
+    deps: &Deps,
+    credit_manager_addr: String,
+    owner: String,
+) -> Result<Account, LibraryError> {
+    let credit_accounts: Vec<Account> = deps.querier.query_wasm_smart(
+        credit_manager_addr,
+        &valence_lending_utils::mars::QueryMsg::Accounts {
+            owner,
+            start_after: None,
+            limit: None,
+        },
+    )?;
+
+    credit_accounts
+        .first()
+        .cloned()
+        .ok_or_else(|| LibraryError::ExecutionError("No credit account found".to_string()))
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -57,24 +78,13 @@ pub fn process_function(
                 return Err(LibraryError::ExecutionError("No funds to lend".to_string()));
             }
 
-            let credit_accounts: Vec<valence_lending_utils::mars::Account> =
-                deps.querier.query_wasm_smart(
-                    cfg.credit_manager_addr.to_string(),
-                    &valence_lending_utils::mars::QueryMsg::Accounts {
-                        owner: cfg.input_addr.to_string(),
-                        start_after: None,
-                        limit: None,
-                    },
-                )?;
-
-            // If a credit account already exists, call the lending function; otherwise, create a new credit account
-            if !credit_accounts.is_empty() {
-                // Valence account owns just one credit account
-                let credit_account = credit_accounts.first().ok_or_else(|| {
-                    LibraryError::ExecutionError("No credit account found".to_string())
-                })?;
-
-                return lend(cfg, credit_account, balance);
+            // Try to get existing credit account
+            if let Ok(credit_account) = get_credit_account(
+                &deps.as_ref(),
+                cfg.credit_manager_addr.to_string(),
+                cfg.input_addr.to_string(),
+            ) {
+                return lend(cfg, &credit_account, balance);
             }
 
             // Create credit account creation message
@@ -106,21 +116,12 @@ pub fn process_function(
                 .add_attribute("method", "create_credit_account"))
         }
         FunctionMsgs::Withdraw { amount } => {
-            // Query for the created credit account
-            let credit_accounts: Vec<valence_lending_utils::mars::Account> =
-                deps.querier.query_wasm_smart(
-                    cfg.credit_manager_addr.to_string(),
-                    &valence_lending_utils::mars::QueryMsg::Accounts {
-                        owner: cfg.input_addr.to_string(),
-                        start_after: None,
-                        limit: None,
-                    },
-                )?;
-
-            // Valence account owns just one credit account
-            let credit_acc = credit_accounts.first().ok_or_else(|| {
-                LibraryError::ExecutionError("No credit account found".to_string())
-            })?;
+            // Get credit account
+            let credit_acc = get_credit_account(
+                &deps.as_ref(),
+                cfg.credit_manager_addr.to_string(),
+                cfg.input_addr.to_string(),
+            )?;
 
             // Check withdrawal amount
             let withdrawal_amount = match amount {
@@ -166,21 +167,12 @@ pub fn process_function(
                 .add_attribute("output", cfg.output_addr.to_string()))
         }
         FunctionMsgs::Borrow { coin } => {
-            // Query for the created credit account
-            let credit_accounts: Vec<valence_lending_utils::mars::Account> =
-                deps.querier.query_wasm_smart(
-                    cfg.credit_manager_addr.to_string(),
-                    &valence_lending_utils::mars::QueryMsg::Accounts {
-                        owner: cfg.input_addr.to_string(),
-                        start_after: None,
-                        limit: None,
-                    },
-                )?;
-
-            // Valence account owns just one credit account
-            let credit_acc = credit_accounts.first().ok_or_else(|| {
-                LibraryError::ExecutionError("No credit account found".to_string())
-            })?;
+            // Get credit account
+            let credit_acc = get_credit_account(
+                &deps.as_ref(),
+                cfg.credit_manager_addr.to_string(),
+                cfg.input_addr.to_string(),
+            )?;
 
             // Prepare borrow message
             let borrow_message = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -206,21 +198,12 @@ pub fn process_function(
                 .add_attribute("owner", cfg.input_addr.to_string()))
         }
         FunctionMsgs::Repay { coin } => {
-            // Query for the created credit account
-            let credit_accounts: Vec<valence_lending_utils::mars::Account> =
-                deps.querier.query_wasm_smart(
-                    cfg.credit_manager_addr.to_string(),
-                    &valence_lending_utils::mars::QueryMsg::Accounts {
-                        owner: cfg.input_addr.to_string(),
-                        start_after: None,
-                        limit: None,
-                    },
-                )?;
-
-            // Valence account owns just one credit account
-            let credit_acc = credit_accounts.first().ok_or_else(|| {
-                LibraryError::ExecutionError("No credit account found".to_string())
-            })?;
+            // Get credit account
+            let credit_acc = get_credit_account(
+                &deps.as_ref(),
+                cfg.credit_manager_addr.to_string(),
+                cfg.input_addr.to_string(),
+            )?;
 
             // Prepare repay message
             let repay_message = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -272,23 +255,14 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
                 return Err(LibraryError::ExecutionError("No funds to lend".to_string()));
             }
 
-            // Query for the created credit account
-            let credit_accounts: Vec<valence_lending_utils::mars::Account> =
-                deps.querier.query_wasm_smart(
-                    cfg.credit_manager_addr.to_string(),
-                    &valence_lending_utils::mars::QueryMsg::Accounts {
-                        owner: cfg.input_addr.to_string(),
-                        start_after: None,
-                        limit: None,
-                    },
-                )?;
+            // Get credit account
+            let credit_account = get_credit_account(
+                &deps.as_ref(),
+                cfg.credit_manager_addr.to_string(),
+                cfg.input_addr.to_string(),
+            )?;
 
-            // Valence account owns just one credit account
-            let credit_account = credit_accounts.first().ok_or_else(|| {
-                LibraryError::ExecutionError("No credit account found".to_string())
-            })?;
-
-            lend(cfg, credit_account, balance)
+            lend(cfg, &credit_account, balance)
         }
         _ => Err(LibraryError::Std(StdError::generic_err("unknown reply id"))),
     }
