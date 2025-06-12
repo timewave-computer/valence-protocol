@@ -94,6 +94,7 @@ valence-supervaults-lper             = { path = "contracts/libraries/supervaults
 valence-supervaults-withdrawer       = { path = "contracts/libraries/supervaults-withdrawer", features = ["library"] }
 valence-clearing-queue               = { path = "contracts/libraries/clearing-queue", features = ["library"] }
 valence-clearing-queue-supervaults   = { path = "contracts/libraries/clearing-queue-supervaults", features = ["library"] }
+valence-maxbtc-issuer                = { path = "contracts/libraries/max-btc-issuer", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
