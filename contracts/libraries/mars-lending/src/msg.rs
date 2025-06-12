@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
+use cosmwasm_std::{Addr, Coin, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
 use valence_library_utils::LibraryAccountType;
 use valence_library_utils::{error::LibraryError, msg::LibraryConfigValidation};
@@ -10,9 +10,9 @@ pub enum FunctionMsgs {
     /// Message to lend tokens.
     Lend {},
     /// Message to borrow tokens.
-    Borrow { amount: Uint128 },
+    Borrow { coin: Coin },
     /// Message to repay tokens from the account.
-    Repay { amount: Uint128 },
+    Repay { coin: Coin },
     /// Message to withdraw tokens. If amount is not specified, full amount will be withdrawn.
     Withdraw { amount: Option<Uint128> },
 }

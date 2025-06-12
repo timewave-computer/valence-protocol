@@ -1,1 +1,1 @@
-d15ebea053e062115e411dbff83e0fbaf004bec4f529bcd2bbc7875e3867871f  valence_mars_lending.wasm
+5e50c995ed4d97e284880cbeeedf029b7e86ca9690776f285ef29afaf87a7585  valence_mars_lending.wasm

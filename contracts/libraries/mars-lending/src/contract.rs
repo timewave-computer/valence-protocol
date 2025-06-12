@@ -2,8 +2,8 @@ use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, Query
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Reply, Response, StdError, StdResult, SubMsg, WasmMsg,
+    to_json_binary, to_json_string, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdError, StdResult, SubMsg, WasmMsg,
 };
 use valence_lending_utils::mars::{Account, ActionCoin};
 use valence_library_utils::{
@@ -165,7 +165,7 @@ pub fn process_function(
                 .add_attribute("owner", cfg.input_addr.to_string())
                 .add_attribute("output", cfg.output_addr.to_string()))
         }
-        FunctionMsgs::Borrow { amount } => {
+        FunctionMsgs::Borrow { coin } => {
             // Query for the created credit account
             let credit_accounts: Vec<valence_lending_utils::mars::Account> =
                 deps.querier.query_wasm_smart(
@@ -189,10 +189,7 @@ pub fn process_function(
                     &valence_lending_utils::mars::ExecuteMsg::UpdateCreditAccount {
                         account_id: Some(credit_acc.id.clone()),
                         account_kind: Some(valence_lending_utils::mars::AccountKind::Default),
-                        actions: vec![valence_lending_utils::mars::Action::Borrow(Coin::new(
-                            amount,
-                            cfg.denom.clone(),
-                        ))],
+                        actions: vec![valence_lending_utils::mars::Action::Borrow(coin)],
                     },
                 )?,
                 funds: vec![],
@@ -203,11 +200,9 @@ pub fn process_function(
             Ok(Response::new()
                 .add_message(execute_msg)
                 .add_attribute("method", "borrow")
-                .add_attribute("account_id", credit_acc.id.clone())
-                .add_attribute("denom", cfg.denom.clone())
-                .add_attribute("amount", amount.to_string()))
+                .add_attribute("account_id", credit_acc.id.clone()))
         }
-        FunctionMsgs::Repay { amount } => {
+        FunctionMsgs::Repay { coin } => {
             // Query for the created credit account
             let credit_accounts: Vec<valence_lending_utils::mars::Account> =
                 deps.querier.query_wasm_smart(
@@ -224,9 +219,6 @@ pub fn process_function(
                 LibraryError::ExecutionError("No credit account found".to_string())
             })?;
 
-            // The coin that we want to repay
-            let repay_coin: Coin = Coin::new(amount, cfg.denom.clone());
-
             // Prepare repay message
             let repay_message = CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cfg.credit_manager_addr.to_string(),
@@ -234,15 +226,15 @@ pub fn process_function(
                     &valence_lending_utils::mars::ExecuteMsg::UpdateCreditAccount {
                         account_id: Some(credit_acc.id.clone()),
                         account_kind: Some(valence_lending_utils::mars::AccountKind::Default),
-                        actions: vec![valence_lending_utils::mars::Action::Repay(
-                            None,
-                            ActionCoin {
-                                denom: cfg.denom.clone(),
+                        actions: vec![valence_lending_utils::mars::Action::Repay {
+                            recipient_account_id: None,
+                            coin: ActionCoin {
+                                denom: coin.denom.clone(),
                                 amount: valence_lending_utils::mars::ActionAmount::Exact(
-                                    amount.clone(),
+                                    coin.amount,
                                 ),
                             },
-                        )],
+                        }],
                     },
                 )?,
                 funds: vec![],
@@ -253,9 +245,7 @@ pub fn process_function(
             Ok(Response::new()
                 .add_message(execute_msg)
                 .add_attribute("method", "repay")
-                .add_attribute("account_id", credit_acc.id.clone())
-                .add_attribute("denom", repay_coin.denom)
-                .add_attribute("amount", repay_coin.amount.to_string()))
+                .add_attribute("account_id", credit_acc.id.clone()))
         }
     }
 }
