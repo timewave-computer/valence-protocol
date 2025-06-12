@@ -61,7 +61,10 @@ pub enum Action {
     /// Borrow coin of specified denom and amount from the Red Bank
     Borrow(Coin),
     /// Repay coin of specified denom and amount to the Red Bank
-    Repay(Option<String>, ActionCoin),
+    Repay {
+        recipient_account_id: Option<String>,
+        coin: ActionCoin,
+    },
     /// Lend coin to the Red Bank
     Lend(ActionCoin),
     /// Reclaim the coins that were lent to the Red Bank.
