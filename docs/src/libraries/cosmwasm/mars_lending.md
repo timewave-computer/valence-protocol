@@ -90,12 +90,10 @@ The library automatically handles Mars credit account lifecycle:
 2. **Borrow Execution**: Executes the borrow action through the Mars credit account, which:
    - Borrows the specified amount of the given denom
    - Transfers the borrowed tokens to the output account specified in the library configuration
-3. **Token Transfer**: The borrowed tokens are automatically transferred to the output account
 
 ### Repayment Process
 
-2. **Token Transfer**: Transfers the repayment tokens from the input account back to the credit account
-3. **Repay Execution**: Executes the repay action through the Mars credit account
+1. **Token Transfer**: Transfers the repayment tokens from the input account back to the credit account
 
 ### Error Handling
 
