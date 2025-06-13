@@ -181,36 +181,23 @@ pub fn process_function(
                     &valence_lending_utils::mars::ExecuteMsg::UpdateCreditAccount {
                         account_id: Some(credit_acc.id.clone()),
                         account_kind: Some(valence_lending_utils::mars::AccountKind::Default),
-                        actions: vec![valence_lending_utils::mars::Action::Borrow(coin.clone())],
-                    },
-                )?,
-                funds: vec![],
-            });
-
-            let action_amount = ActionAmount::Exact(coin.amount.clone());
-
-            // Withdraw the borrowed coins to the output address
-            let withdraw_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cfg.credit_manager_addr.to_string(),
-                msg: to_json_binary(
-                    &valence_lending_utils::mars::ExecuteMsg::UpdateCreditAccount {
-                        account_id: Some(credit_acc.id.clone()),
-                        account_kind: Some(valence_lending_utils::mars::AccountKind::Default),
-                        actions: vec![valence_lending_utils::mars::Action::WithdrawToWallet {
-                            coin: ActionCoin {
-                                denom: coin.denom.clone(),
-                                amount: action_amount,
+                        actions: vec![
+                            valence_lending_utils::mars::Action::Borrow(coin.clone()),
+                            valence_lending_utils::mars::Action::WithdrawToWallet {
+                                coin: ActionCoin {
+                                    denom: coin.denom.clone(),
+                                    amount: ActionAmount::Exact(coin.amount),
+                                },
+                                recipient: cfg.output_addr.to_string(),
                             },
-                            recipient: cfg.output_addr.to_string(),
-                        }],
+                        ],
                     },
                 )?,
                 funds: vec![],
             });
 
             // Execute on behalf of input_addr
-            let execute_msg =
-                execute_on_behalf_of(vec![borrow_message, withdraw_msg], &cfg.input_addr)?;
+            let execute_msg = execute_on_behalf_of(vec![borrow_message], &cfg.input_addr)?;
 
             Ok(Response::new()
                 .add_message(execute_msg)
