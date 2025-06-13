@@ -40,7 +40,7 @@ graph LR
 | **Lend** | - | Creates a Mars credit account (if one doesn't exist) and lends the entire balance of the specified denom from the input account to the Mars Protocol through the credit account. |
 | **Withdraw** | `amount: Option<Uint128>` | Withdraws lent assets from the Mars credit account to the output account. If no amount is specified, withdraws the entire position. |
 | **Borrow** | `coin: Coin` | Borrows the specified amount of the given denom from Mars Protocol through the credit account. The borrowed tokens are sent to the output account specified in the library configuration. |
-| **Repay** | `account_id: String`, `coin: Coin` | Repays borrowed assets to Mars Protocol through the input account. The `Coin` parameter contains `denom` and `amount` fields. |
+| **Repay** | `coin: Coin` | Repays borrowed assets to Mars Protocol through the input account. The `Coin` parameter contains `denom` and `amount` fields. |
 
 ## Configuration
 
@@ -94,7 +94,7 @@ The library automatically handles Mars credit account lifecycle:
 
 ### Repayment Process
 
-2. **Token Transfer**: Transfers the repayment tokens from the output account (or any other account) to the input account
+2. **Token Transfer**: Transfers the repayment tokens from the input account back to the credit account
 3. **Repay Execution**: Executes the repay action through the Mars credit account
 
 ### Error Handling

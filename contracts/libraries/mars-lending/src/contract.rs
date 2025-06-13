@@ -162,7 +162,7 @@ pub fn process_function(
             Ok(Response::new()
                 .add_message(execute_msg)
                 .add_attribute("method", "withdraw")
-                .add_attribute("account_id", credit_acc.id.clone())
+                .add_attribute("account_id", credit_acc.id)
                 .add_attribute("owner", cfg.input_addr.to_string())
                 .add_attribute("output", cfg.output_addr.to_string()))
         }
@@ -202,18 +202,24 @@ pub fn process_function(
             Ok(Response::new()
                 .add_message(execute_msg)
                 .add_attribute("method", "borrow")
-                .add_attribute("account_id", credit_acc.id.clone())
-                .add_attribute("denom", coin.denom.clone())
+                .add_attribute("account_id", credit_acc.id)
+                .add_attribute("denom", coin.denom)
                 .add_attribute("amount", coin.amount.to_string())
                 .add_attribute("owner", cfg.input_addr.to_string()))
         }
 
-        FunctionMsgs::Repay { account_id, coin } => {
+        FunctionMsgs::Repay { coin } => {
+            // Get credit account
+            let credit_acc = get_credit_account(
+                &deps.as_ref(),
+                cfg.credit_manager_addr.to_string(),
+                cfg.input_addr.to_string(),
+            )?;
             // Prepare RepayFromWallet message
             let repay_message = CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cfg.credit_manager_addr.to_string(),
                 msg: to_json_binary(&valence_lending_utils::mars::ExecuteMsg::RepayFromWallet {
-                    account_id: account_id.clone(),
+                    account_id: credit_acc.id.clone(),
                 })?,
                 // The coin that we want to repay from the wallet
                 funds: vec![coin],
@@ -225,7 +231,7 @@ pub fn process_function(
             Ok(Response::new()
                 .add_message(execute_msg)
                 .add_attribute("method", "repay")
-                .add_attribute("account_id", account_id)
+                .add_attribute("account_id", credit_acc.id)
                 .add_attribute("owner", cfg.input_addr.to_string())
                 .add_attribute("output", cfg.output_addr.to_string()))
         }
