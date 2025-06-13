@@ -5,7 +5,7 @@ use cosmwasm_std::{
     to_json_binary, to_json_string, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
     Response, StdError, StdResult, SubMsg, WasmMsg,
 };
-use valence_lending_utils::mars::{Account, ActionCoin};
+use valence_lending_utils::mars::{Account, ActionAmount, ActionCoin};
 use valence_library_utils::{
     error::LibraryError,
     execute_on_behalf_of, execute_submsgs_on_behalf_of,
@@ -186,8 +186,31 @@ pub fn process_function(
                 )?,
                 funds: vec![],
             });
+
+            let action_amount = ActionAmount::Exact(coin.amount.clone());
+
+            // Withdraw the borrowed coins to the output address
+            let withdraw_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: cfg.credit_manager_addr.to_string(),
+                msg: to_json_binary(
+                    &valence_lending_utils::mars::ExecuteMsg::UpdateCreditAccount {
+                        account_id: Some(credit_acc.id.clone()),
+                        account_kind: Some(valence_lending_utils::mars::AccountKind::Default),
+                        actions: vec![valence_lending_utils::mars::Action::WithdrawToWallet {
+                            coin: ActionCoin {
+                                denom: coin.denom.clone(),
+                                amount: action_amount,
+                            },
+                            recipient: cfg.output_addr.to_string(),
+                        }],
+                    },
+                )?,
+                funds: vec![],
+            });
+
             // Execute on behalf of input_addr
-            let execute_msg = execute_on_behalf_of(vec![borrow_message], &cfg.input_addr)?;
+            let execute_msg =
+                execute_on_behalf_of(vec![borrow_message, withdraw_msg], &cfg.input_addr)?;
 
             Ok(Response::new()
                 .add_message(execute_msg)
@@ -197,44 +220,27 @@ pub fn process_function(
                 .add_attribute("amount", coin.amount.to_string())
                 .add_attribute("owner", cfg.input_addr.to_string()))
         }
-        FunctionMsgs::Repay { coin } => {
-            // Get credit account
-            let credit_acc = get_credit_account(
-                &deps.as_ref(),
-                cfg.credit_manager_addr.to_string(),
-                cfg.input_addr.to_string(),
-            )?;
 
-            // Prepare repay message
+        FunctionMsgs::Repay { account_id, coin } => {
+            // Prepare RepayFromWallet message
             let repay_message = CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cfg.credit_manager_addr.to_string(),
-                msg: to_json_binary(
-                    &valence_lending_utils::mars::ExecuteMsg::UpdateCreditAccount {
-                        account_id: Some(credit_acc.id.clone()),
-                        account_kind: Some(valence_lending_utils::mars::AccountKind::Default),
-                        actions: vec![valence_lending_utils::mars::Action::Repay {
-                            recipient_account_id: None,
-                            coin: ActionCoin {
-                                denom: coin.denom.clone(),
-                                amount: valence_lending_utils::mars::ActionAmount::Exact(
-                                    coin.amount,
-                                ),
-                            },
-                        }],
-                    },
-                )?,
-                funds: vec![],
+                msg: to_json_binary(&valence_lending_utils::mars::ExecuteMsg::RepayFromWallet {
+                    account_id: account_id.clone(),
+                })?,
+                // The coin that we want to repay from the wallet
+                funds: vec![coin],
             });
+
             // Execute on behalf of input_addr
             let execute_msg = execute_on_behalf_of(vec![repay_message], &cfg.input_addr)?;
 
             Ok(Response::new()
                 .add_message(execute_msg)
                 .add_attribute("method", "repay")
-                .add_attribute("account_id", credit_acc.id.clone())
-                .add_attribute("denom", coin.denom.clone())
-                .add_attribute("amount", coin.amount.to_string())
-                .add_attribute("owner", cfg.input_addr.to_string()))
+                .add_attribute("account_id", account_id)
+                .add_attribute("owner", cfg.input_addr.to_string())
+                .add_attribute("output", cfg.output_addr.to_string()))
         }
     }
 }

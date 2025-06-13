@@ -49,6 +49,8 @@ pub enum ExecuteMsg {
         account_kind: Option<AccountKind>,
         actions: Vec<Action>,
     },
+    /// Repay
+    RepayFromWallet { account_id: String },
 }
 
 /// The list of actions that users can perform on their positions

@@ -11,8 +11,8 @@ pub enum FunctionMsgs {
     Lend {},
     /// Message to borrow tokens.
     Borrow { coin: Coin },
-    /// Message to repay tokens from the account.
-    Repay { coin: Coin },
+    /// Message to repay tokens from the wallet.
+    Repay { account_id: String, coin: Coin },
     /// Message to withdraw tokens. If amount is not specified, full amount will be withdrawn.
     Withdraw { amount: Option<Uint128> },
 }
