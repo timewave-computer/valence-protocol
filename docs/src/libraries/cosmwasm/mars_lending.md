@@ -94,8 +94,7 @@ The library automatically handles Mars credit account lifecycle:
 
 ### Repayment Process
 
-1. **Credit Account Query**: Retrieves the existing credit account for the input address
-2. **Token Transfer**: Transfers the repayment tokens from the input account to the credit account
+2. **Token Transfer**: Transfers the repayment tokens from the output account (or any other account) to the input account
 3. **Repay Execution**: Executes the repay action through the Mars credit account
 
 ### Error Handling
