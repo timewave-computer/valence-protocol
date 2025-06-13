@@ -1,5 +1,5 @@
 [package]
-name    = "valence-test-dynamic-ratio"
+name    = "valence-dynamic-ratio-query-provider"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
@@ -14,6 +14,7 @@ library = []
 [dependencies]
 cosmwasm-schema       = { workspace = true }
 cosmwasm-std          = { workspace = true }
+cw2                   = { workspace = true }
 cw-ownable            = { workspace = true }
 cw-storage-plus       = { workspace = true }
 cw-utils              = { workspace = true }

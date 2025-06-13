@@ -41,6 +41,13 @@ contract OneWayVault is
     event PausedStateChanged(bool paused);
 
     /**
+     * @dev Emitted when the vault is paused due to a stale redemption rate
+     * @param lastUpdateTimestamp Timestamp of the last rate update
+     * @param currentTimestamp Current timestamp when the pause was triggered
+     */
+    event StaleRatePaused(uint64 lastUpdateTimestamp, uint64 currentTimestamp);
+
+    /**
      * @dev Emitted when the redemption rate is updated
      * @param newRate The updated redemption rate
      */
@@ -107,11 +114,22 @@ contract OneWayVault is
     }
 
     /**
+     * @dev Ensures the vault is not paused by a different reason than stale redemption rate
+     */
+    modifier whenNotManuallyPaused() {
+        if (vaultState.paused && !vaultState.pausedByStaleRate) {
+            revert("Vault is paused by owner or strategist");
+        }
+        _;
+    }
+
+    /**
      * @dev Configuration structure for the vault
      * @param depositAccount Account where deposits are held
      * @param strategist Address of the vault strategist
      * @param depositFeeBps Fee charged on deposits in basis points (1 BPS = 0.01%)
      * @param withdrawRateBps Fee charged on withdrawals in basis points (1 BPS = 0.01%)
+     * @param maxRateUpdateDelay Maximum time allowed between redemption rate updates (in seconds) before vault automatically pauses
      * @param depositCap Maximum assets that can be deposited (0 means no cap)
      * @param feeDistribution Configuration for fee distribution between platform and strategist
      */
@@ -120,6 +138,7 @@ contract OneWayVault is
         address strategist;
         uint32 depositFeeBps;
         uint32 withdrawRateBps;
+        uint64 maxRateUpdateDelay;
         uint256 depositCap;
         FeeDistributionConfig feeDistribution;
     }
@@ -140,11 +159,14 @@ contract OneWayVault is
      * @dev Vault state information
      * @param paused Whether the vault is currently paused
      * @param pausedByOwner Whether the vault was paused by the owner (affects who can unpause)
+     * @param pausedByStaleRate Whether the vault was paused due to a stale redemption rate (affects who can unpause and redemption rate updates)
      */
     struct VaultState {
         bool paused;
         // If paused by owner, only owner can unpause it
         bool pausedByOwner;
+        // If vault was paused due to a stale redemption rate
+        bool pausedByStaleRate;
     }
 
     /**
@@ -172,6 +194,8 @@ contract OneWayVault is
     VaultState public vaultState;
 
     uint64 public currentWithdrawRequestId;
+
+    uint64 public lastRateUpdateTimestamp;
 
     /**
      * @dev Total fees collected but not yet distributed, denominated in asset
@@ -228,6 +252,7 @@ contract OneWayVault is
 
         ONE_SHARE = 10 ** decimals();
         redemptionRate = startingRate; // Initialize at specified starting rate
+        lastRateUpdateTimestamp = uint64(block.timestamp); // Set initial timestamp for rate updates
     }
 
     /**
@@ -274,6 +299,10 @@ contract OneWayVault is
 
         if (decodedConfig.withdrawRateBps > BASIS_POINTS) {
             revert("Withdraw fee cannot exceed 100%");
+        }
+
+        if (decodedConfig.maxRateUpdateDelay == 0) {
+            revert("Max rate update delay cannot be zero");
         }
 
         if (decodedConfig.feeDistribution.strategistRatioBps > BASIS_POINTS) {
@@ -344,6 +373,10 @@ contract OneWayVault is
      * @return shares Amount of shares minted to receiver
      */
     function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+        if (_checkAndHandleStaleRate()) {
+            return 0; // Exit early if vault was just paused
+        }
+
         uint256 maxAssets = maxDeposit(receiver);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
@@ -371,6 +404,9 @@ contract OneWayVault is
      * @return assets Total amount of assets deposited (including fees)
      */
     function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+        if (_checkAndHandleStaleRate()) {
+            return 0; // Exit early if vault was just paused
+        }
         uint256 maxShares = maxMint(receiver);
         if (shares > maxShares) {
             revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
@@ -392,7 +428,7 @@ contract OneWayVault is
      * @dev Can only be called by the strategist when the vault is not paused
      * @param newRate New redemption rate to set
      */
-    function update(uint256 newRate) external onlyStrategist whenNotPaused {
+    function update(uint256 newRate) external onlyStrategist whenNotManuallyPaused {
         // Validate the new rate
         if (newRate == 0) {
             revert("Redemption rate cannot be zero");
@@ -400,17 +436,14 @@ contract OneWayVault is
 
         OneWayVaultConfig memory _config = config;
 
-        uint256 currentAssets = totalAssets();
-        uint256 currentShares = totalSupply();
-
-        if (currentShares == 0) revert("Zero shares");
-        if (currentAssets == 0) revert("Zero assets");
-
         // Distribute accumulated fees
         _distributeFees(_config.feeDistribution);
 
         // Update state
         redemptionRate = newRate;
+
+        // Update last update timestamp
+        lastRateUpdateTimestamp = uint64(block.timestamp);
 
         emit RateUpdated(newRate);
     }
@@ -420,6 +453,11 @@ contract OneWayVault is
      * @dev Can be called by owner or strategist, but only owner can unpause if paused by owner
      */
     function pause() external onlyOwnerOrStrategist {
+        // Check if vault is already paused
+        if (vaultState.paused) {
+            revert("Vault is already paused");
+        }
+
         VaultState memory _vaultState;
         if (msg.sender == owner()) {
             _vaultState.pausedByOwner = true;
@@ -434,12 +472,16 @@ contract OneWayVault is
 
     /**
      * @notice Unpauses the vault, allowing deposits and withdrawals
-     * @dev If paused by owner, only owner can unpause; otherwise either owner or strategist can unpause
+     * @dev If paused by owner or due to a stale rate, only owner can unpause; otherwise either owner or strategist can unpause
      */
     function unpause() external onlyOwnerOrStrategist {
         VaultState memory _vaultState = vaultState;
+        // Check if vault is paused by owner or due to stale rate and the sender is the owner
         if (_vaultState.pausedByOwner && msg.sender != owner()) {
-            revert("Only owner can unpause");
+            revert("Only owner can unpause if paused by owner");
+        }
+        if (_vaultState.pausedByStaleRate && msg.sender != owner()) {
+            revert("Only owner can unpause if paused by stale rate");
         }
         delete vaultState;
         emit PausedStateChanged(false);
@@ -518,6 +560,9 @@ contract OneWayVault is
         nonReentrant
         whenNotPaused
     {
+        if (_checkAndHandleStaleRate()) {
+            return; // Exit early if vault was just paused
+        }
         _validateWithdrawParams(owner, receiver, assets);
 
         // Check if assets exceed max withdraw amount
@@ -558,6 +603,10 @@ contract OneWayVault is
         nonReentrant
         whenNotPaused
     {
+        if (_checkAndHandleStaleRate()) {
+            return; // Exit early if vault was just paused
+        }
+
         _validateWithdrawParams(owner, receiver, shares);
 
         // Check if shares exceed max redeem amount
@@ -703,6 +752,23 @@ contract OneWayVault is
         if (owner == address(0)) revert("Owner of shares cannot be zero address");
         if (bytes(receiver).length == 0) revert("Receiver cannot be empty");
         if (amount == 0) revert("Amount to withdraw cannot be zero");
+    }
+
+    /**
+     * @dev Internal function that will pause the vault if the redemption rate has been stale for too long
+     * @return True if the vault was paused due to stale rate, false otherwise
+     */
+    function _checkAndHandleStaleRate() internal returns (bool) {
+        // Check if the last update was too long ago
+        if (uint64(block.timestamp) - lastRateUpdateTimestamp > config.maxRateUpdateDelay) {
+            // Pause the vault due to stale rate
+            vaultState.paused = true;
+            vaultState.pausedByStaleRate = true;
+            emit PausedStateChanged(true);
+            emit StaleRatePaused(lastRateUpdateTimestamp, uint64(block.timestamp));
+            return true;
+        }
+        return false;
     }
 
     /**
