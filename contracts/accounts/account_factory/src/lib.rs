@@ -158,22 +158,31 @@ mod tests {
         let address = result.unwrap();
         // Verify it's a valid address format (not manually constructed)
         assert!(api.addr_validate(&address.to_string()).is_ok());
-        
         // Verify it's not the old insecure format (should not start with "cosmos1" followed by hex)
         let addr_str = address.to_string();
-        assert!(!addr_str.starts_with("cosmos1") || !addr_str.chars().skip(7).all(|c| c.is_ascii_hexdigit()));
+        assert!(
+            !addr_str.starts_with("cosmos1")
+                || !addr_str.chars().skip(7).all(|c| c.is_ascii_hexdigit())
+        );
 
         // Test with invalid public key length
         let invalid_pubkey = [0x02; 32]; // Wrong length
         let result = contract::execute::derive_address_from_pubkey(&deps.as_ref(), &invalid_pubkey);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid public key length"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid public key length"));
 
         // Test with invalid public key format (doesn't start with 0x02 or 0x03)
         let invalid_format_pubkey = [0x04; 33]; // Invalid prefix
-        let result = contract::execute::derive_address_from_pubkey(&deps.as_ref(), &invalid_format_pubkey);
+        let result =
+            contract::execute::derive_address_from_pubkey(&deps.as_ref(), &invalid_format_pubkey);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid compressed secp256k1 public key format"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid compressed secp256k1 public key format"));
     }
 }
 
