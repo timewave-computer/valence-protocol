@@ -1,6 +1,5 @@
 // Purpose: Message types for account factory contract
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
 
 pub const MAX_BLOCK_AGE: u64 = 200;
 
@@ -82,7 +81,7 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct ComputeAccountAddressResponse {
-    pub account: Addr,
+    pub account: String,
 }
 
 #[cw_serde]

@@ -16,8 +16,8 @@ use cosmwasm_crypto::secp256k1_verify;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    instantiate2_address, to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, WasmMsg,
+    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CosmosMsg, Deps, DepsMut, 
+    Env, MessageInfo, Response, StdError, StdResult, WasmMsg,
 };
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
@@ -109,7 +109,7 @@ pub fn execute(
 }
 
 /// Internal execute module containing the implementation logic
-mod execute {
+pub mod execute {
     use super::*;
 
     /// Create a single account with basic validation
@@ -333,7 +333,7 @@ mod execute {
                 match secp256k1_verify(&message_hash, signature_bytes, public_key_bytes) {
                     Ok(true) => {
                         // Derive address from public key and verify it matches controller
-                        let derived_addr = derive_address_from_pubkey(public_key_bytes)?;
+                        let derived_addr = derive_address_from_pubkey(&deps.as_ref(), public_key_bytes)?;
                         let controller_addr = deps.api.addr_validate(&request.controller)?;
                         
                         if derived_addr != controller_addr {
@@ -539,13 +539,20 @@ mod execute {
     /// This follows the standard Cosmos SDK address derivation:
     /// 1. Take the 33-byte compressed secp256k1 public key
     /// 2. Hash it with SHA256 
-    /// 3. Take the first 20 bytes
-    /// 4. Convert to bech32 address format
-    fn derive_address_from_pubkey(public_key: &[u8]) -> Result<Addr, ContractError> {
+    /// 3. Take the first 20 bytes (RIPEMD160 in Cosmos SDK, but SHA256 in CosmWasm)
+    /// 4. Convert to proper Bech32 address format using the chain's address derivation
+    pub fn derive_address_from_pubkey(deps: &Deps, public_key: &[u8]) -> Result<Addr, ContractError> {
         // Ensure we have a valid compressed secp256k1 public key (33 bytes)
         if public_key.len() != 33 {
             return Err(ContractError::Std(StdError::generic_err(
                 "Invalid public key length - expected 33 bytes for compressed secp256k1"
+            )));
+        }
+
+        // Verify the public key format (should start with 0x02 or 0x03 for compressed keys)
+        if public_key[0] != 0x02 && public_key[0] != 0x03 {
+            return Err(ContractError::Std(StdError::generic_err(
+                "Invalid compressed secp256k1 public key format"
             )));
         }
 
@@ -554,15 +561,17 @@ mod execute {
         hasher.update(public_key);
         let hash = hasher.finalize();
 
-        // Take the first 20 bytes for the address
+        // Take the first 20 bytes for the address (this matches Cosmos SDK convention)
         let address_bytes = &hash[0..20];
 
-        // Convert to hex string (this is a simplified version - in production you'd use proper bech32 encoding)
-        let address_hex = hex::encode(address_bytes);
+        // Convert to canonical address format
+        let canonical_addr = CanonicalAddr::from(address_bytes);
         
-        // For CosmWasm testing, we can create a mock address
-        // In production, this would need proper bech32 encoding with the chain's prefix
-        Ok(Addr::unchecked(format!("cosmos1{}", &address_hex[0..38])))
+        // Use the proper CosmWasm API to convert to human-readable Bech32 address
+        // This ensures the address matches on-chain expectations and uses the correct prefix
+        let human_addr = deps.api.addr_humanize(&canonical_addr).map_err(ContractError::Std)?;
+
+        Ok(human_addr)
     }
 }
 
@@ -578,7 +587,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 execute::compute_instantiate2_address(&deps, &env.contract.address, code_id, &salt)
                     .map_err(|e| StdError::generic_err(e.to_string()))?;
 
-            to_json_binary(&ComputeAccountAddressResponse { account })
+            to_json_binary(&ComputeAccountAddressResponse { 
+                account: account.to_string() 
+            })
         }
 
         // Check if a specific account has been created by this factory

@@ -4,7 +4,6 @@
 //! and submits them to the account factory for efficient processing.
 
 use cosmwasm_schema::cw_serde;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// Account request structure matching the account factory API
@@ -114,13 +113,12 @@ impl FerryService {
         let mut hasher = Sha256::new();
 
         // Add entropy source (block height)
-        hasher.update(&request.historical_block_height.to_be_bytes());
+        hasher.update(request.historical_block_height.to_be_bytes());
 
         // Add deterministic request data
         hasher.update(request.controller.as_bytes());
         hasher.update(request.program_id.as_bytes());
-        hasher.update(&request.account_request_id.to_be_bytes());
-        hasher.update(&[request.account_type]);
+        hasher.update(request.account_request_id.to_be_bytes());
 
         // Include library configuration hash
         let mut lib_hasher = Sha256::new();
@@ -198,7 +196,7 @@ fn demo_ferry_service() {
     // Process any remaining requests
     if ferry.pending_count() > 0 {
         println!("Processing remaining {} requests...", ferry.pending_count());
-        if let Some(batch) = ferry.process_batch() {
+        if let Some(_batch) = ferry.process_batch() {
             println!("📦 Final batch ready for submission!");
             println!("   ✓ Final batch submitted successfully\n");
         }
@@ -235,8 +233,8 @@ fn demo_salt_consistency() {
     let salt1 = ferry.compute_salt(&request1);
     let salt2 = ferry.compute_salt(&request2);
 
-    println!("Request 1 salt: {}", hex::encode(&salt1));
-    println!("Request 2 salt: {}", hex::encode(&salt2));
+    println!("Request 1 salt: {}", hex::encode(salt1));
+    println!("Request 2 salt: {}", hex::encode(salt2));
     println!("Salts match: {}", salt1 == salt2);
     assert_eq!(salt1, salt2);
     println!("✅ Salt generation is deterministic\n");
@@ -246,7 +244,7 @@ fn demo_salt_consistency() {
     request3.controller = "neutron1different_controller".to_string();
 
     let salt3 = ferry.compute_salt(&request3);
-    println!("Different controller salt: {}", hex::encode(&salt3));
+    println!("Different controller salt: {}", hex::encode(salt3));
     println!("Different from original: {}", salt1 != salt3);
     assert_ne!(salt1, salt3);
     println!("✅ Different controllers produce different salts\n");
@@ -256,7 +254,7 @@ fn demo_salt_consistency() {
     request4.libraries = vec!["neutron1different_lib".to_string()];
 
     let salt4 = ferry.compute_salt(&request4);
-    println!("Different libraries salt: {}", hex::encode(&salt4));
+    println!("Different libraries salt: {}", hex::encode(salt4));
     println!("Different from original: {}", salt1 != salt4);
     assert_ne!(salt1, salt4);
     println!("✅ Different libraries produce different salts\n");
