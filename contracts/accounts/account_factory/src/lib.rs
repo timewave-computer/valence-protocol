@@ -41,19 +41,20 @@ mod tests {
         let info = message_info(&api.addr_make("admin"), &[]);
         instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
+        let env = mock_env();
         let request = AccountRequest {
             controller: api.addr_make("controller").to_string(),
             libraries: vec![api.addr_make("library1").to_string()],
             program_id: "42".to_string(),
             account_request_id: 123,
-            historical_block_height: 12345,
+            historical_block_height: env.block.height - 10, // Use a past block height
             signature: None,
             public_key: None,
         };
         let info = message_info(&api.addr_make("admin"), &[]);
         let res = execute(
             deps.as_mut(),
-            mock_env(),
+            env,
             info,
             ExecuteMsg::CreateAccount { request },
         )
@@ -72,12 +73,13 @@ mod tests {
         let info = message_info(&api.addr_make("admin"), &[]);
         instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
+        let env = mock_env();
         let request = AccountRequest {
             controller: api.addr_make("controller").to_string(),
             libraries: vec![],
             program_id: "42".to_string(),
             account_request_id: 124,
-            historical_block_height: 12345,
+            historical_block_height: env.block.height - 10, // Use a past block height
             signature: None,
             public_key: None,
         };
@@ -103,12 +105,13 @@ mod tests {
         let info = message_info(&api.addr_make("admin"), &[]);
         instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
+        let env = mock_env();
         let request = AccountRequest {
             controller: api.addr_make("controller").to_string(),
             libraries: vec![api.addr_make("library1").to_string()],
             program_id: "42".to_string(),
             account_request_id: 125,
-            historical_block_height: 12345,
+            historical_block_height: env.block.height - 10, // Use a past block height
             signature: None,
             public_key: None,
         };
@@ -117,7 +120,7 @@ mod tests {
         let info = message_info(&api.addr_make("user"), &[]);
         execute(
             deps.as_mut(),
-            mock_env(),
+            env.clone(),
             info.clone(),
             ExecuteMsg::CreateAccount {
                 request: request.clone(),
@@ -128,7 +131,7 @@ mod tests {
         // Second creation with same nonce should fail
         let err = execute(
             deps.as_mut(),
-            mock_env(),
+            env,
             info,
             ExecuteMsg::CreateAccount { request },
         )

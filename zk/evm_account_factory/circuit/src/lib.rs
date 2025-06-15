@@ -19,6 +19,8 @@ pub enum Witness {
 pub struct CircuitInput {
     /// Block hash used for entropy
     pub block_hash: [u8; 32],
+    /// Controller address for account isolation
+    pub controller: String,
     /// Program ID for the Valence program (string identifier)
     pub program_id: String,
     /// Account request ID for uniqueness
@@ -46,6 +48,7 @@ impl EvmAccountFactoryCircuit {
         // that must be proven in the ZK circuit
         let salt = Self::generate_salt(
             &input.block_hash,
+            &input.controller,
             &input.program_id,
             input.account_request_id,
             &input.libraries_hash,
@@ -61,14 +64,16 @@ impl EvmAccountFactoryCircuit {
     /// Generate deterministic salt for account creation
     fn generate_salt(
         block_hash: &[u8; 32],
+        controller: &str,
         program_id: &str,
         account_request_id: u64,
         libraries_hash: &[u8; 32],
     ) -> [u8; 32] {
         let mut hasher = Sha256::new();
 
-        // Add entropy sources (partial - controller address would be added externally)
+        // Add entropy sources in the same order as the contract
         hasher.update(block_hash);
+        hasher.update(controller.as_bytes());
         hasher.update(program_id.as_bytes());
         hasher.update(account_request_id.to_le_bytes());
         hasher.update(libraries_hash);
@@ -81,7 +86,7 @@ impl EvmAccountFactoryCircuit {
 /// This function signature matches what the ZK coprocessor expects
 pub fn circuit(witnesses: Vec<Witness>) -> Vec<u8> {
     // Extract witnesses in expected order
-    assert!(witnesses.len() >= 4, "Expected at least 4 witnesses");
+    assert!(witnesses.len() >= 5, "Expected at least 5 witnesses");
 
     let block_hash = match &witnesses[0] {
         Witness::Data(data) => {
@@ -107,11 +112,15 @@ pub fn circuit(witnesses: Vec<Witness>) -> Vec<u8> {
         }
     };
 
-    let program_id = match &witnesses[2] {
+    let controller = match &witnesses[2] {
         Witness::Data(data) => String::from_utf8(data.clone()).unwrap_or_default(),
     };
 
-    let account_request_id = match &witnesses[3] {
+    let program_id = match &witnesses[3] {
+        Witness::Data(data) => String::from_utf8(data.clone()).unwrap_or_default(),
+    };
+
+    let account_request_id = match &witnesses[4] {
         Witness::Data(data) => {
             if data.len() >= 8 {
                 u64::from_le_bytes([
@@ -126,6 +135,7 @@ pub fn circuit(witnesses: Vec<Witness>) -> Vec<u8> {
     // Create circuit input
     let input = CircuitInput {
         block_hash,
+        controller,
         program_id,
         account_request_id,
         libraries_hash,
@@ -149,6 +159,7 @@ mod tests {
     fn create_test_input() -> CircuitInput {
         CircuitInput {
             block_hash: [2u8; 32],
+            controller: String::from("test_controller"),
             libraries_hash: [0u8; 32],
             program_id: String::from("42"),
             account_request_id: 123,
@@ -158,12 +169,14 @@ mod tests {
     fn create_test_witnesses() -> Vec<Witness> {
         let block_hash = [2u8; 32];
         let libraries_hash = [0u8; 32];
+        let controller = String::from("test_controller");
         let program_id = String::from("42");
         let account_request_id = 123u64;
 
         vec![
             Witness::Data(block_hash.to_vec()),
             Witness::Data(libraries_hash.to_vec()),
+            Witness::Data(controller.into_bytes()),
             Witness::Data(program_id.into_bytes()),
             Witness::Data(account_request_id.to_le_bytes().to_vec()),
         ]
@@ -198,7 +211,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Expected at least 4 witnesses")]
+    #[should_panic(expected = "Expected at least 5 witnesses")]
     fn test_circuit_function_wrong_witness_count() {
         let witnesses = vec![Witness::Data(vec![1, 2, 3])]; // Wrong count
         circuit(witnesses);
@@ -211,6 +224,7 @@ mod tests {
         let public_data = circuit(vec![
             Witness::Data(input.block_hash.to_vec()),
             Witness::Data(input.libraries_hash.to_vec()),
+            Witness::Data(input.controller.into_bytes()),
             Witness::Data(input.program_id.into_bytes()),
             Witness::Data(input.account_request_id.to_le_bytes().to_vec()),
         ]);
