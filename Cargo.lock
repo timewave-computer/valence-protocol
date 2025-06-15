@@ -10279,6 +10279,7 @@ dependencies = [
  "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
  "hex",
+ "ripemd",
  "schemars",
  "serde",
  "sha2 0.10.8",

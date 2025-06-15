@@ -306,18 +306,17 @@ pub mod execute {
     /// This implementation uses secp256k1 signature verification to authenticate
     /// the request origin against the controller's public key. The signature is
     /// verified against the serialized request data to ensure authenticity.
+    ///
+    /// Supports multiple signature formats for cross-chain compatibility:
+    /// - Standard secp256k1 (64 bytes)
+    /// - Ethereum-style with recovery byte (65 bytes)
+    /// - Other chain-specific formats as needed
     fn validate_signature(deps: &DepsMut, request: &AccountRequest) -> Result<(), ContractError> {
         match (&request.signature, &request.public_key) {
             (Some(signature_bytes), Some(public_key_bytes)) => {
-                // Validate signature length (64 bytes for r,s)
-                if signature_bytes.len() != 64 {
-                    return Err(ContractError::InvalidSignature {});
-                }
-
-                // Validate public key length (33 bytes for compressed secp256k1)
-                if public_key_bytes.len() != 33 {
-                    return Err(ContractError::InvalidSignature {});
-                }
+                // Note: We don't validate signature or public key lengths here to support
+                // multiple chains with different formats. The cryptographic verification
+                // functions will handle malformed keys/signatures appropriately.
 
                 // Create message data for verification (excluding signature and public key fields)
                 let request_for_signing = AccountRequestForSigning::from(request);
@@ -329,8 +328,20 @@ pub mod execute {
                 hasher.update(&message_bytes);
                 let message_hash = hasher.finalize();
 
+                // For multi-chain compatibility, we handle different signature formats:
+                // - Standard secp256k1: 64 bytes (r,s)
+                // - Ethereum-style: 65 bytes (r,s,v where v is recovery byte)
+                // - Other chains may have different formats
+                let signature_for_verification = if signature_bytes.len() == 65 {
+                    // Ethereum-style signature with recovery byte - use first 64 bytes
+                    &signature_bytes[0..64]
+                } else {
+                    // Use signature as-is for other formats
+                    signature_bytes
+                };
+
                 // Verify the signature against the message hash and public key
-                match secp256k1_verify(&message_hash, signature_bytes, public_key_bytes) {
+                match secp256k1_verify(&message_hash, signature_for_verification, public_key_bytes) {
                     Ok(true) => {
                         // Derive address from public key and verify it matches controller
                         let derived_addr = derive_address_from_pubkey(&deps.as_ref(), public_key_bytes)?;
@@ -539,7 +550,7 @@ pub mod execute {
     /// This follows the standard Cosmos SDK address derivation:
     /// 1. Take the 33-byte compressed secp256k1 public key
     /// 2. Hash it with SHA256 
-    /// 3. Take the first 20 bytes (RIPEMD160 in Cosmos SDK, but SHA256 in CosmWasm)
+    /// 3. Hash the SHA256 result with RIPEMD-160
     /// 4. Convert to proper Bech32 address format using the chain's address derivation
     pub fn derive_address_from_pubkey(deps: &Deps, public_key: &[u8]) -> Result<Addr, ContractError> {
         // Ensure we have a valid compressed secp256k1 public key (33 bytes)
@@ -557,15 +568,18 @@ pub mod execute {
         }
 
         // Hash the public key with SHA256
-        let mut hasher = Sha256::new();
-        hasher.update(public_key);
-        let hash = hasher.finalize();
+        let mut sha_hasher = Sha256::new();
+        sha_hasher.update(public_key);
+        let sha_hash = sha_hasher.finalize();
 
-        // Take the first 20 bytes for the address (this matches Cosmos SDK convention)
-        let address_bytes = &hash[0..20];
+        // Hash the SHA256 result with RIPEMD-160 (as per Cosmos SDK spec)
+        use ripemd::{Ripemd160, Digest as RipemdDigest};
+        let mut ripemd_hasher = Ripemd160::new();
+        ripemd_hasher.update(&sha_hash);
+        let ripemd_hash = ripemd_hasher.finalize();
 
         // Convert to canonical address format
-        let canonical_addr = CanonicalAddr::from(address_bytes);
+        let canonical_addr = CanonicalAddr::from(ripemd_hash.as_slice());
         
         // Use the proper CosmWasm API to convert to human-readable Bech32 address
         // This ensures the address matches on-chain expectations and uses the correct prefix
