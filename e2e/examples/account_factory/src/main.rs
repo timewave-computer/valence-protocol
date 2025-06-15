@@ -234,22 +234,22 @@ async fn start_anvil() -> Result<(), Box<dyn Error>> {
     }
     
     // Start anvil in background
-    let mut anvil_process = Command::new("anvil")
+    let anvil_process = Command::new("anvil")
         .args(&["--port", "8545", "--accounts", "10", "--balance", "1000000"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()?;
     
-    // Register signal handler for proper cleanup
     let process_id = anvil_process.id();
     println!("Anvil process started with PID: {}", process_id);
     
-    // Spawn a cleanup task to ensure process termination
-    tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.expect("Failed to install Ctrl+C handler");
-        println!("Received interrupt signal, cleaning up anvil process...");
-        if let Ok(mut process) = std::process::Command::new("kill").arg(process_id.to_string()).spawn() {
-            let _ = process.wait();
+    // Use scopeguard to ensure process is killed on all exit paths
+    let _anvil_guard = scopeguard::guard(anvil_process, |mut process| {
+        println!("Cleaning up Anvil process...");
+        if let Err(e) = process.kill() {
+            eprintln!("Failed to kill Anvil process: {}", e);
+        } else {
+            println!("✅ Anvil process terminated");
         }
     });
     
@@ -267,7 +267,7 @@ async fn start_anvil() -> Result<(), Box<dyn Error>> {
     }
     
     // If we reach here, anvil failed to start
-    let _ = anvil_process.kill(); // Attempt cleanup
+    // Note: scopeguard will automatically clean up the process
     Err("Failed to start anvil".into())
 }
 
