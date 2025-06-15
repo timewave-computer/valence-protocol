@@ -240,10 +240,18 @@ async fn start_anvil() -> Result<(), Box<dyn Error>> {
         .stderr(Stdio::null())
         .spawn()?;
     
-    // Store the process handle for potential cleanup
-    // Note: In a production system, you'd want to implement a proper cleanup mechanism
-    // such as a process guard that kills the process on drop
-    println!("Anvil process started with PID: {}", anvil_process.id());
+    // Register signal handler for proper cleanup
+    let process_id = anvil_process.id();
+    println!("Anvil process started with PID: {}", process_id);
+    
+    // Spawn a cleanup task to ensure process termination
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.expect("Failed to install Ctrl+C handler");
+        println!("Received interrupt signal, cleaning up anvil process...");
+        if let Ok(mut process) = std::process::Command::new("kill").arg(process_id.to_string()).spawn() {
+            let _ = process.wait();
+        }
+    });
     
     // Wait for anvil to be ready
     for _ in 0..30 {

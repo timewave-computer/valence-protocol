@@ -13,6 +13,8 @@ use sha2::{Digest, Sha256};
 pub struct CircuitInput {
     /// Block height used for entropy
     pub block_height: u64,
+    /// Controller address for account isolation
+    pub controller: String,
     /// Program ID for the Valence program (string identifier)
     pub program_id: String,
     /// Account request ID for uniqueness
@@ -40,6 +42,7 @@ impl CosmWasmAccountFactoryCircuit {
         // that must be proven in the ZK circuit
         let salt = Self::generate_salt(
             input.block_height,
+            &input.controller,
             &input.program_id,
             input.account_request_id,
             &input.libraries_hash,
@@ -55,16 +58,18 @@ impl CosmWasmAccountFactoryCircuit {
     /// Generate deterministic salt for account creation
     fn generate_salt(
         block_height: u64,
+        controller: &str,
         program_id: &str,
         account_request_id: u64,
         libraries_hash: &[u8; 32],
     ) -> [u8; 32] {
         let mut hasher = Sha256::new();
 
-        // Add entropy sources (partial - controller address would be added externally)
-        hasher.update(block_height.to_be_bytes());
+        // Add entropy sources in the same order as the contract
+        hasher.update(block_height.to_le_bytes());
+        hasher.update(controller.as_bytes());
         hasher.update(program_id.as_bytes());
-        hasher.update(account_request_id.to_be_bytes());
+        hasher.update(account_request_id.to_le_bytes());
         hasher.update(libraries_hash);
 
         hasher.finalize().into()
@@ -75,7 +80,7 @@ impl CosmWasmAccountFactoryCircuit {
 /// This function signature matches what the ZK coprocessor expects
 pub fn circuit(witnesses: Vec<Witness>) -> Vec<u8> {
     // Extract witnesses in expected order
-    assert!(witnesses.len() >= 4, "Expected at least 4 witnesses");
+    assert!(witnesses.len() >= 5, "Expected at least 5 witnesses");
 
     let block_height = match &witnesses[0] {
         Witness::Data(data) => {
@@ -101,11 +106,15 @@ pub fn circuit(witnesses: Vec<Witness>) -> Vec<u8> {
         }
     };
 
-    let program_id = match &witnesses[2] {
+    let controller = match &witnesses[2] {
         Witness::Data(data) => String::from_utf8(data.clone()).unwrap_or_default(),
     };
 
-    let account_request_id = match &witnesses[3] {
+    let program_id = match &witnesses[3] {
+        Witness::Data(data) => String::from_utf8(data.clone()).unwrap_or_default(),
+    };
+
+    let account_request_id = match &witnesses[4] {
         Witness::Data(data) => {
             if data.len() >= 8 {
                 u64::from_le_bytes([
@@ -120,6 +129,7 @@ pub fn circuit(witnesses: Vec<Witness>) -> Vec<u8> {
     // Create circuit input
     let input = CircuitInput {
         block_height,
+        controller,
         program_id,
         account_request_id,
         libraries_hash,
@@ -149,6 +159,7 @@ mod tests {
     fn create_test_input() -> CircuitInput {
         CircuitInput {
             block_height: 12345,
+            controller: String::from("test_controller"),
             libraries_hash: [0; 32],
             program_id: String::from("42"),
             account_request_id: 123,
@@ -157,12 +168,14 @@ mod tests {
 
     fn create_test_witnesses() -> Vec<Witness> {
         let block_height = 12345u64;
+        let controller = String::from("test_controller");
         let program_id = String::from("42");
         let account_request_id = 123u64;
 
         vec![
             Witness::Data(block_height.to_le_bytes().to_vec()),
             Witness::Data(vec![0; 32]),
+            Witness::Data(controller.into_bytes()),
             Witness::Data(program_id.into_bytes()),
             Witness::Data(account_request_id.to_le_bytes().to_vec()),
         ]
@@ -197,7 +210,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Expected at least 4 witnesses")]
+    #[should_panic(expected = "Expected at least 5 witnesses")]
     fn test_circuit_function_wrong_witness_count() {
         let witnesses = vec![Witness::Data(vec![1, 2, 3])]; // Wrong count
         circuit(witnesses);
@@ -211,6 +224,7 @@ mod tests {
         let public_data = circuit(vec![
             Witness::Data(input.block_height.to_le_bytes().to_vec()),
             Witness::Data(input.libraries_hash.to_vec()),
+            Witness::Data(input.controller.into_bytes()),
             Witness::Data(input.program_id.into_bytes()),
             Witness::Data(input.account_request_id.to_le_bytes().to_vec()),
         ]);
