@@ -258,20 +258,28 @@ This ensures both **efficiency** (cheap on-chain address computation) and **secu
 ### Simple Account Creation
 
 ```rust
-let request = AccountRequest {
-    controller: "cosmos1...",
-    libraries: vec!["library1", "library2"],
-    program_id: "my_defi_app",
-    account_request_id: 12345,
-    historical_block_height: 98765,
-    signature: None,
-};
+// Example with proper error handling
+fn create_account_example() -> Result<(), Box<dyn std::error::Error>> {
+    let request = AccountRequest {
+        controller: "cosmos1...",
+        libraries: vec!["library1", "library2"],
+        program_id: "my_defi_app",
+        account_request_id: 12345,
+        historical_block_height: 98765,
+        signature: None,
+    };
 
-// Compute address before creation
-let address = factory.compute_address(&request)?;
+    // Compute address before creation
+    let address = factory.compute_address(&request)?;
+    println!("Computed address: {}", address);
 
-// Create account (with full token custody and data storage capabilities)
-factory.create_account(request)?;
+    // Create account (with full token custody and data storage capabilities)
+    match factory.create_account(request) {
+        Ok(_) => println!("Account created successfully at {}", address),
+        Err(e) => eprintln!("Failed to create account: {}", e),
+    }
+    Ok(())
+}
 ```
 
 ### Batch Processing

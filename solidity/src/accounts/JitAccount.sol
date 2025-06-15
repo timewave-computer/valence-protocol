@@ -14,12 +14,15 @@ contract JitAccount {
 
     // Events
     event LibraryApproved(address indexed lib);
+    event EthReceived(address indexed sender, uint256 amount);
     event LibraryRemoved(address indexed lib);
     event MessagesExecuted(address indexed sender, uint256 count);
 
     // Errors
     error Unauthorized();
     error CallFailed(bytes returnData);
+    error InvalidLibraryAddress();
+    error ArrayLengthMismatch();
 
     modifier onlyController() {
         if (msg.sender != controller) revert Unauthorized();
@@ -40,6 +43,7 @@ contract JitAccount {
     /// Approve a library to execute messages on behalf of this account
     /// Only the controller can approve libraries
     function approveLibrary(address lib) external onlyController {
+        if (lib == address(0)) revert InvalidLibraryAddress();
         approvedLibraries[lib] = true;
         emit LibraryApproved(lib);
     }
@@ -59,7 +63,7 @@ contract JitAccount {
         onlyAuthorized
     {
         if (targets.length != data.length || targets.length != values.length) {
-            revert("Array length mismatch");
+            revert ArrayLengthMismatch();
         }
 
         for (uint256 i = 0; i < targets.length; i++) {
@@ -83,5 +87,7 @@ contract JitAccount {
     }
 
     /// Receive ETH
-    receive() external payable {}
+    receive() external payable {
+        emit EthReceived(msg.sender, msg.value);
+    }
 }
