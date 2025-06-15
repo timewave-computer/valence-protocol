@@ -10,7 +10,10 @@ pub use state::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::{Api, testing::{message_info, mock_dependencies, mock_env, MockApi}};
+    use cosmwasm_std::{
+        testing::{message_info, mock_dependencies, mock_env, MockApi},
+        Api,
+    };
 
     // Use MockApi to create valid addresses for testing
     fn mock_api() -> MockApi {
@@ -143,7 +146,7 @@ mod tests {
     fn test_secure_address_derivation() {
         let deps = mock_dependencies();
         let api = mock_api();
-        
+
         // Test with a valid compressed secp256k1 public key (33 bytes, starts with 0x02 or 0x03)
         let valid_pubkey = [
             0x02, 0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95, 0xce,
@@ -154,7 +157,7 @@ mod tests {
         // This should succeed and create a proper Bech32 address
         let result = contract::execute::derive_address_from_pubkey(&deps.as_ref(), &valid_pubkey);
         assert!(result.is_ok());
-        
+
         let address = result.unwrap();
         // Verify it's a valid address format (not manually constructed)
         assert!(api.addr_validate(&address.to_string()).is_ok());

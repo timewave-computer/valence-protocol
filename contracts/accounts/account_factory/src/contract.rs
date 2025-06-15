@@ -16,7 +16,7 @@ use cosmwasm_crypto::secp256k1_verify;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CosmosMsg, Deps, DepsMut, 
+    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CosmosMsg, Deps, DepsMut,
     Env, MessageInfo, Response, StdError, StdResult, WasmMsg,
 };
 use cw2::set_contract_version;
@@ -206,9 +206,9 @@ pub mod execute {
             let fee_collector = match FEE_COLLECTOR.load(deps.storage)? {
                 Some(addr) => addr,
                 None => {
-                    return Err(ContractError::Std(
-                        StdError::generic_err("Fee collector not configured"),
-                    ))
+                    return Err(ContractError::Std(StdError::generic_err(
+                        "Fee collector not configured",
+                    )))
                 }
             };
 
@@ -341,18 +341,20 @@ pub mod execute {
                 };
 
                 // Verify the signature against the message hash and public key
-                match secp256k1_verify(&message_hash, signature_for_verification, public_key_bytes) {
+                match secp256k1_verify(&message_hash, signature_for_verification, public_key_bytes)
+                {
                     Ok(true) => {
                         // Derive address from public key and verify it matches controller
-                        let derived_addr = derive_address_from_pubkey(&deps.as_ref(), public_key_bytes)?;
+                        let derived_addr =
+                            derive_address_from_pubkey(&deps.as_ref(), public_key_bytes)?;
                         let controller_addr = deps.api.addr_validate(&request.controller)?;
-                        
+
                         if derived_addr != controller_addr {
                             return Err(ContractError::Std(StdError::generic_err(
-                                "Public key does not match controller address"
+                                "Public key does not match controller address",
                             )));
                         }
-                        
+
                         Ok(())
                     }
                     Ok(false) => Err(ContractError::InvalidSignature {}),
@@ -546,24 +548,27 @@ pub mod execute {
     }
 
     /// Derive a Cosmos address from a secp256k1 public key
-    /// 
+    ///
     /// This follows the standard Cosmos SDK address derivation:
     /// 1. Take the 33-byte compressed secp256k1 public key
-    /// 2. Hash it with SHA256 
+    /// 2. Hash it with SHA256
     /// 3. Hash the SHA256 result with RIPEMD-160
     /// 4. Convert to proper Bech32 address format using the chain's address derivation
-    pub fn derive_address_from_pubkey(deps: &Deps, public_key: &[u8]) -> Result<Addr, ContractError> {
+    pub fn derive_address_from_pubkey(
+        deps: &Deps,
+        public_key: &[u8],
+    ) -> Result<Addr, ContractError> {
         // Ensure we have a valid compressed secp256k1 public key (33 bytes)
         if public_key.len() != 33 {
             return Err(ContractError::Std(StdError::generic_err(
-                "Invalid public key length - expected 33 bytes for compressed secp256k1"
+                "Invalid public key length - expected 33 bytes for compressed secp256k1",
             )));
         }
 
         // Verify the public key format (should start with 0x02 or 0x03 for compressed keys)
         if public_key[0] != 0x02 && public_key[0] != 0x03 {
             return Err(ContractError::Std(StdError::generic_err(
-                "Invalid compressed secp256k1 public key format"
+                "Invalid compressed secp256k1 public key format",
             )));
         }
 
@@ -573,17 +578,20 @@ pub mod execute {
         let sha_hash = sha_hasher.finalize();
 
         // Hash the SHA256 result with RIPEMD-160 (as per Cosmos SDK spec)
-        use ripemd::{Ripemd160, Digest as RipemdDigest};
+        use ripemd::{Digest as RipemdDigest, Ripemd160};
         let mut ripemd_hasher = Ripemd160::new();
         ripemd_hasher.update(&sha_hash);
         let ripemd_hash = ripemd_hasher.finalize();
 
         // Convert to canonical address format
         let canonical_addr = CanonicalAddr::from(ripemd_hash.as_slice());
-        
+
         // Use the proper CosmWasm API to convert to human-readable Bech32 address
         // This ensures the address matches on-chain expectations and uses the correct prefix
-        let human_addr = deps.api.addr_humanize(&canonical_addr).map_err(ContractError::Std)?;
+        let human_addr = deps
+            .api
+            .addr_humanize(&canonical_addr)
+            .map_err(ContractError::Std)?;
 
         Ok(human_addr)
     }
@@ -601,8 +609,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 execute::compute_instantiate2_address(&deps, &env.contract.address, code_id, &salt)
                     .map_err(|e| StdError::generic_err(e.to_string()))?;
 
-            to_json_binary(&ComputeAccountAddressResponse { 
-                account: account.to_string() 
+            to_json_binary(&ComputeAccountAddressResponse {
+                account: account.to_string(),
             })
         }
 
