@@ -41,3 +41,25 @@ deployment/output_program
 
 # Working files
 work/
+
+# Build and cache directories
+target/
+.cargo/
+node_modules/
+dist/
+build/
+out/
+
+# macOS test tube symlinks/directories
+libosmosistesttube/
+libntrntesttube/
+
+# Solidity build artifacts
+solidity/cache/
+solidity/out/
+solidity/broadcast/
+
+# ZK build artifacts  
+zk/*/target/
+circuit/target/
+controller/target/
