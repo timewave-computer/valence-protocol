@@ -125,7 +125,7 @@ contract JitAccountTest is Test {
         uint256[] memory values = new uint256[](1);
 
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSignature("Error(string)", "Array length mismatch"));
+        vm.expectRevert(JitAccount.ArrayLengthMismatch.selector);
         account.execute(targets, data, values);
     }
 
