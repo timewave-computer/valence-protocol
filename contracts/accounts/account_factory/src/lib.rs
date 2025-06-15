@@ -10,7 +10,7 @@ pub use state::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi};
+    use cosmwasm_std::{Api, testing::{message_info, mock_dependencies, mock_env, MockApi}};
 
     // Use MockApi to create valid addresses for testing
     fn mock_api() -> MockApi {
@@ -137,6 +137,43 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.to_string().contains("already used"));
+    }
+
+    #[test]
+    fn test_secure_address_derivation() {
+        let deps = mock_dependencies();
+        let api = mock_api();
+        
+        // Test with a valid compressed secp256k1 public key (33 bytes, starts with 0x02 or 0x03)
+        let valid_pubkey = [
+            0x02, 0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95, 0xce,
+            0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfe, 0xd9, 0x85, 0x30, 0x23, 0x97, 0xa0, 0xe0, 0xd1,
+            0x15, 0x60, 0x7b, 0x4c, 0xf2,
+        ];
+
+        // This should succeed and create a proper Bech32 address
+        let result = contract::execute::derive_address_from_pubkey(&deps.as_ref(), &valid_pubkey);
+        assert!(result.is_ok());
+        
+        let address = result.unwrap();
+        // Verify it's a valid address format (not manually constructed)
+        assert!(api.addr_validate(&address.to_string()).is_ok());
+        
+        // Verify it's not the old insecure format (should not start with "cosmos1" followed by hex)
+        let addr_str = address.to_string();
+        assert!(!addr_str.starts_with("cosmos1") || !addr_str.chars().skip(7).all(|c| c.is_ascii_hexdigit()));
+
+        // Test with invalid public key length
+        let invalid_pubkey = [0x02; 32]; // Wrong length
+        let result = contract::execute::derive_address_from_pubkey(&deps.as_ref(), &invalid_pubkey);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid public key length"));
+
+        // Test with invalid public key format (doesn't start with 0x02 or 0x03)
+        let invalid_format_pubkey = [0x04; 33]; // Invalid prefix
+        let result = contract::execute::derive_address_from_pubkey(&deps.as_ref(), &invalid_format_pubkey);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid compressed secp256k1 public key format"));
     }
 }
 
