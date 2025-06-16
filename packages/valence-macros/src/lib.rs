@@ -33,7 +33,6 @@ pub fn valence_library_interface_derive(input: TokenStream) -> TokenStream {
 
         if let Some(inner_type) = get_option_inner_type(ty) {
             quote! {
-                #[serde(skip_serializing_if = "OptionUpdate::is_none")]
                 #vis #name: OptionUpdate<#inner_type>,
             }
         } else {
