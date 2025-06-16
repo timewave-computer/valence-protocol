@@ -160,7 +160,7 @@ mod tests {
 
         let address = result.unwrap();
         // Verify it's a valid address format (not manually constructed)
-        assert!(api.addr_validate(&address.to_string()).is_ok());
+        assert!(api.addr_validate(address.as_ref()).is_ok());
         // Verify it's not the old insecure format (should not start with "cosmos1" followed by hex)
         let addr_str = address.to_string();
         assert!(

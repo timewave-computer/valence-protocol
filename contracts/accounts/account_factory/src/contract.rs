@@ -580,7 +580,7 @@ pub mod execute {
         // Hash the SHA256 result with RIPEMD-160 (as per Cosmos SDK spec)
         use ripemd::{Digest as RipemdDigest, Ripemd160};
         let mut ripemd_hasher = Ripemd160::new();
-        ripemd_hasher.update(&sha_hash);
+        ripemd_hasher.update(sha_hash);
         let ripemd_hash = ripemd_hasher.finalize();
 
         // Convert to canonical address format
