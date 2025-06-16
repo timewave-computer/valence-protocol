@@ -37,6 +37,7 @@ pub fn valence_library_interface_derive(input: TokenStream) -> TokenStream {
             }
         } else {
             quote! {
+                #[serde(skip_serializing_if = "Option::is_none")]
                 #vis #name: Option<#ty>,
             }
         }
