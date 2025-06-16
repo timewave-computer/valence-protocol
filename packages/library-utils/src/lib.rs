@@ -31,6 +31,12 @@ pub enum OptionUpdate<T> {
     Set(Option<T>),
 }
 
+impl<T> OptionUpdate<T> {
+    pub fn is_none(&self) -> bool {
+        matches!(self, OptionUpdate::None)
+    }
+}
+
 // This is a helper function to execute a CosmosMsg on behalf of an account
 pub fn execute_on_behalf_of(msgs: Vec<CosmosMsg>, account: &Addr) -> StdResult<CosmosMsg> {
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
