@@ -70,6 +70,10 @@
           };
         };
 
+        # Helper variables for cross-platform library path handling
+        libraryPathVar = if pkgs.stdenv.isDarwin then "DYLD_LIBRARY_PATH" else "LD_LIBRARY_PATH";
+        testTubeLibPaths = "${libosmosistesttube}/lib:${libntrntesttube}/lib";
+
         # Development shell dependencies
         shellPackages = with pkgs; [
           # Essential development tools
@@ -117,26 +121,24 @@
             export VALENCE_DEV_MODE=1
 
             # Test tube library paths
-            export ${if pkgs.stdenv.isDarwin then "DYLD_LIBRARY_PATH" else "LD_LIBRARY_PATH"}="${libosmosistesttube}/lib:${libntrntesttube}/lib:''${${if pkgs.stdenv.isDarwin then "DYLD_LIBRARY_PATH" else "LD_LIBRARY_PATH"}:-}"
+            export ${libraryPathVar}="${testTubeLibPaths}:''${${libraryPathVar}:-}"
 
-            # Create local directories with complete Go source from Nix packages
-            if [ ! -d "./libntrntesttube" ]; then
+            # Create symbolic links to Go source from Nix packages (read-only, fast startup)
+            if [ ! -L "./libntrntesttube" ] && [ ! -d "./libntrntesttube" ]; then
               echo "Setting up neutron test tube Go environment..."
-              cp -r "${libntrntesttube}/src" ./libntrntesttube
-              chmod -R u+w ./libntrntesttube
+              ln -sf "${libntrntesttube}/src" ./libntrntesttube
               # Also create artifacts directory with prebuilt libraries for fallback
-              mkdir -p ./libntrntesttube/artifacts
-              ln -sf "${libntrntesttube}/lib/libntrntesttube".* ./libntrntesttube/artifacts/
-              ln -sf "${libntrntesttube}/include/libntrntesttube.h" ./libntrntesttube/artifacts/
+              mkdir -p ./artifacts/libntrntesttube
+              ln -sf "${libntrntesttube}/lib/libntrntesttube".* ./artifacts/libntrntesttube/
+              ln -sf "${libntrntesttube}/include/libntrntesttube.h" ./artifacts/libntrntesttube/
             fi
-            if [ ! -d "./libosmosistesttube" ]; then  
+            if [ ! -L "./libosmosistesttube" ] && [ ! -d "./libosmosistesttube" ]; then  
               echo "Setting up osmosis test tube Go environment..."
-              cp -r "${libosmosistesttube}/src" ./libosmosistesttube
-              chmod -R u+w ./libosmosistesttube
+              ln -sf "${libosmosistesttube}/src" ./libosmosistesttube
               # Also create artifacts directory with prebuilt libraries for fallback  
-              mkdir -p ./libosmosistesttube/artifacts
-              ln -sf "${libosmosistesttube}/lib/libosmosistesttube".* ./libosmosistesttube/artifacts/
-              ln -sf "${libosmosistesttube}/include/libosmosistesttube.h" ./libosmosistesttube/artifacts/
+              mkdir -p ./artifacts/libosmosistesttube
+              ln -sf "${libosmosistesttube}/lib/libosmosistesttube".* ./artifacts/libosmosistesttube/
+              ln -sf "${libosmosistesttube}/include/libosmosistesttube.h" ./artifacts/libosmosistesttube/
             fi
             
             # Set library paths for test tubes  
@@ -199,7 +201,7 @@
             export RUST_LOG=info
             export LIBCLANG_PATH="${pkgs.libclang.lib}/lib"
             # Test tube library paths
-            export ${if pkgs.stdenv.isDarwin then "DYLD_LIBRARY_PATH" else "LD_LIBRARY_PATH"}="${libosmosistesttube}/lib:${libntrntesttube}/lib:''${${if pkgs.stdenv.isDarwin then "DYLD_LIBRARY_PATH" else "LD_LIBRARY_PATH"}:-}"
+            export ${libraryPathVar}="${testTubeLibPaths}:''${${libraryPathVar}:-}"
             echo "Testing environment loaded with test tube support"
           '';
         };

@@ -118,8 +118,11 @@ impl EvmAccountFactoryController {
 
         // Include library configuration in salt computation
         // This ensures accounts with different library sets get different addresses
+        // Sort libraries to ensure deterministic salt generation regardless of input order
+        let mut sorted_libraries = libraries.to_vec();
+        sorted_libraries.sort();
         let mut lib_hasher = Sha256::new();
-        for lib in libraries {
+        for lib in sorted_libraries {
             lib_hasher.update(lib.as_bytes());
         }
         hasher.update(lib_hasher.finalize());
@@ -415,6 +418,60 @@ mod tests {
         assert_ne!(salt1, salt2);
         assert_ne!(salt1, salt3);
         assert_ne!(salt2, salt3);
+    }
+
+    #[test]
+    fn test_salt_generation_library_order_independence() {
+        let block_hash = [1u8; 32];
+        let program_id = "42".to_string();
+        let account_request_id = 123;
+        let controller = "0x742C7D7672Ad5ba34e1b05b19dA8B8CB43Ac6e89";
+
+        // Same libraries in different orders
+        let libraries_order1 = vec![
+            "0x1234567890123456789012345678901234567890".to_string(),
+            "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd".to_string(),
+            "0x9876543210987654321098765432109876543210".to_string(),
+        ];
+        let libraries_order2 = vec![
+            "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd".to_string(),
+            "0x9876543210987654321098765432109876543210".to_string(),
+            "0x1234567890123456789012345678901234567890".to_string(),
+        ];
+        let libraries_order3 = vec![
+            "0x9876543210987654321098765432109876543210".to_string(),
+            "0x1234567890123456789012345678901234567890".to_string(),
+            "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd".to_string(),
+        ];
+
+        let salt1 = EvmAccountFactoryController::generate_salt(
+            &block_hash,
+            controller,
+            &libraries_order1,
+            program_id.clone(),
+            account_request_id,
+        );
+
+        let salt2 = EvmAccountFactoryController::generate_salt(
+            &block_hash,
+            controller,
+            &libraries_order2,
+            program_id.clone(),
+            account_request_id,
+        );
+
+        let salt3 = EvmAccountFactoryController::generate_salt(
+            &block_hash,
+            controller,
+            &libraries_order3,
+            program_id,
+            account_request_id,
+        );
+
+        // Same libraries in different orders should produce the same salt
+        assert_eq!(salt1, salt2);
+        assert_eq!(salt1, salt3);
+        assert_eq!(salt2, salt3);
     }
 
     #[test]

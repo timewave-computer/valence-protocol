@@ -134,8 +134,11 @@ impl CosmWasmAccountFactoryController {
 
         // Include library configuration in salt computation
         // This ensures accounts with different library sets get different addresses
+        // Sort libraries to ensure deterministic salt generation regardless of input order
+        let mut sorted_libraries = libraries.to_vec();
+        sorted_libraries.sort();
         let mut lib_hasher = Sha256::new();
-        for lib in libraries {
+        for lib in sorted_libraries {
             lib_hasher.update(lib.as_bytes());
         }
         hasher.update(lib_hasher.finalize());
@@ -385,6 +388,60 @@ mod tests {
             account_request_id,
         );
         assert_eq!(salt1, salt3);
+    }
+
+    #[test]
+    fn test_salt_generation_library_order_independence() {
+        let block_height = 12345;
+        let controller = "cosmos1controller";
+        let program_id = "test_program";
+        let account_request_id = 456;
+
+        // Same libraries in different orders
+        let libraries_order1 = vec![
+            "cosmos1lib1".to_string(),
+            "cosmos1lib2".to_string(),
+            "cosmos1lib3".to_string(),
+        ];
+        let libraries_order2 = vec![
+            "cosmos1lib2".to_string(),
+            "cosmos1lib3".to_string(),
+            "cosmos1lib1".to_string(),
+        ];
+        let libraries_order3 = vec![
+            "cosmos1lib3".to_string(),
+            "cosmos1lib1".to_string(),
+            "cosmos1lib2".to_string(),
+        ];
+
+        let salt1 = CosmWasmAccountFactoryController::generate_salt(
+            block_height,
+            controller,
+            &libraries_order1,
+            program_id,
+            account_request_id,
+        );
+
+        let salt2 = CosmWasmAccountFactoryController::generate_salt(
+            block_height,
+            controller,
+            &libraries_order2,
+            program_id,
+            account_request_id,
+        );
+
+        let salt3 = CosmWasmAccountFactoryController::generate_salt(
+            block_height,
+            controller,
+            &libraries_order3,
+            program_id,
+            account_request_id,
+        );
+
+        // Same libraries in different orders should produce the same salt
+        assert_eq!(salt1, salt2);
+        assert_eq!(salt1, salt3);
+        assert_eq!(salt2, salt3);
     }
 
     #[test]
