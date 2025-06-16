@@ -224,6 +224,22 @@
           }
         ]
       },
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "Expiration": {
         "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
         "oneOf": [
@@ -282,6 +298,50 @@
             "properties": {
               "lend": {
                 "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Message to borrow tokens.",
+            "type": "object",
+            "required": [
+              "borrow"
+            ],
+            "properties": {
+              "borrow": {
+                "type": "object",
+                "required": [
+                  "coin"
+                ],
+                "properties": {
+                  "coin": {
+                    "$ref": "#/definitions/Coin"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Message to repay tokens from the wallet.",
+            "type": "object",
+            "required": [
+              "repay"
+            ],
+            "properties": {
+              "repay": {
+                "type": "object",
+                "required": [
+                  "coin"
+                ],
+                "properties": {
+                  "coin": {
+                    "$ref": "#/definitions/Coin"
+                  }
+                },
                 "additionalProperties": false
               }
             },
