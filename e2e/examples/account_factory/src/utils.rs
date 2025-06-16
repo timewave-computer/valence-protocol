@@ -23,8 +23,11 @@ pub fn compute_account_salt(
     hasher.update(&account_request_id.to_be_bytes());
     
     // Include library configuration hash
+    // Sort libraries to ensure deterministic salt generation regardless of input order
+    let mut sorted_libraries = libraries.to_vec();
+    sorted_libraries.sort();
     let mut lib_hasher = Sha256::new();
-    for lib in libraries {
+    for lib in sorted_libraries {
         lib_hasher.update(lib.as_bytes());
     }
     hasher.update(lib_hasher.finalize());

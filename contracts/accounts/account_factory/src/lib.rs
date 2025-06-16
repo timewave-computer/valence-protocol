@@ -143,6 +143,49 @@ mod tests {
     }
 
     #[test]
+    fn test_salt_generation_library_order_independence() {
+        use crate::contract::execute::compute_salt;
+        
+        let env = mock_env();
+        let api = mock_api();
+        
+        // Same libraries in different orders
+        let request1 = AccountRequest {
+            controller: api.addr_make("controller").to_string(),
+            libraries: vec![
+                api.addr_make("lib1").to_string(),
+                api.addr_make("lib2").to_string(),
+                api.addr_make("lib3").to_string(),
+            ],
+            program_id: "test_program".to_string(),
+            account_request_id: 123,
+            historical_block_height: env.block.height - 10,
+            signature: None,
+            public_key: None,
+        };
+        
+        let request2 = AccountRequest {
+            controller: api.addr_make("controller").to_string(),
+            libraries: vec![
+                api.addr_make("lib3").to_string(),
+                api.addr_make("lib1").to_string(),
+                api.addr_make("lib2").to_string(),
+            ],
+            program_id: "test_program".to_string(),
+            account_request_id: 123,
+            historical_block_height: env.block.height - 10,
+            signature: None,
+            public_key: None,
+        };
+        
+        let salt1 = compute_salt(&env, &request1);
+        let salt2 = compute_salt(&env, &request2);
+        
+        // Same libraries in different orders should produce the same salt
+        assert_eq!(salt1, salt2, "Library order should not affect salt generation");
+    }
+
+    #[test]
     fn test_secure_address_derivation() {
         let deps = mock_dependencies();
         let api = mock_api();

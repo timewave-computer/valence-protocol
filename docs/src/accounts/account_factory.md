@@ -84,7 +84,7 @@ This unified approach simplifies the system architecture while providing full fu
 
 ## Factory Creation
 
-The factory system provides deterministic addressing using CREATE2/Instantiate2, enabling address computation before creation. This supports cross-chain coordination and atomic operations with comprehensive validation including signature verification, replay protection, and fee validation.
+The factory system provides deterministic addressing using CREATE2/Instantiate2, enabling address computation before creation. This supports cross-chain coordination and atomic operations with comprehensive validation including multi-chain signature verification (supporting variable-length signatures for different blockchain formats), replay protection, and fee validation.
 
 Key benefits:
 - **Predictable Addresses**: Compute before creation for planning
@@ -107,11 +107,16 @@ The system ensures that by the time attackers observe entropy and attempt addres
 ### Salt Algorithm
 
 ```text
-salt = hash(controller + libraries_hash + program_id + account_request_id + block_entropy)
+salt = hash(controller + sorted_libraries_hash + program_id + account_request_id + block_entropy)
 ```
 
+**Key Implementation Details:**
+- **Libraries are sorted lexicographically** before hashing to ensure deterministic results regardless of input order
+- **Cross-platform consistency** maintained between EVM (block hash) and CosmWasm (block height) entropy sources
+- **ZK circuit validation** ensures salt generation integrity through cryptographic proofs
+
 This provides:
-- **Deterministic**: Identical inputs produce identical outputs
+- **Deterministic**: Identical inputs produce identical outputs, regardless of library ordering
 - **Unique**: Each request generates a unique salt
 - **Secure**: Incorporates unpredictable temporal data
 - **Cross-Chain Consistent**: Same algorithm across all domains
@@ -210,7 +215,8 @@ The security comes from **separation of concerns**:
 
 **What's IN the circuit (cryptographically proven):**
 - **Salt Generation Integrity**: Proving the salt was correctly computed from specified entropy sources
-- **Entropy Binding**: Ensuring salt generation uses intended inputs (block data, program_id, account_request_id, libraries)
+- **Entropy Binding**: Ensuring salt generation uses intended inputs (block data, program_id, account_request_id, sorted libraries)
+- **Library Order Independence**: Guaranteeing deterministic results regardless of library input ordering
 
 **What's ON-CHAIN (validated by smart contract using proven salt):**
 - Address computation with CREATE2/Instantiate2 using **proven salt**
