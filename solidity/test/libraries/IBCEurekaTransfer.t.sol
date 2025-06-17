@@ -181,6 +181,23 @@ contract IBCEurekaTransferTest is Test {
         assertEq(newTimeout, 1200, "Timeout should be updated");
     }
 
+    function testUpdateWithZeroAmountAndMinAmountSucceeds() public {
+        IBCEurekaTransfer.IBCEurekaTransferConfig memory validConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
+            amount: 0, // Valid case - full balance
+            minAmountOut: 2000, // Valid case - receive at least 2000
+            transferToken: address(token),
+            inputAccount: inputAccount,
+            recipient: recipient,
+            sourceClient: sourceClient,
+            timeout: timeout,
+            eurekaHandler: mockEurekaHandler
+        });
+
+        bytes memory configBytes = abi.encode(validConfig);
+        vm.prank(owner);
+        ibcEurekaTransfer.updateConfig(configBytes);
+    }
+
     function testTransferFailsNoTokenBalance() public {
         // No tokens provided to the input account
 
