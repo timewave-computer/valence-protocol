@@ -39,6 +39,7 @@ contract IBCEurekaTransferTest is Test {
         // Create a valid configuration for token transfer
         IBCEurekaTransfer.IBCEurekaTransferConfig memory validConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: 1000,
+            minAmountOut: 0,
             transferToken: address(token),
             inputAccount: inputAccount,
             recipient: recipient,
@@ -57,6 +58,7 @@ contract IBCEurekaTransferTest is Test {
     function testUpdateConfigFailsZeroEurekaHandler() public {
         IBCEurekaTransfer.IBCEurekaTransferConfig memory invalidConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: 1000,
+            minAmountOut: 0,
             transferToken: address(token),
             inputAccount: inputAccount,
             recipient: recipient,
@@ -74,6 +76,7 @@ contract IBCEurekaTransferTest is Test {
     function testUpdateConfigFailsZeroTransferToken() public {
         IBCEurekaTransfer.IBCEurekaTransferConfig memory invalidConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: 1000,
+            minAmountOut: 0,
             transferToken: address(0), // Zero address (invalid)
             inputAccount: inputAccount,
             recipient: recipient,
@@ -91,6 +94,7 @@ contract IBCEurekaTransferTest is Test {
     function testUpdateConfigFailsZeroInputAccount() public {
         IBCEurekaTransfer.IBCEurekaTransferConfig memory invalidConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: 1000,
+            minAmountOut: 0,
             transferToken: address(token),
             inputAccount: BaseAccount(payable(address(0))), // Zero address (invalid)
             recipient: recipient,
@@ -108,6 +112,7 @@ contract IBCEurekaTransferTest is Test {
     function testUpdateConfigFailsZeroTimeout() public {
         IBCEurekaTransfer.IBCEurekaTransferConfig memory invalidConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: 1000,
+            minAmountOut: 0,
             transferToken: address(token),
             inputAccount: inputAccount,
             recipient: recipient,
@@ -122,9 +127,28 @@ contract IBCEurekaTransferTest is Test {
         ibcEurekaTransfer.updateConfig(configBytes);
     }
 
+    function testUpdateConfigFailsInvalidMinAmountOut() public {
+        IBCEurekaTransfer.IBCEurekaTransferConfig memory invalidConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
+            amount: 1000,
+            minAmountOut: 20000, // Invalid min amount out (greater than amount)
+            transferToken: address(token),
+            inputAccount: inputAccount,
+            recipient: recipient,
+            sourceClient: sourceClient,
+            timeout: timeout,
+            eurekaHandler: mockEurekaHandler
+        });
+
+        bytes memory configBytes = abi.encode(invalidConfig);
+        vm.prank(owner);
+        vm.expectRevert("Min amount out cannot be greater than amount");
+        ibcEurekaTransfer.updateConfig(configBytes);
+    }
+
     function testUpdateConfigSucceeds() public {
         IBCEurekaTransfer.IBCEurekaTransferConfig memory validConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: 2000, // Different amount
+            minAmountOut: 2000,
             transferToken: address(token),
             inputAccount: inputAccount,
             recipient: "cosmos1abc...", // Different recipient
@@ -140,6 +164,7 @@ contract IBCEurekaTransferTest is Test {
         // Verify config was updated successfully
         (
             uint256 newAmount,
+            uint256 newMinAmountOut,
             address newToken,
             BaseAccount newAccount,
             string memory newRecipient,
@@ -148,6 +173,7 @@ contract IBCEurekaTransferTest is Test {
         ) = ibcEurekaTransfer.config();
 
         assertEq(newAmount, 2000, "Amount should be updated");
+        assertEq(newMinAmountOut, 2000, "Min amount out should be updated");
         assertEq(newToken, address(token), "Token should be unchanged");
         assertEq(address(newAccount), address(inputAccount), "Account should be unchanged");
         assertEq(keccak256(bytes(newRecipient)), keccak256(bytes("cosmos1abc...")), "Recipient should be updated");
@@ -233,6 +259,7 @@ contract IBCEurekaTransferTest is Test {
         // Update config to transfer full token balance
         IBCEurekaTransfer.IBCEurekaTransferConfig memory fullConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: 0, // Transfer full balance
+            minAmountOut: 0,
             transferToken: address(token),
             inputAccount: inputAccount,
             recipient: recipient,
