@@ -1358,18 +1358,33 @@ fn process_polytone_callback(
                                     .unwrap_or(true);
                                 callback_info.execution_result = if error == "timeout" {
                                     if is_expired {
+                                        // The Authorization can be in AUTHORIZATIONS or ZK_AUTHORIZATIONS, so we check both to get the
+                                        // authorization mode
+                                        let authorization_mode = match AUTHORIZATIONS
+                                            .may_load(deps.storage, callback_info.label.clone())?
+                                        {
+                                            Some(authorization) => authorization.mode,
+                                            None => {
+                                                let zk_authorization = ZK_AUTHORIZATIONS
+                                                    .load(deps.storage, callback_info.label.clone())
+                                                    .map_err(|_| {
+                                                        ContractError::Authorization(
+                                                            AuthorizationErrorReason::DoesNotExist(
+                                                                callback_info.label.clone(),
+                                                            ),
+                                                        )
+                                                    })?;
+                                                zk_authorization.mode
+                                            }
+                                        };
                                         // We check if we need to send the token back, if action was initiatiated by a user and a token was sent
                                         if let (
                                             OperationInitiator::User(initiator_addr),
                                             AuthorizationMode::Permissioned(
                                                 PermissionType::WithCallLimit(_),
                                             ),
-                                        ) = (
-                                            &callback_info.initiator,
-                                            &AUTHORIZATIONS
-                                                .load(deps.storage, callback_info.label.clone())?
-                                                .mode,
-                                        ) {
+                                        ) = (&callback_info.initiator, &authorization_mode)
+                                        {
                                             let denom = build_tokenfactory_denom(
                                                 env.contract.address.as_str(),
                                                 &callback_info.label,
