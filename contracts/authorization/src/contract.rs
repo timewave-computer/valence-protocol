@@ -1256,21 +1256,7 @@ fn process_processor_callback(
         },
     )?;
 
-    // Check if a token was sent to perform this operation and that it wasn't started by the owner
-    // The authorization might be in the AUTHORIZATIONS or ZK_AUTHORIZATIONS map
-    let authorization_mode = match AUTHORIZATIONS.may_load(deps.storage, callback.label.clone())? {
-        Some(authorization) => authorization.mode,
-        None => {
-            let zk_authorization = ZK_AUTHORIZATIONS
-                .load(deps.storage, callback.label.clone())
-                .map_err(|_| {
-                    ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(
-                        callback.label.clone(),
-                    ))
-                })?;
-            zk_authorization.mode
-        }
-    };
+    let authorization_mode = get_authorization_mode(deps.as_ref(), callback.label.clone())?;
     let mut messages = vec![];
     if let OperationInitiator::User(initiator_addr) = &callback.initiator {
         if let AuthorizationMode::Permissioned(PermissionType::WithCallLimit(_)) =
@@ -1360,23 +1346,10 @@ fn process_polytone_callback(
                                     if is_expired {
                                         // The Authorization can be in AUTHORIZATIONS or ZK_AUTHORIZATIONS, so we check both to get the
                                         // authorization mode
-                                        let authorization_mode = match AUTHORIZATIONS
-                                            .may_load(deps.storage, callback_info.label.clone())?
-                                        {
-                                            Some(authorization) => authorization.mode,
-                                            None => {
-                                                let zk_authorization = ZK_AUTHORIZATIONS
-                                                    .load(deps.storage, callback_info.label.clone())
-                                                    .map_err(|_| {
-                                                        ContractError::Authorization(
-                                                            AuthorizationErrorReason::DoesNotExist(
-                                                                callback_info.label.clone(),
-                                                            ),
-                                                        )
-                                                    })?;
-                                                zk_authorization.mode
-                                            }
-                                        };
+                                        let authorization_mode = get_authorization_mode(
+                                            deps.as_ref(),
+                                            callback_info.label.clone(),
+                                        )?;
                                         // We check if we need to send the token back, if action was initiatiated by a user and a token was sent
                                         if let (
                                             OperationInitiator::User(initiator_addr),
@@ -1880,5 +1853,20 @@ fn assign_execution_id(msg: AuthorizationMsg, execution_id: u64) -> Authorizatio
         },
         // Pass through other message types unchanged
         other => other,
+    }
+}
+
+// Helper to get authorization mode from a label from either AUTHORIZATIONS or ZK_AUTHORIZATIONS
+fn get_authorization_mode(deps: Deps, label: String) -> Result<AuthorizationMode, ContractError> {
+    match AUTHORIZATIONS.may_load(deps.storage, label.clone())? {
+        Some(authorization) => Ok(authorization.mode),
+        None => {
+            let zk_authorization = ZK_AUTHORIZATIONS
+                .load(deps.storage, label.clone())
+                .map_err(|_| {
+                    ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label))
+                })?;
+            Ok(zk_authorization.mode)
+        }
     }
 }
