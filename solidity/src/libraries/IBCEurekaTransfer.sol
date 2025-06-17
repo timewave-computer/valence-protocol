@@ -78,8 +78,8 @@ contract IBCEurekaTransfer is Library {
             revert("Timeout can't be zero");
         }
 
-        // Min amount out cannot be greater than amount.
-        if (decodedConfig.minAmountOut > decodedConfig.amount) {
+        // Min amount out cannot be greater than amount when amount is not zero
+        if (decodedConfig.amount > 0 && decodedConfig.minAmountOut > decodedConfig.amount) {
             revert("Min amount out cannot be greater than amount");
         }
 

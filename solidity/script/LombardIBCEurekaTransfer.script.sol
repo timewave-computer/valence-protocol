@@ -25,7 +25,6 @@ contract LombardIBCEurekaTransferScript is Script {
 
     // Contracts
     IBCEurekaTransfer public ibcEurekaTransfer;
-    IBCEurekaTransfer public ibcEurekaTransferFull;
     BaseAccount inputAccount;
 
     // Lombard recipient address in bech32 format
@@ -84,9 +83,9 @@ contract LombardIBCEurekaTransferScript is Script {
             quoteExpiry: uint64(block.timestamp + 300) // Quote expires in 5 minutes
         });
 
-        // Execute the LBTC transfer
+        // Execute the LBTC lombard transfer
         vm.prank(processor);
-        ibcEurekaTransfer.transfer(fees, "");
+        ibcEurekaTransfer.lombardTransfer(fees, "");
 
         // Get the balance after the transfer
         uint256 lbtcBalanceAfter = IERC20(LBTC_ADDR).balanceOf(address(inputAccount));
