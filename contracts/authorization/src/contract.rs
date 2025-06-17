@@ -1257,14 +1257,26 @@ fn process_processor_callback(
     )?;
 
     // Check if a token was sent to perform this operation and that it wasn't started by the owner
-    let authorization = AUTHORIZATIONS.load(deps.storage, callback.label.clone())?;
+    // The authorization might be in the AUTHORIZATIONS or ZK_AUTHORIZATIONS map
+    let authorization_mode = match AUTHORIZATIONS.may_load(deps.storage, callback.label.clone())? {
+        Some(authorization) => authorization.mode,
+        None => {
+            let zk_authorization = ZK_AUTHORIZATIONS
+                .load(deps.storage, callback.label.clone())
+                .map_err(|_| {
+                    ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(
+                        callback.label.clone(),
+                    ))
+                })?;
+            zk_authorization.mode
+        }
+    };
     let mut messages = vec![];
     if let OperationInitiator::User(initiator_addr) = &callback.initiator {
         if let AuthorizationMode::Permissioned(PermissionType::WithCallLimit(_)) =
-            authorization.mode
+            authorization_mode
         {
-            let denom =
-                build_tokenfactory_denom(env.contract.address.as_str(), &authorization.label);
+            let denom = build_tokenfactory_denom(env.contract.address.as_str(), &callback.label);
 
             let msg = match callback.execution_result {
                 ExecutionResult::Success
