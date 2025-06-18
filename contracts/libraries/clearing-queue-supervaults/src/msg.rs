@@ -17,8 +17,10 @@ pub struct Config {
     pub settlement_acc_addr: Addr,
     /// obligation base denom
     pub denom: String,
-    /// latest registered obligation id
-    pub latest_id: Uint64,
+    /// latest registered obligation id.
+    /// `None` indicates that no obligations have been
+    /// registered yet (and expects id=0 for next).
+    pub latest_id: Option<Uint64>,
     /// supervaults address
     pub supervault_addr: Addr,
     /// supervaults provider addr
@@ -36,7 +38,6 @@ pub struct LibraryConfig {
     /// obligation base denom
     pub denom: String,
     /// latest registered obligation id.
-    /// if `None`, defaults to 0
     pub latest_id: Option<Uint64>,
     /// supervaults address
     pub supervault_addr: String,
@@ -80,10 +81,11 @@ impl LibraryConfig {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     fn do_validate(
         &self,
         api: &dyn cosmwasm_std::Api,
-    ) -> Result<(Addr, String, Uint64, Addr, Addr, Decimal), LibraryError> {
+    ) -> Result<(Addr, String, Option<Uint64>, Addr, Addr, Decimal), LibraryError> {
         // validate the input account
         let settlement_acc_addr = self.settlement_acc_addr.to_addr(api)?;
 
@@ -91,9 +93,6 @@ impl LibraryConfig {
             !self.denom.is_empty(),
             LibraryError::ConfigurationError("input denom cannot be empty".to_string())
         );
-
-        // if id was not specified, we default to 0
-        let id = self.latest_id.unwrap_or_default();
 
         let validated_supervault_addr = api.addr_validate(&self.supervault_addr)?;
         let validated_supervaults_sender = api.addr_validate(&self.supervaults_sender)?;
@@ -104,7 +103,7 @@ impl LibraryConfig {
         Ok((
             settlement_acc_addr,
             self.denom.to_string(),
-            id,
+            self.latest_id,
             validated_supervault_addr,
             validated_supervaults_sender,
             self.settlement_ratio,

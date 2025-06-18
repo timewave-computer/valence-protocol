@@ -108,9 +108,9 @@ mod functions {
     /// some of the ways that an obligation may block the queue are:
     /// - invalid recipient address
     /// - payout coins with zero-amounts
-    /// for that reason, registration should swallow any errors that may lead
-    /// to a blocked queue by immediately tagging the obligation as completed
-    /// with error.
+    ///   for that reason, registration should swallow any errors that may lead
+    ///   to a blocked queue by immediately tagging the obligation as completed
+    ///   with error.
     fn try_register_withdraw_obligation(
         deps: DepsMut,
         env: Env,
@@ -119,21 +119,21 @@ mod functions {
         payout_amount: Uint128,
         id: Uint64,
     ) -> Result<Response, LibraryError> {
-        // increment the latest obligation id to the expected value
-        cfg.latest_id = cfg
-            .latest_id
-            .checked_add(Uint64::one())
-            .map_err(|_| LibraryError::ExecutionError("id overflow".to_string()))?;
-
-        // save the config with the incremented id
-        valence_library_base::save_config(deps.storage, &cfg)?;
+        // find the obligation id we expect to receive
+        let expected_id = match cfg.latest_id {
+            Some(lid) => lid
+                .checked_add(Uint64::one())
+                .map_err(|_| LibraryError::ExecutionError("id overflow".to_string()))?,
+            // none indicates that no registration have been registered yet.
+            // we expect `0`.
+            None => Uint64::zero(),
+        };
 
         // validate that id of the obligation being registered is monotonically increasing
         ensure!(
-            cfg.latest_id == id,
+            expected_id == id,
             LibraryError::ExecutionError(format!(
-                "obligation being registered id out of order: expected {}, got {id}",
-                cfg.latest_id
+                "obligation registration id out of order: expected {expected_id}, got {id}"
             ))
         );
 
@@ -194,13 +194,13 @@ mod functions {
                     mmvault::msg::QueryMsg::SimulateProvideLiquidity {
                         amount_0: supervaults_amount,
                         amount_1: Uint128::zero(),
-                        sender: cfg.supervault_sender,
+                        sender: cfg.supervault_sender.clone(),
                     }
                 } else if cfg.denom.eq(&supervaults_config.pair_data.token_1.denom) {
                     mmvault::msg::QueryMsg::SimulateProvideLiquidity {
                         amount_0: Uint128::zero(),
                         amount_1: supervaults_amount,
-                        sender: cfg.supervault_sender,
+                        sender: cfg.supervault_sender.clone(),
                     }
                 } else {
                     return Err(LibraryError::ConfigurationError(
@@ -214,7 +214,7 @@ mod functions {
             // exceeded cap, changed api, etc)
             let supervaults_lp_equivalent: Uint128 = deps
                 .querier
-                .query_wasm_smart(cfg.supervault_addr, &supervaults_simulate_lp_msg)?;
+                .query_wasm_smart(&cfg.supervault_addr, &supervaults_simulate_lp_msg)?;
 
             // push the supervaults obligation to the payout coins array
             payout_coins.push(Coin {
@@ -254,6 +254,12 @@ mod functions {
         // value `InQueue` to indicate that this obligation is not yet
         // settled/complete.
         OBLIGATION_ID_TO_STATUS_MAP.save(deps.storage, id.u64(), &ObligationStatus::InQueue)?;
+
+        // set the latest registered obligation id to the current id being registered
+        cfg.latest_id = Some(id);
+
+        // save the config with the incremented id
+        valence_library_base::save_config(deps.storage, &cfg)?;
 
         Ok(Response::default())
     }
