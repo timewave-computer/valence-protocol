@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, CosmosMsg, Deps, Uint128};
+use cosmwasm_std::{Addr, Deps, Uint128};
 use neutron_std::types::neutron::util::precdec::PrecDec;
 use valence_library_utils::error::LibraryError;
 
@@ -34,10 +34,10 @@ pub fn query_simulate_withdraw_liquidity(
     vault_addr: String,
     amount: Uint128,
 ) -> Result<(Uint128, Uint128), LibraryError> {
-    let simulate_response: (Vec<CosmosMsg>, Uint128, Uint128) = deps.querier.query_wasm_smart(
+    let simulate_response: (Uint128, Uint128) = deps.querier.query_wasm_smart(
         vault_addr,
         &mmvault::msg::QueryMsg::SimulateWithdrawLiquidity { amount },
     )?;
 
-    Ok((simulate_response.1, simulate_response.2))
+    Ok(simulate_response)
 }
