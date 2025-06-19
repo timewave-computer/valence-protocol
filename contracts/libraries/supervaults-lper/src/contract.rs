@@ -1,12 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    ensure, to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult,
-};
+use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 use valence_library_utils::{
     error::LibraryError,
-    execute_on_behalf_of,
     msg::{ExecuteMsg, InstantiateMsg},
 };
 
@@ -15,7 +11,6 @@ use crate::msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, Query
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const LP_REPLY_ID: u64 = 314;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -63,17 +58,13 @@ mod execute {
 mod functions {
 
     use cosmwasm_std::{
-        ensure, to_json_binary, to_json_string, Coin, CosmosMsg, DepsMut, Env, MessageInfo,
-        Response, SubMsg, WasmMsg,
+        coins, ensure, to_json_binary, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, WasmMsg,
     };
 
-    use valence_library_utils::{error::LibraryError, execute_submsgs_on_behalf_of};
+    use valence_library_utils::{error::LibraryError, execute_on_behalf_of};
     use valence_supervaults_utils::prec_dec_range::PrecDecimalRange;
 
-    use crate::{
-        contract::LP_REPLY_ID,
-        msg::{Config, FunctionMsgs},
-    };
+    use crate::msg::{Config, FunctionMsgs};
 
     pub fn process_function(
         deps: DepsMut,
@@ -103,7 +94,7 @@ mod functions {
             .query_balance(&cfg.input_addr, &cfg.lp_config.asset_data.asset2)?;
 
         // filter out zero-amount balances
-        let provision_assets: Vec<Coin> = [balance_asset1, balance_asset2]
+        let provision_assets: Vec<Coin> = [balance_asset1.clone(), balance_asset2.clone()]
             .into_iter()
             .filter(|c| !c.amount.is_zero())
             .collect();
@@ -128,59 +119,38 @@ mod functions {
         }
 
         // construct lp message
-        let provide_liquidity_msg: CosmosMsg = WasmMsg::Execute {
+        let provide_liquidity_msg = WasmMsg::Execute {
             contract_addr: cfg.vault_addr.to_string(),
             msg: to_json_binary(&valence_supervaults_utils::msg::get_mmvault_deposit_msg())?,
             funds: provision_assets,
         }
         .into();
 
-        // delegate the LP submessage to the input account because supervault LP
-        // shares get issued at an unknown rate.
-        // to deal with that, we LP as a submessage and handle the resulting share
-        // transfer from input acc to output acc in the response
-        let delegated_input_account_submsgs = execute_submsgs_on_behalf_of(
-            vec![SubMsg::reply_on_success(provide_liquidity_msg, LP_REPLY_ID)],
-            Some(to_json_string(&cfg)?),
+        // check how many shares we are going to get when providing liquidity
+        let shares_amount = valence_supervaults_utils::queries::query_simulate_provide_liquidity(
+            deps.as_ref(),
+            cfg.vault_addr.to_string(),
+            cfg.input_addr.clone(),
+            balance_asset1.amount,
+            balance_asset2.amount,
+        )?;
+
+        // create a bank message to transfer the shares to the output account
+        let transfer_shares_msg = BankMsg::Send {
+            to_address: cfg.output_addr.to_string(),
+            amount: coins(shares_amount.u128(), cfg.lp_config.lp_denom),
+        }
+        .into();
+
+        // Execute both messages on behalf of input_addr
+        let execute_msg = execute_on_behalf_of(
+            vec![provide_liquidity_msg, transfer_shares_msg],
             &cfg.input_addr,
         )?;
 
-        Ok(Response::new().add_submessage(SubMsg::reply_on_success(
-            delegated_input_account_submsgs,
-            LP_REPLY_ID,
-        )))
-    }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryError> {
-    match msg.id {
-        LP_REPLY_ID => {
-            // extract configuration from the reply payload
-            let cfg: Config = valence_account_utils::msg::parse_valence_payload(&msg.result)?;
-
-            // query account resulting LP balance
-            let balance = deps
-                .querier
-                .query_balance(&cfg.input_addr, &cfg.lp_config.lp_denom)?;
-
-            ensure!(
-                !balance.amount.is_zero(),
-                LibraryError::ExecutionError("input account shares balance is zero".to_string())
-            );
-
-            // construct the resulting share transfer message to the output account
-            let lp_share_transfer_msg = BankMsg::Send {
-                to_address: cfg.output_addr.to_string(),
-                amount: vec![balance],
-            };
-
-            let delegated_msg =
-                execute_on_behalf_of(vec![lp_share_transfer_msg.into()], &cfg.input_addr)?;
-
-            Ok(Response::default().add_message(delegated_msg))
-        }
-        _ => Err(LibraryError::ExecutionError("unknown reply id".to_string())),
+        Ok(Response::new()
+            .add_message(execute_msg)
+            .add_attribute("method", "provide_liquidity"))
     }
 }
 
