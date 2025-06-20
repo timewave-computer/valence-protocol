@@ -163,6 +163,7 @@ pub fn setup_eureka_forwarder(
 
     let cfg = IBCEurekaTransferConfig {
         amount: U256::ZERO,
+        minAmountOut: U256::ZERO,
         transferToken: alloy_primitives_encoder::Address::from_str(
             transfer_token.to_string().as_str(),
         )?,
