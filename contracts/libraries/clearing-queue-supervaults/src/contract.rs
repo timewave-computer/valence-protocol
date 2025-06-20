@@ -161,8 +161,8 @@ mod functions {
         // we do not swallow the error here because any error here means a config error.
         let mars_amount = payout_amount
             .checked_multiply_ratio(
-                cfg.settlement_ratio.numerator(),
-                cfg.settlement_ratio.denominator(),
+                cfg.mars_settlement_ratio.numerator(),
+                cfg.mars_settlement_ratio.denominator(),
             )
             .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
@@ -181,46 +181,58 @@ mod functions {
 
         // if supervaults amount is non-zero, we perform the deposit simulation
         // to estimate the supervaults lp shares amount equivalent to the supervaults_amount
-        // of deposit token
+        // of deposit token. We do this for each of the supervaults we are withdrawing from.
         if !supervaults_amount.is_zero() {
-            // first we query the supervaults to pairwise match the config denom
-            // to the supervault pair data
-            let supervaults_config: mmvault::state::Config = deps
-                .querier
-                .query_wasm_smart(&cfg.supervault_addr, &mmvault::msg::QueryMsg::GetConfig {})?;
+            for each_supervault_settlement in cfg.supervaults_settlement_info.iter() {
+                // We need to use amount that is adjusted by the settlement ratio
+                let amount = supervaults_amount
+                    .checked_multiply_ratio(
+                        each_supervault_settlement.settlement_ratio.numerator(),
+                        each_supervault_settlement.settlement_ratio.denominator(),
+                    )
+                    .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
 
-            let supervaults_simulate_lp_msg =
-                if cfg.denom.eq(&supervaults_config.pair_data.token_0.denom) {
-                    mmvault::msg::QueryMsg::SimulateProvideLiquidity {
-                        amount_0: supervaults_amount,
-                        amount_1: Uint128::zero(),
-                        sender: cfg.supervault_sender.clone(),
-                    }
-                } else if cfg.denom.eq(&supervaults_config.pair_data.token_1.denom) {
-                    mmvault::msg::QueryMsg::SimulateProvideLiquidity {
-                        amount_0: Uint128::zero(),
-                        amount_1: supervaults_amount,
-                        sender: cfg.supervault_sender.clone(),
-                    }
-                } else {
-                    return Err(LibraryError::ConfigurationError(
-                        "supervault config denom mismatch".to_string(),
-                    ));
-                };
+                // first we query the supervaults to pairwise match the config denom
+                // to the supervault pair data
+                let supervaults_config: mmvault::state::Config = deps.querier.query_wasm_smart(
+                    &each_supervault_settlement.supervault_addr,
+                    &mmvault::msg::QueryMsg::GetConfig {},
+                )?;
 
-            // perform the supervaults liquidity provision simulation.
-            // we know that the offer_amount here is non-zero, so we surface
-            // any errors that may happen during this query (e.g. due to
-            // exceeded cap, changed api, etc)
-            let supervaults_lp_equivalent: Uint128 = deps
-                .querier
-                .query_wasm_smart(&cfg.supervault_addr, &supervaults_simulate_lp_msg)?;
+                let supervaults_simulate_lp_msg =
+                    if cfg.denom.eq(&supervaults_config.pair_data.token_0.denom) {
+                        mmvault::msg::QueryMsg::SimulateProvideLiquidity {
+                            amount_0: amount,
+                            amount_1: Uint128::zero(),
+                            sender: each_supervault_settlement.supervault_sender.clone(),
+                        }
+                    } else if cfg.denom.eq(&supervaults_config.pair_data.token_1.denom) {
+                        mmvault::msg::QueryMsg::SimulateProvideLiquidity {
+                            amount_0: Uint128::zero(),
+                            amount_1: amount,
+                            sender: each_supervault_settlement.supervault_sender.clone(),
+                        }
+                    } else {
+                        return Err(LibraryError::ConfigurationError(
+                            "supervault config denom mismatch".to_string(),
+                        ));
+                    };
 
-            // push the supervaults obligation to the payout coins array
-            payout_coins.push(Coin {
-                denom: supervaults_config.lp_denom,
-                amount: supervaults_lp_equivalent,
-            });
+                // perform the supervaults liquidity provision simulation.
+                // we know that the offer_amount here is non-zero, so we surface
+                // any errors that may happen during this query (e.g. due to
+                // exceeded cap, changed api, etc)
+                let supervaults_lp_equivalent: Uint128 = deps.querier.query_wasm_smart(
+                    &each_supervault_settlement.supervault_addr,
+                    &supervaults_simulate_lp_msg,
+                )?;
+
+                // push the supervaults obligation to the payout coins array
+                payout_coins.push(Coin {
+                    denom: supervaults_config.lp_denom,
+                    amount: supervaults_lp_equivalent,
+                });
+            }
         }
 
         // filter out any zero-amount denoms as attempting to settle them later
@@ -230,12 +242,12 @@ mod functions {
             .filter(|c| !c.amount.is_zero())
             .collect();
 
-        // if both coins were 0-amount, there is nothing to transfer; return
+        // if all coins are 0-amount, there is nothing to transfer; return
         if filtered_payout.is_empty() {
             return swallow_obligation_registration_err(
                 deps,
                 id,
-                "both obligations 0-amount".to_string(),
+                "all obligations 0-amount".to_string(),
             );
         }
 

@@ -24,6 +24,10 @@
     },
     "additionalProperties": false,
     "definitions": {
+      "Decimal": {
+        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
+      },
       "LibraryAccountType": {
         "description": "A helper type that is used to associate an account or library with an id When a program is not instantiated yet, ids will be used to reference accounts and libraries When a program is instantiated, the ids will be replaced by the instantiated addresses",
         "oneOf": [
@@ -73,10 +77,9 @@
         "type": "object",
         "required": [
           "denom",
+          "mars_settlement_ratio",
           "settlement_acc_addr",
-          "supervault_addr",
-          "supervaults_phase",
-          "supervaults_sender"
+          "supervaults_settlement_info"
         ],
         "properties": {
           "denom": {
@@ -84,13 +87,21 @@
             "type": "string"
           },
           "latest_id": {
-            "description": "latest registered obligation id. if `None`, defaults to 0",
+            "description": "latest registered obligation id.",
             "anyOf": [
               {
                 "$ref": "#/definitions/Uint64"
               },
               {
                 "type": "null"
+              }
+            ]
+          },
+          "mars_settlement_ratio": {
+            "description": "mars settlement ratio",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
               }
             ]
           },
@@ -102,17 +113,47 @@
               }
             ]
           },
+          "supervaults_settlement_info": {
+            "description": "supervaults settlement information",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/SupervaultSettlementInfo"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "SupervaultSettlementInfo": {
+        "type": "object",
+        "required": [
+          "settlement_ratio",
+          "supervault_addr",
+          "supervault_sender"
+        ],
+        "properties": {
+          "settlement_ratio": {
+            "description": "settlement ratio",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
           "supervault_addr": {
             "description": "supervaults address",
-            "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
           },
-          "supervaults_phase": {
-            "description": "vault phase flag: - true -> supervaults phase - false -> mars phase",
-            "type": "boolean"
-          },
-          "supervaults_sender": {
-            "description": "supervaults provider addr",
-            "type": "string"
+          "supervault_sender": {
+            "description": "supervault provider address",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -246,6 +287,10 @@
             ]
           }
         ]
+      },
+      "Decimal": {
+        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
       },
       "Expiration": {
         "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
@@ -413,6 +458,16 @@
           "latest_id": {
             "$ref": "#/definitions/OptionUpdate_for_Uint64"
           },
+          "mars_settlement_ratio": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "settlement_acc_addr": {
             "anyOf": [
               {
@@ -423,23 +478,14 @@
               }
             ]
           },
-          "supervault_addr": {
+          "supervaults_settlement_info": {
             "type": [
-              "string",
+              "array",
               "null"
-            ]
-          },
-          "supervaults_phase": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "supervaults_sender": {
-            "type": [
-              "string",
-              "null"
-            ]
+            ],
+            "items": {
+              "$ref": "#/definitions/SupervaultSettlementInfo"
+            }
           }
         },
         "additionalProperties": false
@@ -472,6 +518,41 @@
             "additionalProperties": false
           }
         ]
+      },
+      "SupervaultSettlementInfo": {
+        "type": "object",
+        "required": [
+          "settlement_ratio",
+          "supervault_addr",
+          "supervault_sender"
+        ],
+        "properties": {
+          "settlement_ratio": {
+            "description": "settlement ratio",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "supervault_addr": {
+            "description": "supervaults address",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
+          },
+          "supervault_sender": {
+            "description": "supervault provider address",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "Timestamp": {
         "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
@@ -634,11 +715,9 @@
       "type": "object",
       "required": [
         "denom",
-        "latest_id",
+        "mars_settlement_ratio",
         "settlement_acc_addr",
-        "supervault_addr",
-        "supervault_sender",
-        "supervaults_phase"
+        "supervaults_settlement_info"
       ],
       "properties": {
         "denom": {
@@ -646,10 +725,21 @@
           "type": "string"
         },
         "latest_id": {
-          "description": "latest registered obligation id",
-          "allOf": [
+          "description": "latest registered obligation id. `None` indicates that no obligations have been registered yet (and expects id=0 for next).",
+          "anyOf": [
             {
               "$ref": "#/definitions/Uint64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mars_settlement_ratio": {
+          "description": "mars settlement ratio",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
             }
           ]
         },
@@ -661,25 +751,12 @@
             }
           ]
         },
-        "supervault_addr": {
-          "description": "supervaults address",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Addr"
-            }
-          ]
-        },
-        "supervault_sender": {
-          "description": "supervaults provider addr",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Addr"
-            }
-          ]
-        },
-        "supervaults_phase": {
-          "description": "vault phase flag: - true -> supervaults phase - false -> mars phase",
-          "type": "boolean"
+        "supervaults_settlement_info": {
+          "description": "supervaults settlement information",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ValidatedSupervaultSettlementInfo"
+          }
         }
       },
       "additionalProperties": false,
@@ -688,9 +765,48 @@
           "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
           "type": "string"
         },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
         "Uint64": {
           "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
           "type": "string"
+        },
+        "ValidatedSupervaultSettlementInfo": {
+          "type": "object",
+          "required": [
+            "settlement_ratio",
+            "supervault_addr",
+            "supervault_sender"
+          ],
+          "properties": {
+            "settlement_ratio": {
+              "description": "settlement ratio",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "supervault_addr": {
+              "description": "supervaults address",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
+            },
+            "supervault_sender": {
+              "description": "supervault provider address",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
         }
       }
     },
@@ -706,10 +822,9 @@
       "type": "object",
       "required": [
         "denom",
+        "mars_settlement_ratio",
         "settlement_acc_addr",
-        "supervault_addr",
-        "supervaults_phase",
-        "supervaults_sender"
+        "supervaults_settlement_info"
       ],
       "properties": {
         "denom": {
@@ -717,13 +832,21 @@
           "type": "string"
         },
         "latest_id": {
-          "description": "latest registered obligation id. if `None`, defaults to 0",
+          "description": "latest registered obligation id.",
           "anyOf": [
             {
               "$ref": "#/definitions/Uint64"
             },
             {
               "type": "null"
+            }
+          ]
+        },
+        "mars_settlement_ratio": {
+          "description": "mars settlement ratio",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
             }
           ]
         },
@@ -735,21 +858,20 @@
             }
           ]
         },
-        "supervault_addr": {
-          "description": "supervaults address",
-          "type": "string"
-        },
-        "supervaults_phase": {
-          "description": "vault phase flag: - true -> supervaults phase - false -> mars phase",
-          "type": "boolean"
-        },
-        "supervaults_sender": {
-          "description": "supervaults provider addr",
-          "type": "string"
+        "supervaults_settlement_info": {
+          "description": "supervaults settlement information",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SupervaultSettlementInfo"
+          }
         }
       },
       "additionalProperties": false,
       "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
         "LibraryAccountType": {
           "description": "A helper type that is used to associate an account or library with an id When a program is not instantiated yet, ids will be used to reference accounts and libraries When a program is instantiated, the ids will be replaced by the instantiated addresses",
           "oneOf": [
@@ -794,6 +916,41 @@
               "additionalProperties": false
             }
           ]
+        },
+        "SupervaultSettlementInfo": {
+          "type": "object",
+          "required": [
+            "settlement_ratio",
+            "supervault_addr",
+            "supervault_sender"
+          ],
+          "properties": {
+            "settlement_ratio": {
+              "description": "settlement ratio",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "supervault_addr": {
+              "description": "supervaults address",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/LibraryAccountType"
+                }
+              ]
+            },
+            "supervault_sender": {
+              "description": "supervault provider address",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/LibraryAccountType"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
         },
         "Uint64": {
           "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
@@ -1009,7 +1166,7 @@
           "required": [
             "enqueue_block",
             "id",
-            "payout_coin",
+            "payout_coins",
             "recipient"
           ],
           "properties": {
@@ -1029,13 +1186,12 @@
                 }
               ]
             },
-            "payout_coin": {
+            "payout_coins": {
               "description": "what is owed to the recipient",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/Coin"
-                }
-              ]
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Coin"
+              }
             },
             "recipient": {
               "description": "where the payout is to be routed",
