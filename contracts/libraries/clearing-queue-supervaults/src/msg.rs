@@ -131,17 +131,8 @@ impl LibraryConfig {
         );
 
         // validate supervaults settlement information
-        let (total_supervaults_ratio, supervaults_info) =
+        let supervaults_info =
             validate_supervaults_settlement_info(&self.supervaults_settlement_info, api)?;
-
-        // Finally check that adding the supervaults settlement ratios and mars settlement ratio is exactly 1
-        ensure!(
-            total_supervaults_ratio + self.mars_settlement_ratio == Decimal::one(),
-            LibraryError::ConfigurationError(format!(
-                "Total settlement ratio must be 1, got {}",
-                total_supervaults_ratio + self.mars_settlement_ratio
-            ))
-        );
 
         Ok((
             settlement_acc_addr,
@@ -156,11 +147,12 @@ impl LibraryConfig {
 /// validate supervaults settlement information
 /// 1. Addresses are valid
 /// 2. Settlement ratios are between 0 and 1
-/// 3. No duplicate supervault addresses
+/// 3. Settlement ratios sum to 1
+/// 4. No duplicate supervault addresses
 fn validate_supervaults_settlement_info(
     supervaults_settlement_info: &[SupervaultSettlementInfo],
     api: &dyn cosmwasm_std::Api,
-) -> Result<(Decimal, Vec<ValidatedSupervaultSettlementInfo>), LibraryError> {
+) -> Result<Vec<ValidatedSupervaultSettlementInfo>, LibraryError> {
     let mut total_supervaults_ratio = Decimal::zero();
     let mut supervaults_addrs = vec![];
     let mut check_duplicated = HashSet::new();
@@ -184,7 +176,15 @@ fn validate_supervaults_settlement_info(
         });
     }
 
-    Ok((total_supervaults_ratio, supervaults_addrs))
+    ensure!(
+        total_supervaults_ratio == Decimal::one(),
+        LibraryError::ConfigurationError(format!(
+            "Total supervaults settlement ratio must be 1, got {}",
+            total_supervaults_ratio
+        ))
+    );
+
+    Ok(supervaults_addrs)
 }
 
 impl LibraryConfigValidation<Config> for LibraryConfig {
@@ -247,25 +247,10 @@ impl LibraryConfigUpdate {
             );
 
             // validate supervaults settlement information
-            let (_, supervaults_info) =
+            let supervaults_info =
                 validate_supervaults_settlement_info(&supervaults_settlement_info, deps.api)?;
             config.supervaults_settlement_info = supervaults_info;
         }
-
-        // Finally check that the ratios sum to 1
-        let total_supervaults_ratio = config
-            .supervaults_settlement_info
-            .iter()
-            .map(|info| info.settlement_ratio)
-            .sum::<Decimal>();
-
-        ensure!(
-            total_supervaults_ratio + config.mars_settlement_ratio == Decimal::one(),
-            LibraryError::ConfigurationError(format!(
-                "Total settlement ratio must be 1, got {}",
-                total_supervaults_ratio + config.mars_settlement_ratio
-            ))
-        );
 
         valence_library_base::save_config(deps.storage, &config)?;
 

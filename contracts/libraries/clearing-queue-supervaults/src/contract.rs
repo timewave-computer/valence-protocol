@@ -183,26 +183,34 @@ mod functions {
         // to estimate the supervaults lp shares amount equivalent to the supervaults_amount
         // of deposit token. We do this for each of the supervaults we are withdrawing from.
         if !supervaults_amount.is_zero() {
-            for info in cfg.supervaults_settlement_info.iter() {
+            for each_supervault_settlement in cfg.supervaults_settlement_info.iter() {
+                // We need to use amount that is adjusted by the settlement ratio
+                let amount = supervaults_amount
+                    .checked_multiply_ratio(
+                        each_supervault_settlement.settlement_ratio.numerator(),
+                        each_supervault_settlement.settlement_ratio.denominator(),
+                    )
+                    .map_err(|e| LibraryError::ExecutionError(e.to_string()))?;
+
                 // first we query the supervaults to pairwise match the config denom
                 // to the supervault pair data
                 let supervaults_config: mmvault::state::Config = deps.querier.query_wasm_smart(
-                    &info.supervault_addr,
+                    &each_supervault_settlement.supervault_addr,
                     &mmvault::msg::QueryMsg::GetConfig {},
                 )?;
 
                 let supervaults_simulate_lp_msg =
                     if cfg.denom.eq(&supervaults_config.pair_data.token_0.denom) {
                         mmvault::msg::QueryMsg::SimulateProvideLiquidity {
-                            amount_0: supervaults_amount,
+                            amount_0: amount,
                             amount_1: Uint128::zero(),
-                            sender: info.supervault_sender.clone(),
+                            sender: each_supervault_settlement.supervault_sender.clone(),
                         }
                     } else if cfg.denom.eq(&supervaults_config.pair_data.token_1.denom) {
                         mmvault::msg::QueryMsg::SimulateProvideLiquidity {
                             amount_0: Uint128::zero(),
-                            amount_1: supervaults_amount,
-                            sender: info.supervault_sender.clone(),
+                            amount_1: amount,
+                            sender: each_supervault_settlement.supervault_sender.clone(),
                         }
                     } else {
                         return Err(LibraryError::ConfigurationError(
@@ -214,9 +222,10 @@ mod functions {
                 // we know that the offer_amount here is non-zero, so we surface
                 // any errors that may happen during this query (e.g. due to
                 // exceeded cap, changed api, etc)
-                let supervaults_lp_equivalent: Uint128 = deps
-                    .querier
-                    .query_wasm_smart(&info.supervault_addr, &supervaults_simulate_lp_msg)?;
+                let supervaults_lp_equivalent: Uint128 = deps.querier.query_wasm_smart(
+                    &each_supervault_settlement.supervault_addr,
+                    &supervaults_simulate_lp_msg,
+                )?;
 
                 // push the supervaults obligation to the payout coins array
                 payout_coins.push(Coin {
