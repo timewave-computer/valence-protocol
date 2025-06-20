@@ -5669,8 +5669,8 @@ dependencies = [
 
 [[package]]
 name = "mmvault"
-version = "0.1.5"
-source = "git+https://github.com/neutron-org/slinky-vault#e664f27bae71b036c8dbca5cbf7ef0720bae45c8"
+version = "0.1.6"
+source = "git+https://github.com/neutron-org/slinky-vault#8511585e564bca12e814e0c8692add7ae7e3f536"
 dependencies = [
  "cosmwasm-std 2.2.1",
  "cw-storage-plus 2.0.0",
