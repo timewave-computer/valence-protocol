@@ -15,6 +15,8 @@ contract IBCEurekaTransfer is Library {
     /**
      * @dev Configuration struct for token transfer parameters.
      * @param amount The number of tokens to transfer. If set to 0, the entire balance is transferred.
+     * @param minAmountOut The minimum amount of tokens expected to be received on the destination chain. This is only used for Lombard transfers.
+     *                     If set to 0, same as amount will be used.
      * @param transferToken The ERC20 token address that will be transferred.
      * @param inputAccount The account from which tokens will be debited.
      * @param recipient The recipient address on the destination IBC chain (in bech32 format).
@@ -24,6 +26,7 @@ contract IBCEurekaTransfer is Library {
      */
     struct IBCEurekaTransferConfig {
         uint256 amount;
+        uint256 minAmountOut;
         address transferToken;
         BaseAccount inputAccount;
         string recipient;
@@ -75,6 +78,11 @@ contract IBCEurekaTransfer is Library {
             revert("Timeout can't be zero");
         }
 
+        // Min amount out cannot be greater than amount when amount is not zero
+        if (decodedConfig.amount > 0 && decodedConfig.minAmountOut > decodedConfig.amount) {
+            revert("Min amount out cannot be greater than amount");
+        }
+
         return decodedConfig;
     }
 
@@ -113,8 +121,86 @@ contract IBCEurekaTransfer is Library {
      * - The input account must hold enough tokens.
      */
     function transfer(IEurekaHandler.Fees calldata fees, string calldata memo) external onlyProcessor {
+        // Perform common validation and get transfer amounts and params
+        (
+            IBCEurekaTransferConfig memory _config,
+            uint256 amountToTransfer,
+            IEurekaHandler.TransferParams memory transferParams
+        ) = _validateTransferAndPrepareParams(fees, memo);
+
+        // Encode the approval call: this allows the Eureka Handler to spend the tokens.
+        bytes memory encodedApproveCall =
+            abi.encodeCall(IERC20.approve, (address(_config.eurekaHandler), amountToTransfer + fees.relayFee));
+
+        // Encode the transfer call
+        bytes memory encodedTransferCall =
+            abi.encodeCall(IEurekaHandler.transfer, (amountToTransfer, transferParams, fees));
+
+        // Execute the approval call on the input account.
+        _config.inputAccount.execute(_config.transferToken, 0, encodedApproveCall);
+        // Execute the token transfer call via the Eureka Handler.
+        _config.inputAccount.execute(address(_config.eurekaHandler), 0, encodedTransferCall);
+
+        emit EurekaTransfer(_config.recipient, amountToTransfer);
+    }
+
+    /**
+     * @dev Executes the lombard token transfer using the IBC Eureka protocol via an EurekaHandler contract.
+     *
+     * This works the same as the normal transfer but has the lombard functionality on top of it. This means there
+     * is a burning of the lombard token and a minting of the voucher to be transferred happening before the transfer itself.
+     *
+     * @param fees The fee structure containing relay fees, recipient of the relay fees and quote expiry.
+     * @param memo Additional information to be included with the transfer. Can execute logic on the destination chain. Can be empty if not required.
+     *
+     */
+    function lombardTransfer(IEurekaHandler.Fees calldata fees, string calldata memo) external onlyProcessor {
+        // Perform common validation and get transfer amounts and params
+        (
+            IBCEurekaTransferConfig memory _config,
+            uint256 amountToTransfer,
+            IEurekaHandler.TransferParams memory transferParams
+        ) = _validateTransferAndPrepareParams(fees, memo);
+
+        // Lombard transfers require a minimum amount out to be specified.
+        // If minAmountOut is not set, use the amount to transfer as the minimum.
+        uint256 minAmountOut = _config.minAmountOut > 0 ? _config.minAmountOut : amountToTransfer;
+
+        // Encode the approval call: this allows the Eureka Handler to spend the tokens.
+        bytes memory encodedApproveCall =
+            abi.encodeCall(IERC20.approve, (address(_config.eurekaHandler), amountToTransfer + fees.relayFee));
+
+        // Encode the transfer call
+        bytes memory encodedTransferCall =
+            abi.encodeCall(IEurekaHandler.lombardTransfer, (amountToTransfer, minAmountOut, transferParams, fees));
+
+        // Execute the approval call on the input account.
+        _config.inputAccount.execute(_config.transferToken, 0, encodedApproveCall);
+        // Execute the token transfer call via the Eureka Handler.
+        _config.inputAccount.execute(address(_config.eurekaHandler), 0, encodedTransferCall);
+
+        emit EurekaTransfer(_config.recipient, amountToTransfer);
+    }
+
+    /**
+     * @dev Internal function that validates transfer conditions, calculates amounts, and prepares transfer parameters.
+     * @param fees The fee structure for the transfer
+     * @param memo Additional information to be included with the transfer
+     * @return _config The loaded configuration struct
+     * @return amountToTransfer The final amount to transfer (after deducting relay fees)
+     * @return transferParams The prepared TransferParams struct for the transfer
+     */
+    function _validateTransferAndPrepareParams(IEurekaHandler.Fees calldata fees, string calldata memo)
+        internal
+        view
+        returns (
+            IBCEurekaTransferConfig memory _config,
+            uint256 amountToTransfer,
+            IEurekaHandler.TransferParams memory transferParams
+        )
+    {
         // Retrieve the current configuration into a local variable.
-        IBCEurekaTransferConfig memory _config = config;
+        _config = config;
 
         // Check the token balance of the input account.
         uint256 balance = IERC20(_config.transferToken).balanceOf(address(_config.inputAccount));
@@ -134,13 +220,10 @@ contract IBCEurekaTransfer is Library {
         }
 
         // Subtract the relay fee from the amount to be transferred.
-        uint256 amountToTransfer = amount - fees.relayFee;
-
-        // Encode the approval call: this allows the Eureka Handler to spend the tokens.
-        bytes memory encodedApproveCall = abi.encodeCall(IERC20.approve, (address(_config.eurekaHandler), amount));
+        amountToTransfer = amount - fees.relayFee;
 
         // Build the TransferParams struct for the transfer.
-        IEurekaHandler.TransferParams memory transferParams = IEurekaHandler.TransferParams({
+        transferParams = IEurekaHandler.TransferParams({
             token: _config.transferToken,
             recipient: _config.recipient,
             sourceClient: _config.sourceClient,
@@ -148,16 +231,5 @@ contract IBCEurekaTransfer is Library {
             timeoutTimestamp: uint64(block.timestamp) + _config.timeout,
             memo: memo
         });
-
-        // Encode the transfer call
-        bytes memory encodedTransferCall =
-            abi.encodeCall(IEurekaHandler.transfer, (amountToTransfer, transferParams, fees));
-
-        // Execute the approval call on the input account.
-        _config.inputAccount.execute(_config.transferToken, 0, encodedApproveCall);
-        // Execute the token transfer call via the Eureka Handler.
-        _config.inputAccount.execute(address(_config.eurekaHandler), 0, encodedTransferCall);
-
-        emit EurekaTransfer(_config.recipient, amountToTransfer);
     }
 }

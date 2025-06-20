@@ -59,6 +59,7 @@ contract IBCEurekaTransferScript is Script {
         // Deploy a new IBCEurekaTransfer contract with fixed amount
         IBCEurekaTransfer.IBCEurekaTransferConfig memory wethConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: tokenAmount,
+            minAmountOut: 0, // This won't be used for standard transfers, so we can set to 0 to take the transfer amount
             transferToken: WETH_ADDR,
             inputAccount: inputAccount,
             recipient: recipient,
@@ -108,6 +109,7 @@ contract IBCEurekaTransferScript is Script {
         vm.startPrank(owner);
         IBCEurekaTransfer.IBCEurekaTransferConfig memory fullBalanceConfig = IBCEurekaTransfer.IBCEurekaTransferConfig({
             amount: 0, // 0 means transfer full balance
+            minAmountOut: 0,
             transferToken: WETH_ADDR,
             inputAccount: inputAccount,
             recipient: recipient,

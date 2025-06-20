@@ -2,7 +2,8 @@ use alloy_sol_types::{SolCall, SolValue};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, StdError, StdResult, Uint256};
 use valence_encoder_utils::libraries::{
-    ibc_eureka_transfer::solidity_types::transferCall, updateConfigCall,
+    ibc_eureka_transfer::solidity_types::{lombardTransferCall, transferCall},
+    updateConfigCall,
 };
 use valence_library_utils::{msg::ExecuteMsg, LibraryAccountType};
 
@@ -20,6 +21,9 @@ pub struct LibraryConfig {
     pub recipient: String,
     /// Amount to transfer. Setting this to 0 will transfer the entire balance.
     pub amount: Uint256,
+    /// Min amount out to receive on the destination domain. Setting this to 0 will take the same value as amount.
+    /// This is only used for Lombard transfers.
+    pub min_amount_out: Uint256,
     /// Address of the Eureka Handler.
     pub eureka_handler_address: String,
     /// The address of the ERC20 token to transfer.
@@ -45,6 +49,8 @@ pub struct Fees {
 pub enum FunctionMsgs {
     /// Message to transfer tokens.
     Transfer { fees: Fees, memo: String },
+    /// Message to lombard transfer tokens.
+    LombardTransfer { fees: Fees, memo: String },
 }
 
 type IBCEurekaTransferConfig = ExecuteMsg<FunctionMsgs, LibraryConfig>;
@@ -60,12 +66,21 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             match function {
                 FunctionMsgs::Transfer { fees, memo } => {
                     let fees = valence_encoder_utils::libraries::ibc_eureka_transfer::solidity_types::Fees {
-                    relayFee: alloy_primitives::U256::from_be_bytes(fees.relay_fee.to_be_bytes()),
-                    relayFeeRecipient: parse_address(&fees.relay_fee_recipient)?,
-                    quoteExpiry: fees.quote_expiry,
-                };
+                                relayFee: alloy_primitives::U256::from_be_bytes(fees.relay_fee.to_be_bytes()),
+                                relayFeeRecipient: parse_address(&fees.relay_fee_recipient)?,
+                                quoteExpiry: fees.quote_expiry,
+                            };
                     let transfer_call = transferCall { fees, memo };
                     Ok(transfer_call.abi_encode())
+                }
+                FunctionMsgs::LombardTransfer { fees, memo } => {
+                    let fees = valence_encoder_utils::libraries::ibc_eureka_transfer::solidity_types::Fees {
+                        relayFee: alloy_primitives::U256::from_be_bytes(fees.relay_fee.to_be_bytes()),
+                        relayFeeRecipient: parse_address(&fees.relay_fee_recipient)?,
+                        quoteExpiry: fees.quote_expiry,
+                    };
+                    let lombard_transfer_call = lombardTransferCall { fees, memo };
+                    Ok(lombard_transfer_call.abi_encode())
                 }
             }
         }
@@ -79,6 +94,7 @@ pub fn encode(msg: &Binary) -> StdResult<Vec<u8>> {
             let config =
                 valence_encoder_utils::libraries::ibc_eureka_transfer::solidity_types::IBCEurekaTransferConfig {
                     amount: alloy_primitives::U256::from_be_bytes(new_config.amount.to_be_bytes()),
+                    minAmountOut: alloy_primitives::U256::from_be_bytes(new_config.min_amount_out.to_be_bytes()),
                     transferToken: transfer_token,
                     inputAccount: input_account,
                     recipient: new_config.recipient,

@@ -3,6 +3,7 @@ use alloy_sol_types::sol;
 sol! {
     struct IBCEurekaTransferConfig {
         uint256 amount;
+        uint256 minAmountOut;
         address transferToken;
         address inputAccount;
         string recipient;
@@ -18,4 +19,6 @@ sol! {
     }
 
     function transfer(Fees calldata fees, string calldata memo) external;
+
+    function lombardTransfer(Fees calldata fees, string calldata memo) external;
 }
