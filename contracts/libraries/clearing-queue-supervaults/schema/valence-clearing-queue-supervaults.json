@@ -141,19 +141,11 @@
           },
           "supervault_addr": {
             "description": "supervaults address",
-            "allOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              }
-            ]
+            "type": "string"
           },
           "supervault_sender": {
             "description": "supervault provider address",
-            "allOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              }
-            ]
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -537,19 +529,11 @@
           },
           "supervault_addr": {
             "description": "supervaults address",
-            "allOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              }
-            ]
+            "type": "string"
           },
           "supervault_sender": {
             "description": "supervault provider address",
-            "allOf": [
-              {
-                "$ref": "#/definitions/LibraryAccountType"
-              }
-            ]
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -935,19 +919,11 @@
             },
             "supervault_addr": {
               "description": "supervaults address",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/LibraryAccountType"
-                }
-              ]
+              "type": "string"
             },
             "supervault_sender": {
               "description": "supervault provider address",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/LibraryAccountType"
-                }
-              ]
+              "type": "string"
             }
           },
           "additionalProperties": false

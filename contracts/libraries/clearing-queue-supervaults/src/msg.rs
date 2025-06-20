@@ -32,9 +32,9 @@ pub struct Config {
 #[cw_serde]
 pub struct SupervaultSettlementInfo {
     /// supervaults address
-    pub supervault_addr: LibraryAccountType,
+    pub supervault_addr: String,
     /// supervault provider address
-    pub supervault_sender: LibraryAccountType,
+    pub supervault_sender: String,
     /// settlement ratio
     pub settlement_ratio: Decimal,
 }
@@ -158,8 +158,8 @@ fn validate_supervaults_settlement_info(
     let mut check_duplicated = HashSet::new();
 
     for info in supervaults_settlement_info {
-        let supervault_addr = info.supervault_addr.to_addr(api)?;
-        let supervault_sender = info.supervault_sender.to_addr(api)?;
+        let supervault_addr = api.addr_validate(&info.supervault_addr)?;
+        let supervault_sender = api.addr_validate(&info.supervault_sender)?;
         DecimalRange::new(Decimal::zero(), Decimal::one()).contains(info.settlement_ratio)?;
         ensure!(
             check_duplicated.insert(supervault_addr.to_string()),
