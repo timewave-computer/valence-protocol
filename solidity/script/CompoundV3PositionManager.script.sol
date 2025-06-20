@@ -2,14 +2,14 @@
 pragma solidity ^0.8.28;
 
 import {Test, console} from "forge-std/src/Test.sol";
-import {CompoundV3PositionManager} from "../../../src/libraries/CompoundV3PositionManager.sol";
+import {CompoundV3PositionManager} from "../src/libraries/CompoundV3PositionManager.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
-import {BaseAccount} from "../../../src/accounts/BaseAccount.sol";
-import {Processor} from "../../../src/processor/Processor.sol";
+import {BaseAccount} from "../src/accounts/BaseAccount.sol";
+import {Processor} from "../src/processor/Processor.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {CometMainInterface} from "../../../src/libraries/interfaces/compoundV3/CometMainInterface.sol";
+import {CometMainInterface} from "../src/libraries/interfaces/compoundV3/CometMainInterface.sol";
 
-contract CompoundV3PositionManagerIntegrationTest is Test {
+contract CompoundV3PositionManagerScript is Test {
     // Contract under test
     CompoundV3PositionManager public compoundV3PositionManager;
 
@@ -26,9 +26,9 @@ contract CompoundV3PositionManagerIntegrationTest is Test {
     address public owner;
     address public processor;
 
-    // Setup function to initialize test environment
-    function setUp() public {
-        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 22638149); // Adjust the block number as needed
+    // run function that tests all functionalities
+    function run() public {
+        vm.createSelectFork("https://mainnet.gateway.tenderly.co", 22638149); // Adjust the block number as needed
         // Setup test addresses
         owner = makeAddr("owner");
         _setUpSystem();
@@ -56,60 +56,11 @@ contract CompoundV3PositionManagerIntegrationTest is Test {
 
         _fetchStates();
         _label();
+
+        test_GivenPositionIsCreated_WhenWithdrawAfterOneWeek_ThenWithdrawWithInterest();
     }
 
-    function test_GivenZeroAmount_WhenSupply_ThenBalancesShouldBeUpdatedCorrectly() public {
-        // given
-        uint256 dealAmount = 1000e6; // 1000 USDC
-        deal(address(baseToken), address(inputAccount), dealAmount); // 1000 USDC
-
-        // when
-        vm.prank(processor);
-        compoundV3PositionManager.supply(0);
-
-        // then
-        // Check that the input account's USDC balance has decreased
-        uint256 inputBalance = baseToken.balanceOf(address(inputAccount));
-        assertEq(inputBalance, 0, "Input account should have 0 USDC after supply");
-        // Check that the market proxy address has received the USDC
-        uint256 marketBalance = baseToken.balanceOf(address(comet));
-        assertEq(
-            marketBalance - balanceOfCometBefore, dealAmount, "Market proxy should have received USDC after supply"
-        );
-        // Check the cusd balance is approximately equal to the supplied amount
-        uint256 cusdBalance = comet.balanceOf(address(inputAccount));
-        assertApproxEqAbs(cusdBalance, dealAmount, 2, "Input account should have approximately 500 cUSDC after supply");
-    }
-
-    function test_GivenExactAmount_WhenSupplyAmount_ThenBalancesShouldBeUpdatedCorrectly() public {
-        // given
-        uint256 dealAmount = 500e6; // 500 USDC
-        uint256 supplyAmount = 400e6; // 500 USDC
-        deal(address(baseToken), address(inputAccount), dealAmount); // Give input account 500 USDC
-
-        // when
-        vm.prank(processor);
-        compoundV3PositionManager.supply(supplyAmount);
-
-        // then
-        // Check that the input account's USDC balance has decreased by the supplied amount
-        uint256 inputBalance = baseToken.balanceOf(address(inputAccount));
-        assertEq(inputBalance, 100e6, "Input account should have 100 USDC after supply");
-        // Check that the market proxy address has received the supplied amount of USDC
-        uint256 marketBalance = baseToken.balanceOf(address(comet));
-        assertEq(
-            marketBalance - balanceOfCometBefore,
-            supplyAmount,
-            "Market proxy should have received exact USDC after supply"
-        );
-        // Check the cusd balance is approximately equal to the supplied amount
-        uint256 cusdBalance = comet.balanceOf(address(inputAccount));
-        assertApproxEqAbs(
-            cusdBalance, supplyAmount, 2, "Input account should have approximately 400 cUSDC after supply"
-        );
-    }
-
-    function test_GivenPositionIsCreated_WhenWithdrawAfterOneWeek_ThenWithdrawWithInterest() public {
+    function test_GivenPositionIsCreated_WhenWithdrawAfterOneWeek_ThenWithdrawWithInterest() internal {
         // given
         uint256 dealAmount = 1000e6; // 1000 USDC
         deal(address(baseToken), address(inputAccount), dealAmount); // 1000 USDC
