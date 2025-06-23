@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Balancer V2 Swap - Valence Protocol Documentation</title>
+        <title>Compound V3 Position Manager - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -171,84 +171,83 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-balancerv2swap-library"><a class="header" href="#valence-balancerv2swap-library">Valence BalancerV2Swap Library</a></h1>
-<p>The <strong>Valence BalancerV2Swap</strong> library enables <strong>token swaps</strong> from an <strong>input account</strong> to an <strong>output account</strong> using the <a href="https://docs-v2.balancer.fi/">Balancer V2 protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the BalancerV2Swap library.</p>
-<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+                        <h1 id="valence-compound-v3-position-manager-library"><a class="header" href="#valence-compound-v3-position-manager-library">Valence Compound V3 Position Manager library</a></h1>
+<p>The <strong>Valence Compound V3 Position Manager</strong> library allows <strong>management of liquidity positions</strong> using an <strong>input account</strong> and an <strong>output account</strong> through the <a href="https://docs.compound.finance/">Compound V3 Protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Compound V3 Position Manager library.</p>
+<h2 id="high-level-flows"><a class="header" href="#high-level-flows">High-level flows</a></h2>
 <pre class="mermaid">---
-title: BalancerV2Swap Library
+title: Compound V3 Position Manager Supply
 ---
-graph LR
+flowchart LR
+    P[Processor]
+    PM[Compound V3
+    Position Manager Library]
+    IA((Input Account))
+    MP((Compound
+    Market Proxy))
+
+    P -- 1/supply(amount) --&gt; PM
+    PM -- 2/Query balances --&gt; IA
+    PM -- 3/Approve tokens and call supply --&gt; IA
+    IA -- 4/Supply --&gt; MP
+    MP -- 5/Return collateral tokens --&gt; IA
+</pre>
+<pre class="mermaid">---
+title: Compound V3 Position Manager Withdraw
+---
+flowchart LR
+    P[Processor]
+    PM[Compound V3
+    Position Manager Library]
     IA((Input Account))
     OA((Output Account))
-    BV((Balancer Vault))
-    P[Processor]
-    S[BalancerV2Swap Library]
+    MP((Compound
+    Market Proxy))
 
-    subgraph EVM[ EVM Domain ]
-        P -- 1/swap or multiSwap --&gt; S
-        S -- 2/Query balances --&gt; IA
-        S -- 3/Do approve --&gt; IA
-        IA -- 4/ERC-20 approve --&gt; BV
-        S -- 5/Execute swap --&gt; IA
-        IA -- 6/Call swap/batchSwap --&gt; BV
-        BV -- 7/Transfer output tokens --&gt; OA
-    end
+    P -- 1/withdraw(amount) --&gt; PM
+    PM -- 2/Call WithdrawTo --&gt; IA
+    IA -- 3/WithdrawTo(output
+     account) --&gt; MP
+    MP -- 4/Burn collateral tokens --&gt; IA
+    MP -- 5/Send withdrawn tokens --&gt; OA
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>swap</strong></td><td>poolId, tokenIn, tokenOut, userData, amountIn, minAmountOut, timeout</td><td>Execute a single token swap through a Balancer V2 pool.</td></tr>
-<tr><td><strong>multiSwap</strong></td><td>poolIds, tokens, userDataArray, amountIn, minAmountOut, timeout</td><td>Execute a multi-hop swap through multiple Balancer V2 pools.</td></tr>
+<tr><td><strong>supply</strong></td><td>amount</td><td>Supplies tokens from the <strong>input account</strong> to the Compound V3 protocol. The <strong>input account</strong> will receive the corresponding collateral tokens. If amount is 0 the entire balance will be used.</td></tr>
+<tr><td><strong>withdraw</strong></td><td>amount</td><td>Withdraws previously supplied tokens from Compound V3 and sends them to the <strong>output account</strong>. Passing 0 will withdraw the entire balance.</td></tr>
+<tr><td><strong>supplyCollateral</strong></td><td>asset, amount</td><td>Supplies the token specified in <strong>asset</strong>. Works the same way as <strong>supply</strong> but instead of supplying the token specified in the library config, it supplies the token passed as a parameter</td></tr>
+<tr><td><strong>withdrawCollateral</strong></td><td>asset, amount</td><td>Withdraw the token specified in <strong>asset</strong>. Works the same way as <strong>withdraw</strong> but instead of withdrawing the token specified in the library config, it withdraws the token passed as a parameter</td></tr>
 </tbody></table>
 </div>
-<h2 id="single-swap-parameters"><a class="header" href="#single-swap-parameters">Single Swap Parameters</a></h2>
-<p>The <code>swap</code> function requires the following parameters:</p>
-<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>poolId</strong></td><td>bytes32</td><td>The ID of the Balancer pool to use for the swap</td></tr>
-<tr><td><strong>tokenIn</strong></td><td>address</td><td>Address of the token to swap from</td></tr>
-<tr><td><strong>tokenOut</strong></td><td>address</td><td>Address of the token to swap to</td></tr>
-<tr><td><strong>userData</strong></td><td>bytes</td><td>Additional data for specialized pools (usually empty bytes)</td></tr>
-<tr><td><strong>amountIn</strong></td><td>uint256</td><td>Amount of tokens to swap. If set to 0, all available tokens in the <strong>input_account</strong> will be swapped</td></tr>
-<tr><td><strong>minAmountOut</strong></td><td>uint256</td><td>Minimum amount of output tokens to receive (slippage tolerance). If set to 0 it means no slippage protection is applied.</td></tr>
-<tr><td><strong>timeout</strong></td><td>uint256</td><td>How long the transaction is valid for (in seconds)</td></tr>
-</tbody></table>
-</div>
-<h2 id="multi-hop-swap-parameters"><a class="header" href="#multi-hop-swap-parameters">Multi-Hop Swap Parameters</a></h2>
-<p>The <code>multiSwap</code> function enables complex trading routes through multiple pools:</p>
-<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>poolIds</strong></td><td>bytes32[]</td><td>Array of pool IDs to use for each swap step (in sequence)</td></tr>
-<tr><td><strong>tokens</strong></td><td>address[]</td><td>Array of all token addresses involved in the swap path (in sequence), needs to contain exactly 1 more element than the poolIds array</td></tr>
-<tr><td><strong>userDataArray</strong></td><td>bytes[]</td><td>Additional data for specialized pools (one entry per pool). This data can be empty for all current Balancer pools but is reserved for possible future pool logic. Must be the same length as the poolIds array</td></tr>
-<tr><td><strong>amountIn</strong></td><td>uint256</td><td>Amount of tokens to swap. If set to 0, all available tokens in the <strong>input_account</strong> will be swapped</td></tr>
-<tr><td><strong>minAmountOut</strong></td><td>uint256</td><td>Minimum amount of output tokens to receive (slippage tolerance). If set to 0 it means no slippage protection is applied.</td></tr>
-<tr><td><strong>timeout</strong></td><td>uint256</td><td>How long the transaction is valid for (in seconds)</td></tr>
-</tbody></table>
-</div>
-<p>For more information on how swaps work on Balancer V2, please refer to the <a href="https://docs-v2.balancer.fi/reference/swaps/single-swap.html">Single Swap</a> and <a href="https://docs-v2.balancer.fi/reference/swaps/batch-swaps.html">Batch Swap</a> documentation.</p>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>The library is configured on deployment using the <code>BalancerV2SwapConfig</code> type.</p>
-<pre><code class="language-solidity">/**
- * @title BalancerV2SwapConfig
- * @notice Configuration for Balancer V2 swaps
- * @param inputAccount The account from which tokens will be taken
- * @param outputAccount The account to which result tokens will be sent
- * @param vaultAddress Address of the Balancer V2 Vault
- */
-struct BalancerV2SwapConfig {
-    BaseAccount inputAccount;
-    BaseAccount outputAccount;
-    address vaultAddress;
-}
+<p>The library is configured on deployment using the <code>CompoundV3PositionManagerConfig</code> type.</p>
+<pre><code class="language-solidity">    /**
+     * @title CompoundV3PositionManagerConfig
+     * @notice Configuration struct for CompoundV3 lending operations
+     * @dev Used to define parameters for interacting with CompoundV3 protocol
+     * @param inputAccount The Base Account from which transactions will be initiated
+     * @param outputAccount The Base Account that will receive withdrawals.
+     * @param baseAsset Address of the base token of the CompoundV3 market
+     * @param marketProxyAddress Address of the CompoundV3 market proxy
+     */
+    struct CompoundV3PositionManagerConfig {
+        BaseAccount inputAccount;
+        BaseAccount outputAccount;
+        address baseAsset;
+        address marketProxyAddress;
+    }
 </code></pre>
+<h2 id="acknowledgments"><a class="header" href="#acknowledgments">Acknowledgments</a></h2>
+<p>Thanks to Mujtaba, Hareem, and Ayush from <a href="https://www.orbitearn.com/">Orbit</a> for this contribution.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/evm/compound_v3_position_manager.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/evm/pancakeswap_v3_position_manager.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/evm/splitter.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/evm/balancer_v2_swap.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -258,11 +257,11 @@ struct BalancerV2SwapConfig {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/evm/compound_v3_position_manager.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/evm/pancakeswap_v3_position_manager.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/evm/splitter.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/evm/balancer_v2_swap.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

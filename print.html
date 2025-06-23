@@ -3832,6 +3832,73 @@ struct PancakeSwapV3PositionManagerConfig {
     uint256 timeout;
 }
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-compound-v3-position-manager-library"><a class="header" href="#valence-compound-v3-position-manager-library">Valence Compound V3 Position Manager library</a></h1>
+<p>The <strong>Valence Compound V3 Position Manager</strong> library allows <strong>management of liquidity positions</strong> using an <strong>input account</strong> and an <strong>output account</strong> through the <a href="https://docs.compound.finance/">Compound V3 Protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the Compound V3 Position Manager library.</p>
+<h2 id="high-level-flows-2"><a class="header" href="#high-level-flows-2">High-level flows</a></h2>
+<pre class="mermaid">---
+title: Compound V3 Position Manager Supply
+---
+flowchart LR
+    P[Processor]
+    PM[Compound V3
+    Position Manager Library]
+    IA((Input Account))
+    MP((Compound
+    Market Proxy))
+
+    P -- 1/supply(amount) --&gt; PM
+    PM -- 2/Query balances --&gt; IA
+    PM -- 3/Approve tokens and call supply --&gt; IA
+    IA -- 4/Supply --&gt; MP
+    MP -- 5/Return collateral tokens --&gt; IA
+</pre>
+<pre class="mermaid">---
+title: Compound V3 Position Manager Withdraw
+---
+flowchart LR
+    P[Processor]
+    PM[Compound V3
+    Position Manager Library]
+    IA((Input Account))
+    OA((Output Account))
+    MP((Compound
+    Market Proxy))
+
+    P -- 1/withdraw(amount) --&gt; PM
+    PM -- 2/Call WithdrawTo --&gt; IA
+    IA -- 3/WithdrawTo(output
+     account) --&gt; MP
+    MP -- 4/Burn collateral tokens --&gt; IA
+    MP -- 5/Send withdrawn tokens --&gt; OA
+</pre>
+<h2 id="functions-27"><a class="header" href="#functions-27">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>supply</strong></td><td>amount</td><td>Supplies tokens from the <strong>input account</strong> to the Compound V3 protocol. The <strong>input account</strong> will receive the corresponding collateral tokens. If amount is 0 the entire balance will be used.</td></tr>
+<tr><td><strong>withdraw</strong></td><td>amount</td><td>Withdraws previously supplied tokens from Compound V3 and sends them to the <strong>output account</strong>. Passing 0 will withdraw the entire balance.</td></tr>
+<tr><td><strong>supplyCollateral</strong></td><td>asset, amount</td><td>Supplies the token specified in <strong>asset</strong>. Works the same way as <strong>supply</strong> but instead of supplying the token specified in the library config, it supplies the token passed as a parameter</td></tr>
+<tr><td><strong>withdrawCollateral</strong></td><td>asset, amount</td><td>Withdraw the token specified in <strong>asset</strong>. Works the same way as <strong>withdraw</strong> but instead of withdrawing the token specified in the library config, it withdraws the token passed as a parameter</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration-27"><a class="header" href="#configuration-27">Configuration</a></h2>
+<p>The library is configured on deployment using the <code>CompoundV3PositionManagerConfig</code> type.</p>
+<pre><code class="language-solidity">    /**
+     * @title CompoundV3PositionManagerConfig
+     * @notice Configuration struct for CompoundV3 lending operations
+     * @dev Used to define parameters for interacting with CompoundV3 protocol
+     * @param inputAccount The Base Account from which transactions will be initiated
+     * @param outputAccount The Base Account that will receive withdrawals.
+     * @param baseAsset Address of the base token of the CompoundV3 market
+     * @param marketProxyAddress Address of the CompoundV3 market proxy
+     */
+    struct CompoundV3PositionManagerConfig {
+        BaseAccount inputAccount;
+        BaseAccount outputAccount;
+        address baseAsset;
+        address marketProxyAddress;
+    }
+</code></pre>
+<h2 id="acknowledgments"><a class="header" href="#acknowledgments">Acknowledgments</a></h2>
+<p>Thanks to Mujtaba, Hareem, and Ayush from <a href="https://www.orbitearn.com/">Orbit</a> for this contribution.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="valence-balancerv2swap-library"><a class="header" href="#valence-balancerv2swap-library">Valence BalancerV2Swap Library</a></h1>
 <p>The <strong>Valence BalancerV2Swap</strong> library enables <strong>token swaps</strong> from an <strong>input account</strong> to an <strong>output account</strong> using the <a href="https://docs-v2.balancer.fi/">Balancer V2 protocol</a>. It is typically used as part of a <strong>Valence Program</strong>. In that context, a <strong>Processor</strong> contract will be the main contract interacting with the BalancerV2Swap library.</p>
 <h2 id="high-level-flow-25"><a class="header" href="#high-level-flow-25">High-level flow</a></h2>
@@ -3855,7 +3922,7 @@ graph LR
         BV -- 7/Transfer output tokens --&gt; OA
     end
 </pre>
-<h2 id="functions-27"><a class="header" href="#functions-27">Functions</a></h2>
+<h2 id="functions-28"><a class="header" href="#functions-28">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>swap</strong></td><td>poolId, tokenIn, tokenOut, userData, amountIn, minAmountOut, timeout</td><td>Execute a single token swap through a Balancer V2 pool.</td></tr>
 <tr><td><strong>multiSwap</strong></td><td>poolIds, tokens, userDataArray, amountIn, minAmountOut, timeout</td><td>Execute a multi-hop swap through multiple Balancer V2 pools.</td></tr>
@@ -3885,7 +3952,7 @@ graph LR
 </tbody></table>
 </div>
 <p>For more information on how swaps work on Balancer V2, please refer to the <a href="https://docs-v2.balancer.fi/reference/swaps/single-swap.html">Single Swap</a> and <a href="https://docs-v2.balancer.fi/reference/swaps/batch-swaps.html">Batch Swap</a> documentation.</p>
-<h2 id="configuration-27"><a class="header" href="#configuration-27">Configuration</a></h2>
+<h2 id="configuration-28"><a class="header" href="#configuration-28">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>BalancerV2SwapConfig</code> type.</p>
 <pre><code class="language-solidity">/**
  * @title BalancerV2SwapConfig
@@ -3926,12 +3993,12 @@ graph LR
   IA -- 5/Transfer funds --&gt; OA1
   IA -- 5'/Transfer funds --&gt; OA2
 </pre>
-<h2 id="functions-28"><a class="header" href="#functions-28">Functions</a></h2>
+<h2 id="functions-29"><a class="header" href="#functions-29">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>split</strong></td><td>-</td><td>Splits funds from the configured input account to the output accounts according to the configured split configurations for each token.</td></tr>
 </tbody></table>
 </div>
-<h2 id="configuration-28"><a class="header" href="#configuration-28">Configuration</a></h2>
+<h2 id="configuration-29"><a class="header" href="#configuration-29">Configuration</a></h2>
 <p>The library is configured on deployment using the <code>SplitterConfig</code> type.</p>
 <pre><code class="language-solidity">    /**
      * @title SplitterConfig
@@ -4023,7 +4090,7 @@ graph LR
 <li><strong>ERC20 Tokens</strong>: Use the token contract address</li>
 <li><strong>Native ETH</strong>: Use <code>address(0)</code> as the token address</li>
 </ul>
-<h2 id="acknowledgments"><a class="header" href="#acknowledgments">Acknowledgments</a></h2>
+<h2 id="acknowledgments-1"><a class="header" href="#acknowledgments-1">Acknowledgments</a></h2>
 <p>Thanks to Mujtaba, Hareem, and Ayush from <a href="https://www.orbitearn.com/">Orbit</a> for this contribution.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="middleware"><a class="header" href="#middleware">Middleware</a></h1>
 <p>This section contains a description of the Valence Protocol middleware design.</p>
