@@ -41,6 +41,6 @@ valence-verification-gateway = { workspace = true }
 serde_json                   = "1.0.140"
 base64                       = "0.22.1"
 bincode                      = "1.3.3"
-sp1-sdk                      = { version = "4.2.0", default-features = false }
-sp1-verifier                 = "4.2.0"
+sp1-sdk                      = { version = "5.0.0", default-features = false }
+sp1-verifier                 = "5.0.0"
 valence-coprocessor          = { git = "https://github.com/timewave-computer/valence-coprocessor.git", tag = "v0.1.11", default-features = false }
