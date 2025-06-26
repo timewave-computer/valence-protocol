@@ -20,4 +20,4 @@ cw-storage-plus = { workspace = true }
 cw-ownable      = { workspace = true }
 cw2             = { workspace = true }
 thiserror       = { workspace = true }
-sp1-verifier    = "4.2.0"
+sp1-verifier    = "5.0.0"
