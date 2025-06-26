@@ -784,7 +784,6 @@ fn pause_and_resume_processor_using_zk_authorizations() {
     let sp1_vk: SP1VerifyingKey = bincode::deserialize(&decoded_vk).unwrap();
     let proof_pause = valence_coprocessor::Proof::try_from_base64(full_proof_pause).unwrap();
     let proof_resume = valence_coprocessor::Proof::try_from_base64(full_proof_resume).unwrap();
-    println!("proof_pause: {:?}", proof_pause);
 
     // Sanity check that verification works
     let (proof_pause_bytes, proof_pause_inputs) = proof_pause.decode().unwrap();
