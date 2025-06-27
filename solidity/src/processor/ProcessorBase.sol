@@ -142,7 +142,8 @@ abstract contract ProcessorBase is Ownable {
                 executedCount++;
             } else {
                 succeeded = false;
-                errorData = err;
+                // Forces the compiler to properly handle the memory allocation for err during compilation.
+                errorData = err.length > 0 ? err : bytes("Contract call failed without error data");
                 break;
             }
         }
