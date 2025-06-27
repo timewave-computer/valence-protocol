@@ -199,9 +199,13 @@ abstract contract ProcessorBase is Ownable {
              */
             (bool success, bytes memory err) = targetContract.call(messages[i]);
             if (!success) {
-                // Forward the original error data
-                assembly {
-                    revert(add(err, 32), mload(err))
+                // Forces the compiler to properly handle the memory allocation for err during compilation.
+                if (err.length > 0) {
+                    assembly {
+                        revert(add(32, err), mload(err))
+                    }
+                } else {
+                    revert("Contract call failed without error data");
                 }
             }
         }
