@@ -5,7 +5,7 @@ use alloy_sol_types::SolValue;
 use cosmwasm_std::{Binary, StdError, StdResult};
 use libraries::{
     aave_position_manager, balancer_v2_swap, cctp_transfer, forwarder, ibc_eureka_transfer,
-    pancake_v3_position_manager, standard_bridge_transfer, stargate_transfer,
+    pancake_v3_position_manager, standard_bridge_transfer, stargate_transfer, union_transfer,
 };
 use strum::EnumString;
 use valence_authorization_utils::authorization::Subroutine;
@@ -31,6 +31,7 @@ pub enum EVMLibrary {
     BalancerV2Swap,
     StandardBridgeTransfer,
     IbcEurekaTransfer,
+    UnionTransfer,
     PancakeV3PositionManager,
 }
 
@@ -65,6 +66,7 @@ impl EVMLibrary {
             EVMLibrary::BalancerV2Swap => balancer_v2_swap::encode(msg),
             EVMLibrary::StandardBridgeTransfer => standard_bridge_transfer::encode(msg),
             EVMLibrary::IbcEurekaTransfer => ibc_eureka_transfer::encode(msg),
+            EVMLibrary::UnionTransfer => union_transfer::encode(msg),
             EVMLibrary::PancakeV3PositionManager => pancake_v3_position_manager::encode(msg),
         }
     }
