@@ -29,7 +29,7 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
     }
 
     /**
-     * @notice Initializes the verification gateway replacing the constructor with an inizializer with the verifier address
+     * @notice Initializes the verification gateway replacing the constructor with an initializer with the verifier address
      * @param _verifier Address of the verification contract
      */
     function initialize(address _verifier) external initializer {
