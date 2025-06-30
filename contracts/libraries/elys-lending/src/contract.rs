@@ -176,65 +176,34 @@ pub fn process_function(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut<ElysQuery>, _env: Env, msg: Reply) -> Result<Response, LibraryError> {
-    match msg.id {
-        WITHDRAW_REPLY_ID => {
-            // Extract configuration from the reply payload
-            let cfg: Config = valence_account_utils::msg::parse_valence_payload(&msg.result)?;
+    let fn_name = match msg.id {
+        WITHDRAW_REPLY_ID => "withdraw",
+        CLAIM_REPLY_ID => "claim_rewards",
+        _ => return Err(LibraryError::Std(StdError::generic_err("unknown reply id"))),
+    };
 
-            // Query the pool to get the deposit denom
-            let pool = valence_lending_utils::elys::query_pool(&deps, cfg.pool_id.u64())?;
+    // Extract configuration from the reply payload
+    let cfg: Config = valence_account_utils::msg::parse_valence_payload(&msg.result)?;
 
-            // Query account balance of input account after withdrawal
-            let balance = deps
-                .querier
-                .query_balance(cfg.input_addr.clone(), pool.deposit_denom.clone())?;
+    // Query account balances of input account
+    #[allow(deprecated)]
+    let balances = deps
+        .querier
+        .query_all_balances(cfg.input_addr.clone())
+        .unwrap();
 
-            if balance.amount.is_zero() {
-                return Err(LibraryError::ExecutionError(
-                    "No funds to withdraw".to_string(),
-                ));
-            }
+    // Transfer the funds to the output address
+    let send_msg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+        to_address: cfg.output_addr.to_string(),
+        amount: balances.clone(),
+    });
 
-            // Transfer the withdrawn funds to the output address
-            let send_msg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-                to_address: cfg.output_addr.to_string(),
-                amount: vec![balance.clone()],
-            });
+    let execute_msg = execute_on_behalf_of(vec![send_msg], &cfg.input_addr)?;
 
-            let execute_msg = execute_on_behalf_of(vec![send_msg], &cfg.input_addr)?;
-
-            Ok(Response::new()
-                .add_message(execute_msg)
-                .add_attribute("method", "withdraw")
-                .add_attribute("amount", balance.to_string())
-                .add_attribute("output_addr", cfg.output_addr.to_string()))
-        }
-        CLAIM_REPLY_ID => {
-            // Extract configuration from the reply payload
-            let cfg: Config = valence_account_utils::msg::parse_valence_payload(&msg.result)?;
-
-            // Query account balances of input account
-            #[allow(deprecated)]
-            let balances = deps
-                .querier
-                .query_all_balances(cfg.input_addr.clone())
-                .unwrap();
-
-            // Transfer the claimed rewards to the output address
-            let send_msg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-                to_address: cfg.output_addr.to_string(),
-                amount: balances.clone(),
-            });
-
-            let execute_msg = execute_on_behalf_of(vec![send_msg], &cfg.input_addr)?;
-
-            Ok(Response::new()
-                .add_message(execute_msg)
-                .add_attribute("method", "claim_rewards")
-                .add_attribute("output_addr", cfg.output_addr.to_string()))
-        }
-        _ => Err(LibraryError::Std(StdError::generic_err("unknown reply id"))),
-    }
+    Ok(Response::new()
+        .add_message(execute_msg)
+        .add_attribute("method", fn_name)
+        .add_attribute("output_addr", cfg.output_addr.to_string()))
 }
 
 pub fn update_config(
