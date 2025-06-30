@@ -43,8 +43,7 @@ contract AuthorizationZKTest is Test {
         // Deploy verification gateway
         verificationGateway = new SP1VerificationGateway();
 
-        bytes memory initializeData =
-            abi.encodeWithSelector(verificationGateway.initialize.selector, coprocessorRoot, verifier);
+        bytes memory initializeData = abi.encodeWithSelector(verificationGateway.initialize.selector, verifier);
 
         // Deploy the proxy and initialize it
         ERC1967Proxy proxy = new ERC1967Proxy(address(verificationGateway), initializeData);
