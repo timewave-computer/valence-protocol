@@ -123,6 +123,12 @@ impl LibraryConfigUpdate {
     }
 }
 
+/// Ensures that the provided pool address matches the expected asset configuration.
+/// 
+/// # Asset Ordering
+/// The assets must be ordered such that:
+/// - `assets.asset1` corresponds to the pool's `token_0`
+/// - `assets.asset2` corresponds to the pool's `token_1`
 fn ensure_correct_pool(
     pool_addr: String,
     assets: &AssetData,

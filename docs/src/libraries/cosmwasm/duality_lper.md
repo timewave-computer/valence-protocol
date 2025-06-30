@@ -52,6 +52,9 @@ pub struct LiquidityProviderConfig {
     /// Address of the pool we are going to provide liquidity for
     pub pool_addr: String,
     /// Denoms of both assets we are going to provide liquidity for
+    /// The assets must be ordered such that:
+    /// - `assets.asset1` corresponds to the pool's `token_0`
+    /// - `assets.asset2` corresponds to the pool's `token_1`
     pub asset_data: AssetData,
 }
 ```
