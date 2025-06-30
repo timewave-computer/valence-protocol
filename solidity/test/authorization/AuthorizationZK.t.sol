@@ -45,7 +45,7 @@ contract AuthorizationZKTest is Test {
 
         bytes32 domainVK = bytes32(uint256(0xdeadbeef));
         bytes memory initializeData =
-            abi.encodeWithSelector(verificationGateway.initialize.selector, coprocessorRoot, verifier, domainVK);
+            abi.encodeWithSelector(verificationGateway.initialize.selector, verifier, domainVK);
 
         // Deploy the proxy and initialize it
         ERC1967Proxy proxy = new ERC1967Proxy(address(verificationGateway), initializeData);

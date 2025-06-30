@@ -11,9 +11,6 @@ import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Ini
  * This contract provides the foundation for verifying proofs against registered verification keys.
  */
 abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPSUpgradeable {
-    /// @notice Root hash of the ZK coprocessor
-    bytes32 public coprocessorRoot;
-
     /// @notice Generic verifier address that will be specialized in derived contracts
     address public verifier;
 
@@ -35,15 +32,13 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
     }
 
     /**
-     * @notice Initializes the verification gateway replcaing the constructor with a coprocessor root and verifier address
-     * @param _coprocessorRoot The root hash of the coprocessor
+     * @notice Initializes the verification gateway replacing the constructor with an initializer with the verifier address
      * @param _verifier Address of the verification contract
      * @param _domainVK The domain verification key that is going to be used for this verification gateway
      */
-    function initialize(bytes32 _coprocessorRoot, address _verifier, bytes32 _domainVK) external initializer {
+    function initialize(address _verifier, bytes32 _domainVK) external initializer {
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
-        coprocessorRoot = _coprocessorRoot;
         require(_verifier != address(0), "Verifier cannot be zero address");
         verifier = _verifier;
         require(_domainVK != bytes32(0), "Domain VK cannot be zero");
