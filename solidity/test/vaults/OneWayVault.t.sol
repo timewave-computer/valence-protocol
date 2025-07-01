@@ -849,7 +849,7 @@ contract OneWayVaultTest is Test {
 
         // Warping just before the min delay should also fail
         vm.warp(block.timestamp + minRateUpdateDelay - 1 seconds);
-        // Now update should succeed
+        // Update should still fail
         vm.prank(strategist);
         vm.expectRevert("Minimum rate update delay not passed");
         vault.update(initialRate * 2);
