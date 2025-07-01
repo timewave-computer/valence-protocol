@@ -128,7 +128,10 @@ contract OneWayVault is
      * @param depositAccount Account where deposits are held
      * @param strategist Address of the vault strategist
      * @param depositFeeBps Fee charged on deposits in basis points (1 BPS = 0.01%)
-     * @param withdrawRateBps Fee charged on withdrawals in basis points (1 BPS = 0.01%)
+     * @param withdrawFeeBps Fee charged on withdrawals in basis points (1 BPS = 0.01%)
+     * @param maxRateIncrementBps Maximum allowed increase in redemption rate per update (in basis points)
+     * @param maxRateDecrementBps Maximum allowed decrease in redemption rate per update (in basis points)
+     * @param minRateUpdateDelay Minimum time required between redemption rate updates (in seconds)
      * @param maxRateUpdateDelay Maximum time allowed between redemption rate updates (in seconds) before vault automatically pauses
      * @param depositCap Maximum assets that can be deposited (0 means no cap)
      * @param feeDistribution Configuration for fee distribution between platform and strategist
@@ -137,7 +140,10 @@ contract OneWayVault is
         BaseAccount depositAccount;
         address strategist;
         uint32 depositFeeBps;
-        uint32 withdrawRateBps;
+        uint32 withdrawFeeBps;
+        uint32 maxRateIncrementBps;
+        uint32 maxRateDecrementBps;
+        uint64 minRateUpdateDelay;
         uint64 maxRateUpdateDelay;
         uint256 depositCap;
         FeeDistributionConfig feeDistribution;
@@ -297,12 +303,20 @@ contract OneWayVault is
             revert("Deposit fee cannot exceed 100%");
         }
 
-        if (decodedConfig.withdrawRateBps > BASIS_POINTS) {
+        if (decodedConfig.withdrawFeeBps > BASIS_POINTS) {
             revert("Withdraw fee cannot exceed 100%");
+        }
+
+        if (decodedConfig.maxRateDecrementBps > BASIS_POINTS) {
+            revert("Max rate decrement cannot exceed 100%");
         }
 
         if (decodedConfig.maxRateUpdateDelay == 0) {
             revert("Max rate update delay cannot be zero");
+        }
+
+        if (decodedConfig.minRateUpdateDelay > decodedConfig.maxRateUpdateDelay) {
+            revert("Minimum update delay cannot exceed maximum update delay");
         }
 
         if (decodedConfig.feeDistribution.strategistRatioBps > BASIS_POINTS) {
@@ -436,6 +450,22 @@ contract OneWayVault is
 
         OneWayVaultConfig memory _config = config;
 
+        // Check that enough time has passed since last update
+        if (uint64(block.timestamp) - lastRateUpdateTimestamp < _config.minRateUpdateDelay) {
+            revert("Minimum rate update delay not passed");
+        }
+
+        // Check that the new rate is within allowed increment/decrement limits
+        if (newRate > redemptionRate) {
+            // Rate increase
+            uint256 maxIncrement = (redemptionRate * config.maxRateIncrementBps) / BASIS_POINTS;
+            require(newRate - redemptionRate <= maxIncrement, "Rate increase exceeds maximum allowed increment");
+        } else if (newRate < redemptionRate) {
+            // Rate decrease
+            uint256 maxDecrement = (redemptionRate * config.maxRateDecrementBps) / BASIS_POINTS;
+            require(redemptionRate - newRate <= maxDecrement, "Rate decrease exceeds maximum allowed decrement");
+        }
+
         // Distribute accumulated fees
         _distributeFees(_config.feeDistribution);
 
@@ -539,7 +569,7 @@ contract OneWayVault is
      * @return The withdrawal fee amount in the same decimals as the asset
      */
     function calculateWithdrawalFee(uint256 assets) public view returns (uint256) {
-        uint32 feeBps = config.withdrawRateBps;
+        uint32 feeBps = config.withdrawFeeBps;
         if (feeBps == 0) return 0;
 
         uint256 fee = assets.mulDiv(feeBps, BASIS_POINTS, Math.Rounding.Ceil);

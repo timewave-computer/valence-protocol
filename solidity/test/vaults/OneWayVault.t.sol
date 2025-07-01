@@ -25,11 +25,14 @@ contract OneWayVaultTest is Test {
     // Config constants
     uint32 constant BASIS_POINTS = 10000;
     uint32 depositFeeBps = 100; // 1%
-    uint32 withdrawRateBps = 50; // 0.5%
+    uint32 withdrawFeeBps = 50; // 0.5%
     uint32 strategistRatioBps = 5000; // 50%
     uint128 depositCap = 1_000_000 * 10 ** 18; // 1 million tokens
     uint256 initialRate = 10 ** 18; // 1:1 initial rate
     uint64 maxRateUpdateDelay = 1 days;
+    uint64 minRateUpdateDelay = 1 hours;
+    uint32 maxRateIncrementBps = 10000; // 100%
+    uint32 maxRateDecrementBps = 1000; // 10%
 
     // Events from the contract
     event PausedStateChanged(bool paused);
@@ -62,7 +65,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
@@ -119,7 +125,10 @@ contract OneWayVaultTest is Test {
             address initializedStrategist,
             uint32 initializedDepositFeeBps,
             uint32 initializedWithdrawRateBps,
-            uint64 initializedmaxRateUpdateDelay,
+            uint32 initializedMaxRateIncrementBps,
+            uint32 initializedMaxRateDecrementBps,
+            uint64 initializedMinRateUpdateDelay,
+            uint64 initializedMaxRateUpdateDelay,
             uint256 initializedDepositCap,
             OneWayVault.FeeDistributionConfig memory initializedFeeDistribution
         ) = vault.config();
@@ -127,8 +136,11 @@ contract OneWayVaultTest is Test {
         assertEq(address(initializedDepositAccount), address(depositAccount));
         assertEq(initializedStrategist, strategist);
         assertEq(initializedDepositFeeBps, depositFeeBps);
-        assertEq(initializedWithdrawRateBps, withdrawRateBps);
-        assertEq(initializedmaxRateUpdateDelay, maxRateUpdateDelay);
+        assertEq(initializedWithdrawRateBps, withdrawFeeBps);
+        assertEq(initializedMaxRateIncrementBps, maxRateIncrementBps);
+        assertEq(initializedMaxRateDecrementBps, maxRateDecrementBps);
+        assertEq(initializedMinRateUpdateDelay, minRateUpdateDelay);
+        assertEq(initializedMaxRateUpdateDelay, maxRateUpdateDelay);
         assertEq(initializedDepositCap, depositCap);
         assertEq(initializedFeeDistribution.strategistAccount, strategistFeeReceiver);
         assertEq(initializedFeeDistribution.platformAccount, platformFeeReceiver);
@@ -164,7 +176,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount, // keep same deposit account
             strategist: newStrategist,
             depositFeeBps: newDepositFeeBps,
-            withdrawRateBps: newWithdrawRateBps,
+            withdrawFeeBps: newWithdrawRateBps,
+            maxRateIncrementBps: maxRateIncrementBps, // keep same incrementBps
+            maxRateDecrementBps: maxRateDecrementBps, // keep same decrementBps
+            minRateUpdateDelay: minRateUpdateDelay, // keep same min time
             maxRateUpdateDelay: maxRateUpdateDelay, // keep same max time
             depositCap: newDepositCap,
             feeDistribution: newFeeConfig
@@ -180,6 +195,9 @@ contract OneWayVaultTest is Test {
             address updatedStrategist,
             uint32 updatedDepositFeeBps,
             uint32 updatedWithdrawRateBps,
+            ,
+            ,
+            ,
             ,
             uint256 updatedDepositCap,
             OneWayVault.FeeDistributionConfig memory updatedFeeDistribution
@@ -200,7 +218,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: address(10),
             depositFeeBps: 200,
-            withdrawRateBps: 75,
+            withdrawFeeBps: 75,
+            maxRateIncrementBps: 1,
+            maxRateDecrementBps: 1,
+            minRateUpdateDelay: 1 hours,
             maxRateUpdateDelay: 1 days,
             depositCap: 500_000 * 10 ** 18,
             feeDistribution: OneWayVault.FeeDistributionConfig({
@@ -222,7 +243,10 @@ contract OneWayVaultTest is Test {
             depositAccount: BaseAccount(payable(address(0))),
             strategist: strategist,
             depositFeeBps: depositFeeBps,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
@@ -241,7 +265,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: address(0),
             depositFeeBps: depositFeeBps,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
@@ -260,7 +287,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 10001, // > 100%
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
@@ -279,7 +309,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
-            withdrawRateBps: 10001, // > 100%
+            withdrawFeeBps: 10001, // > 100%
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
@@ -298,7 +331,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
@@ -317,7 +353,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: 0, // 0 delay
             depositCap: depositCap,
             feeDistribution: OneWayVault.FeeDistributionConfig({
@@ -329,6 +368,50 @@ contract OneWayVaultTest is Test {
 
         vm.prank(owner);
         vm.expectRevert("Max rate update delay cannot be zero");
+        vault.updateConfig(abi.encode(invalidConfig));
+
+        // Test max rate decrement cannot be more than 100%
+        invalidConfig = OneWayVault.OneWayVaultConfig({
+            depositAccount: depositAccount,
+            strategist: strategist,
+            depositFeeBps: depositFeeBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: 10001, // > 100%
+            minRateUpdateDelay: minRateUpdateDelay,
+            maxRateUpdateDelay: maxRateUpdateDelay,
+            depositCap: depositCap,
+            feeDistribution: OneWayVault.FeeDistributionConfig({
+                strategistAccount: strategistFeeReceiver,
+                platformAccount: platformFeeReceiver,
+                strategistRatioBps: strategistRatioBps
+            })
+        });
+
+        vm.prank(owner);
+        vm.expectRevert("Max rate decrement cannot exceed 100%");
+        vault.updateConfig(abi.encode(invalidConfig));
+
+        // Test min update delay cannot be more than max update delay
+        invalidConfig = OneWayVault.OneWayVaultConfig({
+            depositAccount: depositAccount,
+            strategist: strategist,
+            depositFeeBps: depositFeeBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: 2 days, // More than max delay
+            maxRateUpdateDelay: 1 days,
+            depositCap: depositCap,
+            feeDistribution: OneWayVault.FeeDistributionConfig({
+                strategistAccount: strategistFeeReceiver,
+                platformAccount: platformFeeReceiver,
+                strategistRatioBps: strategistRatioBps
+            })
+        });
+
+        vm.prank(owner);
+        vm.expectRevert("Minimum update delay cannot exceed maximum update delay");
         vault.updateConfig(abi.encode(invalidConfig));
     }
 
@@ -376,7 +459,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 0,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
@@ -420,7 +506,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 0,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: 5_000 * 10 ** 18, // 5k tokens
             feeDistribution: feeConfig
@@ -666,6 +755,8 @@ contract OneWayVaultTest is Test {
         vault.unpause();
 
         // Now we can update the rate
+        // Make enough time pass
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours); // Warp past min delay
         vm.prank(strategist);
         vm.expectEmit(false, false, false, true);
         emit RateUpdated(newRate);
@@ -683,6 +774,7 @@ contract OneWayVaultTest is Test {
         vault.deposit(depositAmount, user1);
 
         // Update rate - can only be done by strategist
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours); // Warp past min delay
         uint256 newRate = initialRate * 2; // Double the rate
         vm.prank(strategist);
         vm.expectEmit(false, false, false, true);
@@ -711,8 +803,8 @@ contract OneWayVaultTest is Test {
         assertEq(vault.feesAccruedInAsset(), expectedFee);
 
         // Update rate - should distribute fees
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours); // Warp past min delay
         uint256 newRate = initialRate * 11 / 10; // Increase by 10%
-
         vm.prank(strategist);
         vm.expectEmit(true, true, false, false);
         emit FeesDistributed(strategistFeeReceiver, platformFeeReceiver, 0, 0); // Exact share values will vary
@@ -742,6 +834,81 @@ contract OneWayVaultTest is Test {
         vm.prank(owner);
         vm.expectRevert("Only strategist allowed");
         vault.update(initialRate * 2);
+    }
+
+    function test_CannotUpdateWhenMinDelayHasNotPassed() public {
+        // First do a deposit to have some assets and shares
+        uint256 depositAmount = 10_000 * 10 ** 18;
+        vm.prank(user1);
+        vault.deposit(depositAmount, user1);
+
+        // Try to update rate before min delay has passed
+        vm.prank(strategist);
+        vm.expectRevert("Minimum rate update delay not passed");
+        vault.update(initialRate * 2);
+
+        // Warping just before the min delay should also fail
+        vm.warp(block.timestamp + minRateUpdateDelay - 1 seconds);
+        // Now update should succeed
+        vm.prank(strategist);
+        vm.expectRevert("Minimum rate update delay not passed");
+        vault.update(initialRate * 2);
+
+        // Warp past the min delay
+        vm.warp(block.timestamp + 1 seconds);
+        // Now it should succeed
+        vm.prank(strategist);
+        vm.expectEmit(false, false, false, true);
+        emit RateUpdated(initialRate * 2);
+        vault.update(initialRate * 2);
+    }
+
+    function test_CannotUpdateRedemptionRateOverMaxIncrement() public {
+        // First do a deposit to have some assets and shares
+        uint256 depositAmount = 10_000 * 10 ** 18;
+        vm.prank(user1);
+        vault.deposit(depositAmount, user1);
+
+        // Try to update rate beyond max increment
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours); // Warp past min delay
+        uint256 tooHighRate = initialRate * 2 + 1; // More than 100% increase
+        vm.prank(strategist);
+        vm.expectRevert("Rate increase exceeds maximum allowed increment");
+        vault.update(tooHighRate);
+
+        // Check that rate is still the initial rate
+        assertEq(vault.redemptionRate(), initialRate);
+
+        // Now update to a valid rate within increment limit
+        uint256 validRate = initialRate * 2; // Exactly 100% increase
+        vm.prank(strategist);
+        vm.expectEmit(false, false, false, true);
+        emit RateUpdated(validRate);
+        vault.update(validRate);
+    }
+
+    function test_CannotUpdateRedemptionRateUnderMaxDecrement() public {
+        // First do a deposit to have some assets and shares
+        uint256 depositAmount = 10_000 * 10 ** 18;
+        vm.prank(user1);
+        vault.deposit(depositAmount, user1);
+
+        // Try to update rate below max decrement
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours); // Warp past min delay
+        uint256 tooLowRate = (initialRate * 9000) / 10000 - 1; // 90% of initial rate minus 1 // More than 10% decrease
+        vm.prank(strategist);
+        vm.expectRevert("Rate decrease exceeds maximum allowed decrement");
+        vault.update(tooLowRate);
+
+        // Check that rate is still the initial rate
+        assertEq(vault.redemptionRate(), initialRate);
+
+        // Now update to a valid rate within decrement limit
+        uint256 validRate = (initialRate * 9000) / 10000; // Exactly 10% decrease
+        vm.prank(strategist);
+        vm.expectEmit(false, false, false, true);
+        emit RateUpdated(validRate);
+        vault.update(validRate);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -809,7 +976,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
-            withdrawRateBps: 0, // Zero withdraw fee
+            withdrawFeeBps: 0, // Zero withdraw fee
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
@@ -972,7 +1142,7 @@ contract OneWayVaultTest is Test {
         uint256 withdrawAmount = 10_000 * 10 ** 18;
 
         // Expected fee calculation
-        uint256 expectedFee = (withdrawAmount * withdrawRateBps) / BASIS_POINTS;
+        uint256 expectedFee = (withdrawAmount * withdrawFeeBps) / BASIS_POINTS;
 
         // Check calculated fee
         uint256 calculatedFee = vault.calculateWithdrawalFee(withdrawAmount);
@@ -990,7 +1160,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
-            withdrawRateBps: 0,
+            withdrawFeeBps: 0,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
@@ -1021,12 +1194,13 @@ contract OneWayVaultTest is Test {
         // Calculate expected total fees (deposit + withdrawal)
         uint256 expectedDepositFee = (depositAmount * depositFeeBps) / BASIS_POINTS;
         uint256 grossAssets = (redeemShares * initialRate) / 10 ** vault.decimals();
-        uint256 expectedWithdrawFee = (grossAssets * withdrawRateBps) / BASIS_POINTS;
+        uint256 expectedWithdrawFee = (grossAssets * withdrawFeeBps) / BASIS_POINTS;
         uint256 totalExpectedFees = expectedDepositFee + expectedWithdrawFee;
 
         assertEq(vault.feesAccruedInAsset(), totalExpectedFees);
 
         // Update rate to trigger fee distribution
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours); // Warp past min delay
         uint256 newRate = initialRate * 11 / 10; // 10% increase
         vm.prank(strategist);
         vault.update(newRate);
@@ -1067,7 +1241,7 @@ contract OneWayVaultTest is Test {
 
         // Calculate expected withdrawal fee
         uint256 grossAssets = (userShares * initialRate) / 10 ** vault.decimals();
-        uint256 expectedWithdrawFee = (grossAssets * withdrawRateBps) / BASIS_POINTS;
+        uint256 expectedWithdrawFee = (grossAssets * withdrawFeeBps) / BASIS_POINTS;
 
         // Check total fees accumulated
         uint256 totalFees = depositFee + expectedWithdrawFee;
@@ -1105,7 +1279,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: 100_000 * 10 ** 18,
             feeDistribution: feeConfig
@@ -1199,7 +1376,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 0,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
@@ -1237,7 +1417,10 @@ contract OneWayVaultTest is Test {
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: 0,
-            withdrawRateBps: withdrawRateBps,
+            withdrawFeeBps: withdrawFeeBps,
+            maxRateIncrementBps: maxRateIncrementBps,
+            maxRateDecrementBps: maxRateDecrementBps,
+            minRateUpdateDelay: minRateUpdateDelay,
             maxRateUpdateDelay: maxRateUpdateDelay,
             depositCap: depositCap,
             feeDistribution: feeConfig
@@ -1273,6 +1456,9 @@ contract OneWayVaultTest is Test {
         vm.prank(user1);
         vault.deposit(10_000 * 10 ** 18, user1);
 
+        // Make enough time pass to allow rate update
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours);
+
         vm.prank(strategist);
         vault.update(newRate);
 
@@ -1301,6 +1487,9 @@ contract OneWayVaultTest is Test {
         vm.prank(user1);
         vault.deposit(10_000 * 10 ** 18, user1);
 
+        // Make enough time pass to allow rate update
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours);
+
         vm.prank(strategist);
         vault.update(newRate);
 
@@ -1328,6 +1517,7 @@ contract OneWayVaultTest is Test {
         vault.deposit(depositAmount2, user2);
 
         // 2. Update rate to simulate yield
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours);
         uint256 newRate = initialRate * 12 / 10; // 20% increase
         vm.prank(strategist);
         vault.update(newRate);
@@ -1364,6 +1554,7 @@ contract OneWayVaultTest is Test {
         assertTrue(sharesAmount < redeemShares, "Net shares should be less than gross shares due to fees");
 
         // 7. Update rate again to simulate more yield and trigger fee distribution
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours);
         uint256 newerRate = newRate * 13 / 10; // Additional 30% increase
         vm.prank(strategist);
         vault.update(newerRate);
@@ -1412,6 +1603,7 @@ contract OneWayVaultTest is Test {
         vault.deposit(depositAmount, user1);
 
         // 2. Update rate to 2x
+        vm.warp(block.timestamp + minRateUpdateDelay + 1 hours);
         uint256 doubledRate = initialRate * 2;
         vm.prank(strategist);
         vault.update(doubledRate);
@@ -1538,6 +1730,7 @@ contract OneWayVaultTest is Test {
 
             // Update rate occasionally to simulate yield accrual
             if (op > 0 && op % 2 == 0) {
+                vm.warp(block.timestamp + minRateUpdateDelay + 1 hours);
                 uint256 newRate = initialRate * (100 + op * 5) / 100; // Increase rate by 5% each update
                 vm.prank(strategist);
                 vault.update(newRate);
