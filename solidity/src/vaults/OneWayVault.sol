@@ -129,8 +129,10 @@ contract OneWayVault is
      * @param strategist Address of the vault strategist
      * @param depositFeeBps Fee charged on deposits in basis points (1 BPS = 0.01%)
      * @param withdrawFeeBps Fee charged on withdrawals in basis points (1 BPS = 0.01%)
-     * @param maxRateIncrementBps Maximum allowed increase in redemption rate per update (in basis points)
-     * @param maxRateDecrementBps Maximum allowed decrease in redemption rate per update (in basis points)
+     * @param maxRateIncrementBps Maximum allowed relative increase in redemption rate per update (in basis points).
+     *     For example, if maxRateIncrementBps is 100 (1%), at a redemption rate of 200, the new rate can go up to 202.
+     * @param maxRateDecrementBps Maximum allowed relative decrease in redemption rate per update (in basis points).
+     *     For example, if maxRateDecrementBps is 50 (0.5%), at a redemption rate of 200, the new rate can go down to 199
      * @param minRateUpdateDelay Minimum time required between redemption rate updates (in seconds)
      * @param maxRateUpdateDelay Maximum time allowed between redemption rate updates (in seconds) before vault automatically pauses
      * @param depositCap Maximum assets that can be deposited (0 means no cap)
