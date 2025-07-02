@@ -1,5 +1,5 @@
 [package]
-name = "valence-magma-utils"
+name        = "valence-magma-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
 authors     = { workspace = true }
