@@ -124,7 +124,7 @@ impl LibraryConfigUpdate {
 }
 
 /// Ensures that the provided pool address matches the expected asset configuration.
-/// 
+///
 /// # Asset Ordering
 /// The assets must be ordered such that:
 /// - `assets.asset1` corresponds to the pool's `token_0`
@@ -135,10 +135,13 @@ fn ensure_correct_pool(
     deps: &Deps,
 ) -> Result<(), LibraryError> {
     // Query the pool configuration
-    let pool_config: valence_duality_utils::utils::PoolConfig = deps.querier.query_wasm_smart(
-        pool_addr,
-        &valence_duality_utils::msg::QueryMsg::GetConfig {},
-    ).map_err(|e| LibraryError::ExecutionError(format!("Failed to query pool config: {}", e)))?;
+    let pool_config: valence_duality_utils::utils::PoolConfig = deps
+        .querier
+        .query_wasm_smart(
+            pool_addr,
+            &valence_duality_utils::msg::QueryMsg::GetConfig {},
+        )
+        .map_err(|e| LibraryError::ExecutionError(format!("Failed to query pool config: {}", e)))?;
 
     // Validate the denoms of the pool against the provided assets
     if pool_config.pair_data.token_0.denom != assets.asset1
