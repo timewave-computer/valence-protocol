@@ -1,0 +1,29 @@
+[package]
+name = "valence-magma-lper"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+
+[dependencies]
+cosmwasm-schema              = { workspace = true }
+cosmwasm-std                 = { workspace = true }
+cw-ownable                   = { workspace = true }
+cosmos-sdk-proto             = { workspace = true }
+cw-storage-plus              = { workspace = true }
+schemars                     = { workspace = true }
+serde                        = { workspace = true }
+thiserror                    = { workspace = true }
+valence-macros               = { workspace = true }
+valence-library-utils        = { workspace = true }
+valence-library-base         = { workspace = true }
+valence-account-utils        = { workspace = true }
+valence-magma-utils          = { workspace = true }

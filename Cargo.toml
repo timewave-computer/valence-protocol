@@ -84,6 +84,8 @@ valence-osmosis-gamm-lper            = { path = "contracts/libraries/osmosis-gam
 valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gamm-withdrawer", features = ["library"] }
 valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
 valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
+valence-magma-lper                   = { path = "contracts/libraries/magma-lper", features = ["library"] }
+valence-magma-withdrawer             = { path = "contracts/libraries/magma-withdrawer", features = ["library"] }
 valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
 valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
 valence-drop-liquid-staker           = { path = "contracts/libraries/drop-liquid-staker", features = ["library"] }
@@ -94,6 +96,7 @@ valence-supervaults-lper             = { path = "contracts/libraries/supervaults
 valence-supervaults-withdrawer       = { path = "contracts/libraries/supervaults-withdrawer", features = ["library"] }
 valence-clearing-queue               = { path = "contracts/libraries/clearing-queue", features = ["library"] }
 valence-maxbtc-issuer                = { path = "contracts/libraries/max-btc-issuer", features = ["library"] }
+
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
@@ -123,6 +126,7 @@ valence-middleware-utils       = { path = "packages/middleware-utils" }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 valence-lending-utils          = { path = "packages/lending-utils" }
 valence-supervaults-utils      = { path = "packages/supervaults-utils" }
+valence-magma-utils            = { path = "packages/magma-utils" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }

@@ -1651,6 +1651,78 @@
         },
         "additionalProperties": false
       },
+      "LibraryConfigUpdate17": {
+        "type": "object",
+        "properties": {
+          "input_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lp_config": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LiquidityProviderConfig5"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfigUpdate18": {
+        "type": "object",
+        "properties": {
+          "input_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lp_config": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LiquidityProviderConfig6"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "LibraryConfigUpdate2": {
         "type": "object",
         "properties": {
