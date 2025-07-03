@@ -45,7 +45,7 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 fn verify_proof(vk: &Binary, proof: Binary, inputs: Binary) -> StdResult<bool> {
     // Get the VK as a String
     let sp1_vkey_hash = String::from_utf8(vk.to_vec()).map_err(|e| {
-        cosmwasm_std::StdError::generic_err(format!("Failed to parse vk hash: {}", e))
+        cosmwasm_std::StdError::generic_err(format!("Failed to parse vk hash: {e}"))
     })?;
 
     Groth16Verifier::verify(
@@ -56,8 +56,7 @@ fn verify_proof(vk: &Binary, proof: Binary, inputs: Binary) -> StdResult<bool> {
     )
     .map_err(|e| {
         cosmwasm_std::StdError::generic_err(format!(
-            "Failed to verify SP1 proof with vk hash {}: {}",
-            sp1_vkey_hash, e
+            "Failed to verify SP1 proof with vk hash {sp1_vkey_hash}: {e}",
         ))
     })?;
 

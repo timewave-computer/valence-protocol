@@ -33,15 +33,13 @@ pub fn get_chain_field_from_local_ic_log(
                 if let Some(field) = chain[target_field].as_str() {
                     return Ok(field.to_string());
                 } else {
-                    return Err(
-                        format!("{} not found for the specified chain", target_field).into(),
-                    );
+                    return Err(format!("{target_field} not found for the specified chain").into());
                 }
             }
         }
     }
 
-    Err(format!("Chain with ID '{}' not found in logs file", target_chain_id).into())
+    Err(format!("Chain with ID '{target_chain_id}' not found in logs file").into())
 }
 
 pub fn get_grpc_address_and_port_from_url(

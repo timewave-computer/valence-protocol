@@ -170,7 +170,7 @@ mod tests {
         // Serialize to JSON
         let memo = to_json_string(&wrapper).unwrap();
 
-        println!("Serialized Memo: {}", memo);
+        println!("Serialized Memo: {memo}");
 
         // Assert it contains expected values
         assert!(memo.contains("cosmos1lqu9662kd4my6dww4gzp3730vew0gkwe0nl9ztjh0n5da0a8zc4swsvd22"));

@@ -58,7 +58,7 @@ pub fn bech32_to_evm_bytes32(
     // Convert to hex
     let address_hex = hex::encode(data);
     // Pad with zeroes to 32 bytes
-    let padded_hex = format!("{:0>64}", address_hex);
+    let padded_hex = format!("{address_hex:0>64}");
     // Convert to FixedBytes
     let address_in_bytes32 = FixedBytes::<32>::from_hex(padded_hex)?;
 
@@ -566,8 +566,8 @@ async fn run_hyperlane_relayer(
         ..Default::default()
     });
 
-    let config_files = format!("CONFIG_FILES={}", config_path_str);
-    let relay_chains = format!("{},{}", chain1, chain2);
+    let config_files = format!("CONFIG_FILES={config_path_str}");
+    let relay_chains = format!("{chain1},{chain2}");
 
     // Pull image if it doesn't exist
     let mut pull_stream = docker.create_image(

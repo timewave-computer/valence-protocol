@@ -248,7 +248,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &processor_on_persistence,
             Priority::Medium,
         );
-        println!("Items on persistence: {:?}", items);
+        println!("Items on persistence: {items:?}");
         tries += 1;
         if !items.is_empty() {
             info!("Batch found!");

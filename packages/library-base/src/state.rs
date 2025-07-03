@@ -46,5 +46,5 @@ where
 
 fn not_found_object_info<T>(key: &[u8]) -> String {
     let type_name = type_name::<T>();
-    format!("type: {type_name}; key: {:02X?}", key)
+    format!("type: {type_name}; key: {key:02X?}")
 }

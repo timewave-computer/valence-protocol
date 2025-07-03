@@ -258,7 +258,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         program_config.accounts.insert(
             i,
             AccountInfo {
-                name: format!("base_account_{}", i),
+                name: format!("base_account_{i}"),
                 ty: AccountType::Base { admin: None },
                 domain: neutron_domain.clone(),
                 addr: None,

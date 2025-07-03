@@ -212,7 +212,7 @@ impl Connector for CosmosCosmwasmConnector {
         let code_id = *self
             .code_ids
             .get(contract_name)
-            .context(format!("Code id not found for: {}", contract_name))
+            .context(format!("Code id not found for: {contract_name}"))
             .map_err(CosmosCosmwasmError::Error)?;
 
         let checksum = self.get_checksum(code_id).await?;
@@ -342,7 +342,7 @@ impl Connector for CosmosCosmwasmConnector {
         let code_id = *self
             .code_ids
             .get(&library_config.to_string())
-            .context(format!("Code id not found for: {}", library_config))
+            .context(format!("Code id not found for: {library_config}"))
             .map_err(CosmosCosmwasmError::Error)?;
 
         let msg = library_config
@@ -353,10 +353,7 @@ impl Connector for CosmosCosmwasmConnector {
             sender: self.wallet.account_address.clone(),
             admin: processor_addr,
             code_id,
-            label: format!(
-                "program-{}|library-{}-{}",
-                program_id, library_config, library_id
-            ),
+            label: format!("program-{program_id}|library-{library_config}-{library_id}"),
             msg,
             funds: vec![],
             salt: salt.clone(),
@@ -401,7 +398,7 @@ impl Connector for CosmosCosmwasmConnector {
             sender: self.wallet.account_address.clone(),
             admin: self.wallet.account_address.clone(),
             code_id,
-            label: format!("valence-authorization-{}", program_id),
+            label: format!("valence-authorization-{program_id}"),
             msg,
             funds: vec![],
             salt: salt.clone(),
@@ -485,7 +482,7 @@ impl Connector for CosmosCosmwasmConnector {
             sender: self.wallet.account_address.clone(),
             admin,
             code_id,
-            label: format!("valence-processor-{}", program_id),
+            label: format!("valence-processor-{program_id}"),
             msg,
             funds: vec![],
             salt: salt.clone(),
@@ -1154,7 +1151,7 @@ impl CosmosCosmwasmConnector {
         gc.get_bridge_info(sender_chain, other_chain)?
             .get_polytone_info()
             .get(receive_chain)
-            .context(format!("Bridge info not found for: {}", other_chain))
+            .context(format!("Bridge info not found for: {other_chain}"))
             .map_err(CosmosCosmwasmError::Error)
             .cloned()
     }
@@ -1168,14 +1165,13 @@ impl CosmosCosmwasmConnector {
             .wasm
             .code(req)
             .await
-            .context(format!("Code request failed for: {}", code_id))?;
+            .context(format!("Code request failed for: {code_id}"))?;
 
         Ok(code_res
             .into_inner()
             .code_info
             .context(format!(
-                "Failed to parse the response of code id: {}",
-                code_id
+                "Failed to parse the response of code id: {code_id}"
             ))?
             .data_hash)
     }
@@ -1194,11 +1190,11 @@ impl CosmosCosmwasmConnector {
             .wasm
             .contract_info(code_id_req)
             .await
-            .context(format!("Failed to query address info: {}", addr))
+            .context(format!("Failed to query address info: {addr}"))
             .map_err(CosmosCosmwasmError::Error)?
             .into_inner()
             .contract_info
-            .context(format!("No contract info found: {}", addr))
+            .context(format!("No contract info found: {addr}"))
             .map_err(CosmosCosmwasmError::Error)?
             .code_id)
     }
@@ -1215,7 +1211,7 @@ impl CosmosCosmwasmConnector {
             .code_ids
             .iter()
             .find(|(_, v)| **v == code_id)
-            .context(format!("Code id not found: {} | {}", code_id, addr))
+            .context(format!("Code id not found: {code_id} | {addr}"))
             .map_err(CosmosCosmwasmError::Error)?
             .0
             .clone())
