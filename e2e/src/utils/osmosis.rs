@@ -115,8 +115,7 @@ pub mod concentrated_liquidity {
 
         // denoms here are reversed because second denom is the quote denom which needs to be authorized (uosmo)
         let cmd = format!(
-            "tx concentratedliquidity create-pool {denom_1} {denom_2} {tick_spacing} {spread_factor} --from={} --fees=5000uosmo --gas auto --gas-adjustment 1.3 --output=json",
-            DEFAULT_KEY
+            "tx concentratedliquidity create-pool {denom_1} {denom_2} {tick_spacing} {spread_factor} --from={DEFAULT_KEY} --fees=5000uosmo --gas auto --gas-adjustment 1.3 --output=json",
         );
 
         let cl_creation_response_events = osmo_rb.tx(&cmd, true)?["events"].clone();
@@ -144,8 +143,7 @@ pub mod concentrated_liquidity {
 
         // osmosisd tx concentratedliquidity create-position [pool-id] [lower-tick] [upper-tick] [tokens-provided] [token-min-amount0] [token-min-amount1] [flags]
         let lp_cmd = format!(
-            "tx concentratedliquidity create-position {pool_id} [-10000] 10000 1500000{denom_1},1500000{denom_2} 0 0 --from={} --fees=50000uosmo --gas auto --gas-adjustment 1.3 --output=json",
-            DEFAULT_KEY
+            "tx concentratedliquidity create-position {pool_id} [-10000] 10000 1500000{denom_1},1500000{denom_2} 0 0 --from={DEFAULT_KEY} --fees=50000uosmo --gas auto --gas-adjustment 1.3 --output=json"
         );
 
         let lp_response = test_ctx

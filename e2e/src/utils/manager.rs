@@ -114,17 +114,17 @@ pub fn setup_manager(
 
             let (path, contract_wasm_name, contract_name) = match *contract_name {
                 POLYTONE_NOTE_NAME => (
-                    format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_NOTE_NAME),
+                    format!("{POLYTONE_ARTIFACTS_PATH}/{POLYTONE_NOTE_NAME}.wasm"),
                     POLYTONE_NOTE_NAME,
                     POLYTONE_NOTE_NAME,
                 ),
                 POLYTONE_VOICE_NAME => (
-                    format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_VOICE_NAME),
+                    format!("{POLYTONE_ARTIFACTS_PATH}/{POLYTONE_VOICE_NAME}.wasm"),
                     POLYTONE_VOICE_NAME,
                     POLYTONE_VOICE_NAME,
                 ),
                 POLYTONE_PROXY_NAME => (
-                    format!("{}/{}.wasm", POLYTONE_ARTIFACTS_PATH, POLYTONE_PROXY_NAME),
+                    format!("{POLYTONE_ARTIFACTS_PATH}/{POLYTONE_PROXY_NAME}.wasm"),
                     POLYTONE_PROXY_NAME,
                     POLYTONE_PROXY_NAME,
                 ),
@@ -187,13 +187,13 @@ fn get_contract_path<'a>(
     {
         if chain_name == NEUTRON_CHAIN_NAME {
             return (
-                format!("{}/{}.wasm", artifacts_dir, NEUTRON_IBC_TRANSFER_NAME),
+                format!("{artifacts_dir}/{NEUTRON_IBC_TRANSFER_NAME}.wasm"),
                 NEUTRON_IBC_TRANSFER_NAME,
                 "ibc_transfer",
             );
         } else {
             return (
-                format!("{}/{}.wasm", artifacts_dir, GENERIC_IBC_TRANSFER_NAME),
+                format!("{artifacts_dir}/{GENERIC_IBC_TRANSFER_NAME}.wasm"),
                 GENERIC_IBC_TRANSFER_NAME,
                 "ibc_transfer",
             );
@@ -201,7 +201,7 @@ fn get_contract_path<'a>(
     }
 
     (
-        format!("{}/{}.wasm", artifacts_dir, contract_name),
+        format!("{artifacts_dir}/{contract_name}.wasm"),
         contract_name,
         contract_name,
     )
@@ -297,7 +297,7 @@ fn get_chain_infos(chains_file_path: &str) -> HashMap<String, ChainInfo> {
             ChainInfo {
                 name: chain_name.to_string(),
                 rpc: rpc.to_string(),
-                grpc: format!("http://{}", grpc),
+                grpc: format!("http://{grpc}"),
                 prefix: prefix.to_string(),
                 gas_price: gas_price.to_string(),
                 gas_denom: gas_denom.to_string(),

@@ -66,8 +66,8 @@ pub fn update_ownership(
             .map_err(|e| StdError::generic_err(e.to_string()))?;
     Ok(Response::default()
         .add_attribute("method", "update_ownership")
-        .add_attribute("action", format!("{:?}", action))
-        .add_attribute("result", format!("{:?}", result)))
+        .add_attribute("action", format!("{action:?}"))
+        .add_attribute("result", format!("{result:?}")))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

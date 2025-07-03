@@ -258,7 +258,7 @@ async fn set_up_cctp_transfer(
     let mint_recipient_hex = mint_recipient_string.strip_prefix("0x").unwrap_or_default();
 
     // Create the padded hex string
-    let padded_hex = format!("{:0>64}", mint_recipient_hex);
+    let padded_hex = format!("{mint_recipient_hex:0>64}");
 
     let cctp_transfer_config = CCTPTransferConfig {
         amount: U256::ZERO,

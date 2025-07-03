@@ -22,10 +22,7 @@ pub fn generate_icq_relayer_config(
         .get();
 
     // formatted according to neutron ICQ relayer docs
-    let target_chain_rpc = format!(
-        "tcp://local{}-1-val-0-neutron_osmosisic:26657",
-        target_domain
-    );
+    let target_chain_rpc = format!("tcp://local{target_domain}-1-val-0-neutron_osmosisic:26657");
     let env_content = format!(
         r#"
 RELAYER_NEUTRON_CHAIN_RPC_ADDR={neutron_rpc}
@@ -124,7 +121,7 @@ pub fn start_icq_relayer() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--network")
         .arg(network_name) // docker network under which we want to run the relayer
         .arg("-v")
-        .arg(format!("{}:/data", mount_point)) // neutron mount point to access the keyring
+        .arg(format!("{mount_point}:/data")) // neutron mount point to access the keyring
         .arg("neutron-org/neutron-query-relayer")
         .output()
         .expect("failed to start icq relayer");

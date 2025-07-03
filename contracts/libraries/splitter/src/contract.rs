@@ -173,8 +173,7 @@ mod functions {
             let balance = denom_balances.get(&denom).unwrap();
             if total_amount > *balance {
                 return Err(LibraryError::ExecutionError(format!(
-                    "Insufficient balance for denom '{}' in split config (required: {}, available: {}).",
-                    denom, total_amount, balance,
+                    "Insufficient balance for denom '{denom}' in split config (required: {total_amount}, available: {balance}).",
                 )));
             }
             Ok(())
@@ -201,17 +200,16 @@ mod functions {
             .get(&denom_name)
             .copied()
             .ok_or(LibraryError::ExecutionError(format!(
-                "Dynamic ratio not found for denom '{}'.",
-                denom
+                "Dynamic ratio not found for denom '{denom}'."
             )))
     }
 
     fn denom_key(denom: &CheckedDenom) -> String {
-        format!("{:?}", denom)
+        format!("{denom:?}")
     }
 
     fn dyn_ratio_key(denom: &CheckedDenom, contract_addr: &Addr, params: &str) -> String {
-        format!("{:?}-{}/{}", denom, contract_addr, params)
+        format!("{denom:?}-{contract_addr}/{params}")
     }
 }
 

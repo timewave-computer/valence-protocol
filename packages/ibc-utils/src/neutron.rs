@@ -55,8 +55,7 @@ pub fn ibc_send_message(
             let amount_plus_fee = total_fee.checked_add(amount.into())?;
             if sender_ntrn_balance < amount_plus_fee {
                 return Err(StdError::generic_err(format!(
-                    "Insufficient balance to cover for IBC fees '{}' in sender account (required: {}, available: {}).",
-                    NTRN_DENOM, amount_plus_fee, sender_ntrn_balance,
+                    "Insufficient balance to cover for IBC fees '{NTRN_DENOM}' in sender account (required: {amount_plus_fee}, available: {sender_ntrn_balance}).",
                 )));
             }
             Uint128::from(amount)
@@ -64,8 +63,7 @@ pub fn ibc_send_message(
     } else {
         if sender_ntrn_balance < total_fee {
             return Err(StdError::generic_err(format!(
-                "Insufficient balance to cover for IBC fees '{}' in sender account (required: {}, available: {}).",
-                NTRN_DENOM, total_fee, sender_ntrn_balance,
+                "Insufficient balance to cover for IBC fees '{NTRN_DENOM}' in sender account (required: {total_fee}, available: {sender_ntrn_balance})."
             )));
         }
         amount.into()

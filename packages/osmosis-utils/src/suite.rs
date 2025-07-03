@@ -115,9 +115,9 @@ impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
 
     pub fn store_provider_contract(&self) -> u64 {
         let filename = T::get_provider_contract_name();
-        println!("filename: {}", filename);
+        println!("filename: {filename}");
         let wasm = Wasm::new(&self.app);
-        let wasm_byte_code = std::fs::read(format!("{}/{}", CONTRACT_PATH, filename)).unwrap();
+        let wasm_byte_code = std::fs::read(format!("{CONTRACT_PATH}/{filename}")).unwrap();
 
         let code_id = wasm
             .store_code(&wasm_byte_code, None, self.owner_acc())
@@ -131,7 +131,7 @@ impl<T: OsmosisTestPoolConfig> OsmosisTestAppSetup<T> {
     pub fn store_withdrawer_contract(&self) -> u64 {
         let filename = T::get_withdrawer_contract_name();
         let wasm = Wasm::new(&self.app);
-        let wasm_byte_code = std::fs::read(format!("{}/{}", CONTRACT_PATH, filename)).unwrap();
+        let wasm_byte_code = std::fs::read(format!("{CONTRACT_PATH}/{filename}")).unwrap();
 
         let code_id = wasm
             .store_code(&wasm_byte_code, None, self.owner_acc())

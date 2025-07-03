@@ -29,11 +29,7 @@ pub fn register_host_zone(
     }
 
     let cmd = format!(
-        "tx liquidstakeibc register-host-chain {} {} transfer 0 0.05 0 0.005 {} 1 4 2 --from={} --gas auto --gas-adjustment 1.3 --output=json",
-        connection_id,
-        channel_id,
-        native_denom,
-        from_key,
+        "tx liquidstakeibc register-host-chain {connection_id} {channel_id} transfer 0 0.05 0 0.005 {native_denom} 1 4 2 --from={from_key} --gas auto --gas-adjustment 1.3 --output=json"
     );
     rb.tx(&cmd, true)
 }
@@ -50,7 +46,7 @@ pub fn activate_host_zone(target_chain_id: &str) -> Result<(), Box<dyn Error>> {
     let rt = Runtime::new()?;
     rt.block_on(send_grpc_activation(
         target_chain_id,
-        &format!("{}:{}", target_grpc_address, target_port),
+        &format!("{target_grpc_address}:{target_port}"),
     ))?;
     info!("Host zone activated successfully");
 

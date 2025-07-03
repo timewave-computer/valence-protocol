@@ -688,7 +688,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     test_ctx.stop_relayer();
 
     info!("Sending the messages without TTL...");
-    let flags = format!("--amount 1{} {}", tokenfactory_token, GAS_FLAGS);
+    let flags = format!("--amount 1{tokenfactory_token} {GAS_FLAGS}");
     contract_execute(
         test_ctx
             .get_request_builder()

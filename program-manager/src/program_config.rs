@@ -291,7 +291,7 @@ impl ProgramConfig {
                 .get_address(
                     self.id,
                     &account.ty.to_string(),
-                    format!("account_{}", account_id).as_str(),
+                    format!("account_{account_id}").as_str(),
                 )
                 .await?;
             info!(

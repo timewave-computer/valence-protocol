@@ -149,7 +149,7 @@ async fn wait_for_anvil_ready(port: &str, timeout_secs: u64) -> Result<(), Box<d
 
     let client = alloy::transports::http::reqwest::Client::new();
     let start = Instant::now();
-    let url = format!("http://localhost:{}", port);
+    let url = format!("http://localhost:{port}");
 
     while start.elapsed() < Duration::from_secs(timeout_secs) {
         let poll_rx = client
@@ -168,7 +168,7 @@ async fn wait_for_anvil_ready(port: &str, timeout_secs: u64) -> Result<(), Box<d
         sleep(Duration::from_millis(500)).await;
     }
 
-    Err(format!("timed out waiting for Anvil to be ready on port {}", port).into())
+    Err(format!("timed out waiting for Anvil to be ready on port {port}").into())
 }
 
 pub mod valence_account {
