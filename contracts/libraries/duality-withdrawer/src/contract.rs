@@ -65,7 +65,7 @@ pub fn process_function(
                     &valence_duality_utils::msg::QueryMsg::GetConfig {},
                 )
                 .map_err(|e| {
-                    LibraryError::ExecutionError(format!("Failed to query pool config: {}", e))
+                    LibraryError::ExecutionError(format!("Failed to query pool config: {e}"))
                 })?;
 
             // Query account balance of input account
@@ -135,7 +135,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
                     &valence_duality_utils::msg::QueryMsg::GetConfig {},
                 )
                 .map_err(|e| {
-                    LibraryError::ExecutionError(format!("Failed to query pool config: {}", e))
+                    LibraryError::ExecutionError(format!("Failed to query pool config: {e}"))
                 })?;
 
             // Query account balance of input account after withdrawal

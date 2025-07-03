@@ -141,7 +141,7 @@ fn ensure_correct_pool(
             pool_addr,
             &valence_duality_utils::msg::QueryMsg::GetConfig {},
         )
-        .map_err(|e| LibraryError::ExecutionError(format!("Failed to query pool config: {}", e)))?;
+        .map_err(|e| LibraryError::ExecutionError(format!("Failed to query pool config: {e}")))?;
 
     // Validate the denoms of the pool against the provided assets
     if pool_config.pair_data.token_0.denom != assets.asset1
