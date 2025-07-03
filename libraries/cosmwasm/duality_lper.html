@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Clearing Queue - Valence Protocol Documentation</title>
+        <title>Duality LPer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -171,34 +171,34 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="valence-clearing-queue-library"><a class="header" href="#valence-clearing-queue-library">Valence Clearing Queue Library</a></h1>
-<p>The <strong>Valence Clearing Queue</strong> library allows <strong>registration and settlement of withdrawal obligations</strong> in a FIFO (First-In-First-Out) manner. It maintains a queue of pending withdrawal obligations, with each obligation containing recipient information, payout amounts, and a unique identifier. When settling obligations, funds are pulled from a <strong>settlement input account</strong> and sent to the specified recipients.</p>
-<p>The queue processes obligations based on a strict, monotonically increasing order of the obligation ids.
-This is meant to prevent any out-of-order errors that may arise from latency or other issues.</p>
-<blockquote>
-<p><strong>Important:</strong>
-This library functions solely as a settlement engine. The settlement account funding (liquidity-management) flow is outside of its scope and is managed by a strategist. This management process likely involves monitoring both the settlement account balance and the obligation queue in order to ensure the settlement account maintains sufficient liquidity for obligation settlements.</p>
-</blockquote>
+                        <h1 id="duality-lper-library"><a class="header" href="#duality-lper-library">Duality Lper library</a></h1>
+<p>The <strong>Valence Duality LPer library</strong> allows users to <strong>provide liquidity</strong> into a Duality Liquidity Pool from an <strong>input account</strong> and deposit the LP token into an <strong>output account</strong>.</p>
 <h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
 <pre class="mermaid">---
-title: Clearing Queue Library
+title: Duality Liquidity Provider
 ---
 graph LR
-  IA((Settlement&lt;br&gt;Account))
-  R((Recipient))
+  IA((Input
+      Account))
+  OA((Output
+          Account))
   P[Processor]
-  CQ[Clearing&lt;br&gt;Queue&lt;br&gt;Library]
-  P -- 1/Register&lt;br&gt;Obligation --&gt; CQ
-  CQ -- 2/Store&lt;br&gt;Obligation --&gt; CQ
-  P -- 3/Settle&lt;br&gt;Next&lt;br&gt;Obligation --&gt; CQ
-  CQ -- 4/Query Settlement&lt;br&gt;Account Balance --&gt; IA
-  CQ -- 5/Validate &amp; Execute Transfer --&gt; IA
-  IA -- 6/Send Funds --&gt; R
+  S[Duality
+      Liquidity
+      Provider]
+  DP[Duality
+     Pool]
+  P -- 1/Provide Liquidity --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Do Provide Liquidity --&gt; IA
+  IA -- 4/Provide Liquidity
+                  [Tokens] --&gt; DP
+  DP -- 4'/Mint LP Tokens --&gt; OA
+
 </pre>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
-<tr><td><strong>RegisterObligation</strong></td><td><code>recipient: String</code><br><code>payout_amount: Uint128</code><br><code>id: Uint64</code></td><td>Registers a new withdrawal obligation in the queue with the specified recipient, payout coins, and unique ID. Each obligation must have a non-zero payout amount. Recipient must be a valid bech32 address. Obligation id must equal the latest registered obligation id plus 1.</td></tr>
-<tr><td><strong>SettleNextObligation</strong></td><td>-</td><td>Settles the oldest withdrawal obligation in the queue by transferring funds from the <strong>settlement input account</strong> to the specified recipient. Fails if there are no pending obligations or if the input account has insufficient balance.</td></tr>
+<tr><td><strong>ProvideLiquidity</strong></td><td>-</td><td>Provide double-sided liquidity to the pre-configured <strong>Duality Pool</strong> from the <strong>input account</strong>, and deposit the <strong>LP tokens</strong> into the <strong>output account</strong>.</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
@@ -206,30 +206,47 @@ graph LR
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct LibraryConfig {
-    /// settlement input account which we tap into in order
-    /// to settle the obligations
-    pub settlement_acc_addr: LibraryAccountType,
-    /// obligation base denom
-    pub denom: String,
-    /// latest registered obligation id.
-    /// if `None`, defaults to 0
-    pub latest_id: Option&lt;Uint64&gt;,
+    /// Address of the input account 
+    pub input_addr: LibraryAccountType,
+    /// Address of the output account 
+    pub output_addr: LibraryAccountType,
+    /// Configuration for the liquidity provider
+    /// This includes the pool address and asset data
+    pub lp_config: LiquidityProviderConfig,
+}
+
+pub struct LiquidityProviderConfig {
+    /// Address of the pool we are going to provide liquidity for
+    pub pool_addr: String,
+    /// Denoms of both assets we are going to provide liquidity for
+    /// The assets must be ordered such that:
+    /// - `assets.asset1` corresponds to the pool's `token_0`
+    /// - `assets.asset2` corresponds to the pool's `token_1`
+    pub asset_data: AssetData,
 }
 <span class="boring">}</span></code></pre></pre>
-<p>The <code>settlement_acc_addr</code> specifies the account from which funds will be pulled to fulfill settlement obligations. The library will check that this account has sufficient balance before attempting to settle each obligation.</p>
-<p>Configured <code>denom</code> is the base clearing denomination which will be applied to all obligation amounts.</p>
-<p>Lastly, the optional <code>latest_id</code> field allows to configure the library order to start from a specific id.
-If <code>None</code>, latest id defaults to 0. Otherwise, it will start from the specified id.</p>
+<h2 id="implementation-details"><a class="header" href="#implementation-details">Implementation Details</a></h2>
+<h3 id="deposit-process"><a class="header" href="#deposit-process">Deposit Process</a></h3>
+<ol>
+<li><strong>Balance Check</strong>: Queries the input account balance for the specified pool assets.</li>
+<li><strong>Provide Liquidity</strong>: Executes a <code>Deposit</code> message, which provides liquidity to the pool. Upon depositing, the provider obtains an amount of LP token shares.</li>
+<li><strong>Reply Handling</strong>: Uses the CosmWasm reply mechanism to handle the two-step process of providing liquidity. Upon successful deposit, the obtained LP token shares will be transferred to the Valence output account, which will hold the position.</li>
+</ol>
+<h3 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h3>
+<ul>
+<li><strong>No Funds</strong>: Returns an error if attempting to deposit with a zero balance of pool assets.</li>
+<li><strong>Duality Integration</strong>: Propagates errors from the Duality Protocol during deposit operations.</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/astroport_withdrawer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/clearing_queue.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/cosmwasm/duality_lper.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/cosmwasm/duality_withdrawer.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -239,11 +256,11 @@ If <code>None</code>, latest id defaults to 0. Otherwise, it will start from the
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/astroport_withdrawer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/clearing_queue.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/cosmwasm/duality_lper.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/cosmwasm/duality_withdrawer.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
