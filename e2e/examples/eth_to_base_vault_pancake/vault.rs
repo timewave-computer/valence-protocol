@@ -68,8 +68,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Set up the Anvil container for Base
     set_up_anvil_container("anvil_base", BASE_ANVIL_PORT, Some(BASE_FORK_URL)).await?;
 
-    let endpoint_eth = format!("http://127.0.0.1:{}", ETH_ANVIL_PORT);
-    let endpoint_base = format!("http://127.0.0.1:{}", BASE_ANVIL_PORT);
+    let endpoint_eth = format!("http://127.0.0.1:{ETH_ANVIL_PORT}");
+    let endpoint_base = format!("http://127.0.0.1:{BASE_ANVIL_PORT}");
 
     // Create an Ethereum client
     let eth_client = EthereumClient::new(&endpoint_eth, TEST_MNEMONIC, None)?;

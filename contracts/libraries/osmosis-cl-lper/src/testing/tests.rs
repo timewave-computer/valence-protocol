@@ -61,14 +61,14 @@ fn test_provide_liquidity_custom() {
     assert_eq!(input_acc_positions.len(), 0);
     assert_eq!(output_acc_positions.len(), 0);
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
-    println!("input balances pre-lp: {:?}", input_balances);
+    println!("input balances pre-lp: {input_balances:?}");
 
     let pool = suite.query_cl_pool(suite.inner.pool_cfg.pool_id.u64());
-    println!("PRE-LP pool: {:?}", pool);
+    println!("PRE-LP pool: {pool:?}");
     suite.provide_liquidity_custom(-1000, 0, 0, 0);
 
     let pool = suite.query_cl_pool(suite.inner.pool_cfg.pool_id.u64());
-    println!("POST-LP pool: {:?}", pool);
+    println!("POST-LP pool: {pool:?}");
     let input_acc_positions = suite
         .query_cl_positions(suite.input_acc.to_string())
         .positions;
@@ -78,7 +78,7 @@ fn test_provide_liquidity_custom() {
     assert_eq!(input_acc_positions.len(), 0);
     assert_eq!(output_acc_positions.len(), 1);
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
-    println!("input balances post-lp: {:?}", input_balances);
+    println!("input balances post-lp: {input_balances:?}");
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_provide_liquidity_default() {
     assert_eq!(input_acc_positions.len(), 0);
     assert_eq!(output_acc_positions.len(), 0);
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
-    println!("input balances pre-lp: {:?}", input_balances);
+    println!("input balances pre-lp: {input_balances:?}");
 
     let pool = suite.query_cl_pool(suite.inner.pool_cfg.pool_id.u64());
     println!("PRE-LP pool current tick: {:?}", pool.current_tick);
@@ -113,7 +113,7 @@ fn test_provide_liquidity_default() {
     assert_eq!(input_acc_positions.len(), 0);
     assert_eq!(output_acc_positions.len(), 1);
     let input_balances = suite.inner.query_all_balances(suite.input_acc.as_str());
-    println!("input balances post-lp: {:?}", input_balances);
+    println!("input balances post-lp: {input_balances:?}");
 }
 
 #[test]

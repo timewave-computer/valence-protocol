@@ -254,7 +254,7 @@ fn test_multi_user_settlement() {
 
     // assert that the obligations are now considered as settled
     let obligation_status_1 = suite.query_obligation_status(1);
-    println!("obligation status 1 : {:?} ", obligation_status_1);
+    println!("obligation status 1 : {obligation_status_1:?} ");
 
     assert!(matches!(
         suite.query_obligation_status(1),

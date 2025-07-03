@@ -253,17 +253,16 @@ mod functions {
             .get(&denom_name)
             .copied()
             .ok_or(LibraryError::ExecutionError(format!(
-                "Dynamic ratio not found for denom '{}'.",
-                denom
+                "Dynamic ratio not found for denom '{denom}'."
             )))
     }
 
     fn account_key(account: &Addr, denom: &CheckedDenom) -> String {
-        format!("{}/{:?}", account, denom)
+        format!("{account}/{denom:?}")
     }
 
     fn dyn_ratio_key(denom: &CheckedDenom, contract_addr: &Addr, params: &str) -> String {
-        format!("{:?}-{}/{}", denom, contract_addr, params)
+        format!("{denom:?}-{contract_addr}/{params}")
     }
 }
 

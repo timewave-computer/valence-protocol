@@ -15,13 +15,13 @@ fn test_get_kv_key() {
 
     let resp = suite.add_new_registry("1.0.0", suite.registry_addr.to_string());
 
-    println!("resp: {:?}", resp);
+    println!("resp: {resp:?}");
 
     let params = BTreeMap::from([("pool_id".to_string(), to_json_binary(&1u64).unwrap())]);
 
     let kv_key = suite.get_kv_key(Pool::TYPE_URL, params).unwrap();
 
-    println!("kv_key: {:?}", kv_key);
+    println!("kv_key: {kv_key:?}");
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn test_reconstruct_proto() {
     let reconstructed_result = suite
         .query_decode_proto(Pool::TYPE_URL, icq_result)
         .unwrap();
-    println!("reconstructed result: {:?}", reconstructed_result);
+    println!("reconstructed result: {reconstructed_result:?}");
 }
 
 #[test]
@@ -61,13 +61,13 @@ fn test_into_canonical() {
     suite.add_new_registry("1.0.0", suite.registry_addr.to_string());
 
     let pool = Pool::default();
-    println!("pool: {:?}", pool);
+    println!("pool: {pool:?}");
 
     let binary = to_json_binary(&Pool::default()).unwrap();
 
     let resp: ValenceType = suite.try_to_canonical(Pool::TYPE_URL, binary).unwrap();
 
-    println!("resp: {:?}", resp);
+    println!("resp: {resp:?}");
 }
 
 #[test]

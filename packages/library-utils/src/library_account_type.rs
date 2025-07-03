@@ -56,7 +56,7 @@ impl LibraryAccountType {
             }
         };
 
-        format!("{}:{}", LIBRARY_ACCOUNT_RAW_PLACEHOLDER, value)
+        format!("{LIBRARY_ACCOUNT_RAW_PLACEHOLDER}:{value}")
     }
 }
 

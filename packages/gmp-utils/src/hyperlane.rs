@@ -59,7 +59,7 @@ pub fn format_address_for_hyperlane(address: String) -> StdResult<HexBinary> {
     // Remove "0x" prefix if present
     let address_hex = address.trim_start_matches("0x").to_string().to_lowercase();
     // Pad to 32 bytes (64 hex characters) because mailboxes expect 32 bytes addresses with leading zeros
-    let padded_address = format!("{:0>64}", address_hex);
+    let padded_address = format!("{address_hex:0>64}");
     // Convert to HexBinary which is what Hyperlane expects
     HexBinary::from_hex(&padded_address)
 }
