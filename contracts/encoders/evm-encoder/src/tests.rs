@@ -51,7 +51,7 @@ fn test_parse_real_address() {
     assert_ne!(parsed_address, Address::ZERO);
 
     // Convert back to string and compare (case insensitive)
-    let address_back_to_string = format!("{:?}", parsed_address).to_lowercase();
+    let address_back_to_string = format!("{parsed_address:?}").to_lowercase();
 
     assert_eq!(address_back_to_string, address_str.to_lowercase());
 }

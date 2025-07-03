@@ -139,8 +139,8 @@ mod execute {
         let result = cw_ownable::update_ownership(deps, &env.block, &info.sender, action.clone())?;
         Ok(Response::default()
             .add_attribute("method", "update_ownership")
-            .add_attribute("action", format!("{:?}", action))
-            .add_attribute("result", format!("{:?}", result)))
+            .add_attribute("action", format!("{action:?}"))
+            .add_attribute("result", format!("{result:?}")))
     }
 }
 

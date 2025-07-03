@@ -99,7 +99,7 @@ impl ProgramConfigMigrate {
 
             // We set no restrictions on this authorization, so we can have a generic "open" authorization on the account
             // This authorization can be only executed by the owner, so its fine.
-            let label = format!("account_id_{}", account_id);
+            let label = format!("account_id_{account_id}");
 
             // We skip creating this authorization because we already have it
             if !old_config

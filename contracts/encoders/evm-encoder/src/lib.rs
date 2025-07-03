@@ -182,7 +182,7 @@ fn encode_retry_logic(
 
 /// Helper to parse EVM addresses from strings
 fn parse_address(addr: &str) -> StdResult<Address> {
-    Address::from_str(addr).map_err(|e| StdError::generic_err(format!("Invalid address: {}", e)))
+    Address::from_str(addr).map_err(|e| StdError::generic_err(format!("Invalid address: {e}")))
 }
 
 /// Validates if a value is within the valid int24 range that is used in EVM
@@ -194,8 +194,7 @@ fn validate_i24_value(value: i32) -> Result<i32, StdError> {
 
     if !(MIN_INT24..=MAX_INT24).contains(&value) {
         return Err(StdError::generic_err(format!(
-            "Value {} outside int24 range ({} to {})",
-            value, MIN_INT24, MAX_INT24
+            "Value {value} outside int24 range ({MIN_INT24} to {MAX_INT24})"
         )));
     }
 

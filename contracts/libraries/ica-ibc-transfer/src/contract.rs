@@ -88,7 +88,7 @@ mod functions {
                 let any_msg = AnyMsg {
                     type_url: MsgTransfer::type_url(),
                     value: Binary::from(proto_msg.to_bytes().map_err(|e| {
-                        LibraryError::ExecutionError(format!("Failed to encode MsgTransfer: {}", e))
+                        LibraryError::ExecutionError(format!("Failed to encode MsgTransfer: {e}"))
                     })?),
                 };
 
@@ -132,7 +132,7 @@ mod functions {
                 let any_msg = AnyMsg {
                     type_url: MsgTransfer::type_url(),
                     value: Binary::from(proto_msg.to_bytes().map_err(|e| {
-                        LibraryError::ExecutionError(format!("Failed to encode MsgTransfer: {}", e))
+                        LibraryError::ExecutionError(format!("Failed to encode MsgTransfer: {e}"))
                     })?),
                 };
 

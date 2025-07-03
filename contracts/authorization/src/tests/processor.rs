@@ -3070,7 +3070,7 @@ fn migration() {
 
     // Store it again to get a new code id
     let wasm_byte_code =
-        std::fs::read(format!("{}/valence_test_library.wasm", ARTIFACTS_DIR)).unwrap();
+        std::fs::read(format!("{ARTIFACTS_DIR}/valence_test_library.wasm")).unwrap();
 
     let code_id = wasm
         .store_code(&wasm_byte_code, None, &setup.owner_accounts[0])
