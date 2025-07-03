@@ -1,4 +1,4 @@
-# Magma withdrawer library
+# Magma Withdrawer library
 
 The **Valence Magma Withdrawer library** allows users to **withdraw liquidity** from Magma Vault from an **input account** and receive the withdrawn tokens into an **output account**.
 
@@ -27,7 +27,7 @@ graph LR
 ```
 | Function    | Parameters | Description |
 |-------------|------------|-------------|
-| **WithdrawLiquidity** | `shares: Uint128` <br>`amount_0_min: Option<Uint128>` <br>`amount_1_min: Option<Uint128>` |  Withdraw liquidity from the configured **Magma Vault** from the **input account**, and receive tokens to the configured **output account**. 
+| **WithdrawLiquidity** | `token_min_amount_0: Option<Uint128>` <br>`token_min_amount_1: Option<Uint128>` |  Withdraw liquidity from the configured **Magma Vault** from the **input account**, and receive tokens to the configured **output account**. 
 
 ## Configuration
 
@@ -48,10 +48,10 @@ pub struct LibraryConfig {
 
 ### Withdrawal Process
 
-1. **Balance Check**: Queries the balance of the shares in the input account. To withdraw liquidity, the wallet address must have a positive balance or balance greater than input withdraw shares amount.
-2. **Withdraw Liquidity**: Executes a `Withdraw` message, which withdraws the specified shares of liquidity to the Valence input account.
+1. **Balance Check**: Queries the balance of the shares in the input account. To withdraw liquidity, the wallet address must have a positive balance of shares amount.
+2. **Withdraw Liquidity**: Executes a `Withdraw` message, which withdraws the shares of liquidity to the Valence output account.
 
 ## Error Handling
 
-- **No Funds**: Returns an error if attempting to withdraw with a zero or less than provided input value of shares.
+- **No available shares for withdrawal**: Returns an error if attempting to withdraw with a zero input value of shares.
 

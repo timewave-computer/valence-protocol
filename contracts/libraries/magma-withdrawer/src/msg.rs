@@ -3,8 +3,7 @@ use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
 use cw_ownable::cw_ownable_query;
 
 use valence_library_utils::{
-    error::LibraryError, liquidity_utils::AssetData, msg::LibraryConfigValidation,
-    LibraryAccountType,
+    error::LibraryError, msg::LibraryConfigValidation, LibraryAccountType,
 };
 use valence_macros::{valence_library_query, ValenceLibraryInterface};
 #[cw_serde]
@@ -14,7 +13,6 @@ pub enum FunctionMsgs {
         // default to 0 `token_min_amount` if not provided
         token_min_amount_0: Option<Uint128>,
         token_min_amount_1: Option<Uint128>,
-        shares: Uint128,
     },
 }
 
@@ -31,39 +29,30 @@ pub struct LibraryConfig {
     pub input_addr: LibraryAccountType,
     /// Address of the output account
     pub output_addr: LibraryAccountType,
-    /// Configuration for the liquidity provider
-    /// This includes the pool address and asset data
-    pub lp_config: LiquidityProviderConfig,
+    // Address of the vault we are going to withdraw liquidity from
+    pub vault_addr: String,
 }
 
 impl LibraryConfig {
     pub fn new(
         input_addr: impl Into<LibraryAccountType>,
         output_addr: impl Into<LibraryAccountType>,
-        lp_config: LiquidityProviderConfig,
+        vault_addr: String,
     ) -> Self {
         LibraryConfig {
             input_addr: input_addr.into(),
             output_addr: output_addr.into(),
-            lp_config,
+            vault_addr,
         }
     }
 
-    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr), LibraryError> {
+    fn do_validate(&self, api: &dyn cosmwasm_std::Api) -> Result<(Addr, Addr, Addr), LibraryError> {
         let input_addr = self.input_addr.to_addr(api)?;
         let output_addr = self.output_addr.to_addr(api)?;
-        api.addr_validate(&self.lp_config.vault_addr)?;
+        let vault_addr = api.addr_validate(&self.vault_addr)?;
 
-        Ok((input_addr, output_addr))
+        Ok((input_addr, output_addr, vault_addr))
     }
-}
-
-#[cw_serde]
-pub struct LiquidityProviderConfig {
-    /// Address of the vault we are going to provide liquidity for
-    pub vault_addr: String,
-    /// Denoms of both assets we are going to provide liquidity for
-    pub asset_data: AssetData,
 }
 
 #[cw_serde]
@@ -71,7 +60,7 @@ pub struct LiquidityProviderConfig {
 pub struct Config {
     pub input_addr: Addr,
     pub output_addr: Addr,
-    pub lp_config: LiquidityProviderConfig,
+    pub vault_addr: Addr,
 }
 
 impl LibraryConfigValidation<Config> for LibraryConfig {
@@ -82,12 +71,12 @@ impl LibraryConfigValidation<Config> for LibraryConfig {
     }
 
     fn validate(&self, deps: Deps) -> Result<Config, LibraryError> {
-        let (input_addr, output_addr) = self.do_validate(deps.api)?;
+        let (input_addr, output_addr, vault_addr) = self.do_validate(deps.api)?;
 
         Ok(Config {
             input_addr,
             output_addr,
-            lp_config: self.lp_config.clone(),
+            vault_addr,
         })
     }
 }
@@ -104,10 +93,8 @@ impl LibraryConfigUpdate {
             config.output_addr = output_addr.to_addr(deps.api)?;
         }
 
-        if let Some(lp_config) = self.lp_config {
-            config.lp_config = lp_config;
-            deps.api
-                .addr_validate(config.lp_config.vault_addr.as_ref())?;
+        if let Some(vault_addr) = self.vault_addr {
+            config.vault_addr = deps.api.addr_validate(&vault_addr)?;
         }
 
         valence_library_base::save_config(deps.storage, &config)?;

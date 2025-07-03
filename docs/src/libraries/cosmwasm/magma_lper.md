@@ -1,4 +1,4 @@
-# Magma lper library
+# Magma LPer Library
 
 The **Valence Magma LPer library** allows users to **deposit** into a Magma Vault Pool from an **input account** and receive shares into an **output account**.
 
@@ -6,7 +6,7 @@ The **Valence Magma LPer library** allows users to **deposit** into a Magma Vaul
 
 ```mermaid
 ---
-title: Magma lper
+title: Magma LPer
 ---
 graph LR
   IA((Input

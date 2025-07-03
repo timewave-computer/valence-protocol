@@ -24,24 +24,6 @@
     },
     "additionalProperties": false,
     "definitions": {
-      "AssetData": {
-        "type": "object",
-        "required": [
-          "asset1",
-          "asset2"
-        ],
-        "properties": {
-          "asset1": {
-            "description": "Denom of the first asset",
-            "type": "string"
-          },
-          "asset2": {
-            "description": "Denom of the second asset",
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
       "LibraryAccountType": {
         "description": "A helper type that is used to associate an account or library with an id When a program is not instantiated yet, ids will be used to reference accounts and libraries When a program is instantiated, the ids will be replaced by the instantiated addresses",
         "oneOf": [
@@ -91,8 +73,8 @@
         "type": "object",
         "required": [
           "input_addr",
-          "lp_config",
-          "output_addr"
+          "output_addr",
+          "vault_addr"
         ],
         "properties": {
           "input_addr": {
@@ -103,14 +85,6 @@
               }
             ]
           },
-          "lp_config": {
-            "description": "Configuration for the liquidity provider This includes the pool address and asset data",
-            "allOf": [
-              {
-                "$ref": "#/definitions/LiquidityProviderConfig"
-              }
-            ]
-          },
           "output_addr": {
             "description": "Address of the output account",
             "allOf": [
@@ -118,27 +92,8 @@
                 "$ref": "#/definitions/LibraryAccountType"
               }
             ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "LiquidityProviderConfig": {
-        "type": "object",
-        "required": [
-          "asset_data",
-          "vault_addr"
-        ],
-        "properties": {
-          "asset_data": {
-            "description": "Denoms of both assets we are going to provide liquidity for",
-            "allOf": [
-              {
-                "$ref": "#/definitions/AssetData"
-              }
-            ]
           },
           "vault_addr": {
-            "description": "Address of the vault we are going to provide liquidity for",
             "type": "string"
           }
         },
@@ -270,24 +225,6 @@
           }
         ]
       },
-      "AssetData": {
-        "type": "object",
-        "required": [
-          "asset1",
-          "asset2"
-        ],
-        "properties": {
-          "asset1": {
-            "description": "Denom of the first asset",
-            "type": "string"
-          },
-          "asset2": {
-            "description": "Denom of the second asset",
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
       "Expiration": {
         "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
         "oneOf": [
@@ -346,13 +283,7 @@
             "properties": {
               "withdraw_liquidity": {
                 "type": "object",
-                "required": [
-                  "shares"
-                ],
                 "properties": {
-                  "shares": {
-                    "$ref": "#/definitions/Uint128"
-                  },
                   "token_min_amount_0": {
                     "anyOf": [
                       {
@@ -439,16 +370,6 @@
               }
             ]
           },
-          "lp_config": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/LiquidityProviderConfig"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "output_addr": {
             "anyOf": [
               {
@@ -458,28 +379,12 @@
                 "type": "null"
               }
             ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "LiquidityProviderConfig": {
-        "type": "object",
-        "required": [
-          "asset_data",
-          "vault_addr"
-        ],
-        "properties": {
-          "asset_data": {
-            "description": "Denoms of both assets we are going to provide liquidity for",
-            "allOf": [
-              {
-                "$ref": "#/definitions/AssetData"
-              }
-            ]
           },
           "vault_addr": {
-            "description": "Address of the vault we are going to provide liquidity for",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "additionalProperties": false
@@ -573,17 +478,17 @@
       "type": "object",
       "required": [
         "input_addr",
-        "lp_config",
-        "output_addr"
+        "output_addr",
+        "vault_addr"
       ],
       "properties": {
         "input_addr": {
           "$ref": "#/definitions/Addr"
         },
-        "lp_config": {
-          "$ref": "#/definitions/LiquidityProviderConfig"
-        },
         "output_addr": {
+          "$ref": "#/definitions/Addr"
+        },
+        "vault_addr": {
           "$ref": "#/definitions/Addr"
         }
       },
@@ -592,46 +497,6 @@
         "Addr": {
           "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
           "type": "string"
-        },
-        "AssetData": {
-          "type": "object",
-          "required": [
-            "asset1",
-            "asset2"
-          ],
-          "properties": {
-            "asset1": {
-              "description": "Denom of the first asset",
-              "type": "string"
-            },
-            "asset2": {
-              "description": "Denom of the second asset",
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        "LiquidityProviderConfig": {
-          "type": "object",
-          "required": [
-            "asset_data",
-            "vault_addr"
-          ],
-          "properties": {
-            "asset_data": {
-              "description": "Denoms of both assets we are going to provide liquidity for",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/AssetData"
-                }
-              ]
-            },
-            "vault_addr": {
-              "description": "Address of the vault we are going to provide liquidity for",
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
         }
       }
     },
@@ -647,8 +512,8 @@
       "type": "object",
       "required": [
         "input_addr",
-        "lp_config",
-        "output_addr"
+        "output_addr",
+        "vault_addr"
       ],
       "properties": {
         "input_addr": {
@@ -659,14 +524,6 @@
             }
           ]
         },
-        "lp_config": {
-          "description": "Configuration for the liquidity provider This includes the pool address and asset data",
-          "allOf": [
-            {
-              "$ref": "#/definitions/LiquidityProviderConfig"
-            }
-          ]
-        },
         "output_addr": {
           "description": "Address of the output account",
           "allOf": [
@@ -674,28 +531,13 @@
               "$ref": "#/definitions/LibraryAccountType"
             }
           ]
+        },
+        "vault_addr": {
+          "type": "string"
         }
       },
       "additionalProperties": false,
       "definitions": {
-        "AssetData": {
-          "type": "object",
-          "required": [
-            "asset1",
-            "asset2"
-          ],
-          "properties": {
-            "asset1": {
-              "description": "Denom of the first asset",
-              "type": "string"
-            },
-            "asset2": {
-              "description": "Denom of the second asset",
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
         "LibraryAccountType": {
           "description": "A helper type that is used to associate an account or library with an id When a program is not instantiated yet, ids will be used to reference accounts and libraries When a program is instantiated, the ids will be replaced by the instantiated addresses",
           "oneOf": [
@@ -740,28 +582,6 @@
               "additionalProperties": false
             }
           ]
-        },
-        "LiquidityProviderConfig": {
-          "type": "object",
-          "required": [
-            "asset_data",
-            "vault_addr"
-          ],
-          "properties": {
-            "asset_data": {
-              "description": "Denoms of both assets we are going to provide liquidity for",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/AssetData"
-                }
-              ]
-            },
-            "vault_addr": {
-              "description": "Address of the vault we are going to provide liquidity for",
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
         }
       }
     },
