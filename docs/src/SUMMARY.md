@@ -7,6 +7,7 @@
     - [Base Accounts](./accounts/base_accounts.md)
     - [Storage Accounts](./accounts/storage_accounts.md)
     - [Interchain Accounts](./accounts/interchain_accounts.md)
+    - [Account Factory](./accounts/account_factory.md)
   - [Libraries and Functions](./components/libraries_and_functions.md)
   - [Programs and Authorizations](./components/programs_and_authorizations.md)
   - [Middleware](./components/middleware.md)
