@@ -170,7 +170,7 @@ pub fn setup_cctp_transfer(
     // Convert to hex
     let address_hex = hex::encode(data);
     // Pad with zeroes to 32 bytes
-    let padded_hex = format!("{:0>64}", address_hex);
+    let padded_hex = format!("{address_hex:0>64}");
 
     let cctp_transfer_cfg = CCTPTransferConfig {
         amount: U256::ZERO,

@@ -108,7 +108,7 @@ impl OsmosisTestPoolConfig for ConcentratedLiquidityPool {
 
         let scl_pool: osmosis_std::types::osmosis::concentratedliquidity::v1beta1::Pool =
             pool.pools[0].clone().try_into().unwrap();
-        println!("pools: {:?}", scl_pool);
+        println!("pools: {scl_pool:?}");
 
         Ok(cl_pool)
     }

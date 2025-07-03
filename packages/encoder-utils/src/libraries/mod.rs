@@ -23,8 +23,7 @@ impl ToFixedBytes<32> for Bytes32Address {
     fn to_fixed_bytes(&self) -> Result<[u8; 32], StdError> {
         self.0.as_slice().try_into().map_err(|e| {
             StdError::generic_err(format!(
-                "Error converting Bytes32Address to fixed size: {}",
-                e
+                "Error converting Bytes32Address to fixed size: {e}"
             ))
         })
     }
@@ -36,8 +35,7 @@ impl Bytes32Address {
         // Validate the binary can be converted to [u8; 32]
         let _: [u8; 32] = binary.as_slice().try_into().map_err(|e| {
             StdError::generic_err(format!(
-                "Error converting mint recipient to fixed size: {}",
-                e
+                "Error converting mint recipient to fixed size: {e}"
             ))
         })?;
         Ok(Bytes32Address(binary))

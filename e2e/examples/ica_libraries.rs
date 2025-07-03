@@ -154,7 +154,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &valence_ica.address,
         DEFAULT_KEY,
         &serde_json::to_string(&valence_account_utils::ica::ExecuteMsg::RegisterIca {}).unwrap(),
-        &format!("{} --amount=100000000{}", GAS_FLAGS, NEUTRON_CHAIN_DENOM),
+        &format!("{GAS_FLAGS} --amount=100000000{NEUTRON_CHAIN_DENOM}"),
     )
     .unwrap();
     std::thread::sleep(Duration::from_secs(3));

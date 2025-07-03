@@ -40,7 +40,7 @@ pub fn upload_neutron_contracts(test_ctx: &mut TestContext) -> Result<(), Box<dy
         FORWARDER_NAME,
         BASE_ACCOUNT_NAME,
     ] {
-        let contract_name = format!("{}.wasm", contract);
+        let contract_name = format!("{contract}.wasm");
         let contract_path = Path::new(&contract_name);
         let src = Path::new("artifacts/").join(contract_path);
         let dest = local_contracts_path.join(contract_path);

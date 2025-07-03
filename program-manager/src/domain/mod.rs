@@ -50,7 +50,7 @@ impl fmt::Display for Domain {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // IMPORTANT: to get from_string, we need to separate everything using ":"
         match self {
-            Domain::CosmosCosmwasm(chain_name) => write!(f, "CosmosCosmwasm:{}", chain_name),
+            Domain::CosmosCosmwasm(chain_name) => write!(f, "CosmosCosmwasm:{chain_name}"),
             // Domain::CosmosEvm(chain_name) => write!(f, "CosmosEvm:{}", chain_name),
         }
     }

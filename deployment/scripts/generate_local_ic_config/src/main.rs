@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn set_chains_in_context(test_ctx_builder: &mut TestContextBuilder, chain_config_path: &str) {
-    let chain_file_path = format!("e2e/chains/{}", chain_config_path);
+    let chain_file_path = format!("e2e/chains/{chain_config_path}");
     let chain_file = fs::File::open(chain_file_path).expect("Couldn't open chain config file");
     let chain_json: serde_json::Value =
         serde_json::from_reader(chain_file).expect("Chain config file is not a valid JSON");

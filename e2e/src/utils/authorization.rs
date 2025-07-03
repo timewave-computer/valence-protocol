@@ -389,7 +389,7 @@ pub fn set_up_external_domain_with_polytone(
     // Let's now predict the proxy
     let salt_for_proxy_on_neutron = salt_for_proxy(
         &connection_id_neutron_to_external_domain,
-        &format!("wasm.{}", polytone_note_on_external_domain_address),
+        &format!("wasm.{polytone_note_on_external_domain_address}"),
         &predicted_processor_on_external_domain_address,
     );
     let predicted_proxy_address_on_neutron = test_ctx
@@ -485,7 +485,7 @@ pub fn predict_remote_contract_address(
     let checksum = if let Some(data_hash) = resp["data_hash"].as_str() {
         HexBinary::from_hex(data_hash).unwrap()
     } else {
-        panic!("failed to get data hash from response: {:?}", resp);
+        panic!("failed to get data hash from response: {resp:?}");
     };
     let mock_api = valence_program_manager::mock_api::MockApi::new(chain_prefix.to_string());
     let canonical_creator = mock_api.addr_canonicalize(creator_addr)?;

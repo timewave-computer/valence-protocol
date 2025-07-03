@@ -1719,7 +1719,7 @@ fn assert_owner_or_subowner(store: &dyn Storage, address: Addr) -> Result<(), Co
 
 /// Returns the full denom of a tokenfactory token: factory/<contract_address>/<label>
 pub fn build_tokenfactory_denom(contract_address: &str, label: &str) -> String {
-    format!("factory/{}/{}", contract_address, label)
+    format!("factory/{contract_address}/{label}")
 }
 
 /// Unique ID for an execution on any processor

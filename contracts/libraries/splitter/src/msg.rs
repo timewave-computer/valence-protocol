@@ -308,15 +308,13 @@ fn validate_splits(
     for (key, sum) in denom_ratios.iter() {
         if denom_amount.contains(key) {
             return Err(LibraryError::ConfigurationError(format!(
-                "Invalid split config: cannot combine amount and ratio for the same denom '{}'.",
-                key
+                "Invalid split config: cannot combine amount and ratio for the same denom '{key}'."
             )));
         }
 
         if sum.to_uint_ceil() != Uint128::one() {
             return Err(LibraryError::ConfigurationError(format!(
-                "Invalid split config: sum of ratios for denom '{}' is not equal to 1.",
-                key
+                "Invalid split config: sum of ratios for denom '{key}' is not equal to 1."
             )));
         }
     }

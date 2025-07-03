@@ -120,7 +120,7 @@ mod test {
             json_string,
         )
         .unwrap();
-        println!("{:#?}", config);
+        println!("{config:#?}");
     }
 
     #[ignore = "internal test"]

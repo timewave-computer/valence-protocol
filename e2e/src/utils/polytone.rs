@@ -179,7 +179,7 @@ pub fn setup_polytone(
     let domain_1_to_domain_2_polytone_channel = domain_1_channels
         .iter()
         .find_map(|domain_1| {
-            if domain_1.port_id == format!("wasm.{}", polytone_note_on_domain_1_address) {
+            if domain_1.port_id == format!("wasm.{polytone_note_on_domain_1_address}") {
                 Some(domain_1.clone())
             } else {
                 None
@@ -192,7 +192,7 @@ pub fn setup_polytone(
     let domain_2_to_domain_1_polytone_channel = domain_2_channels
         .iter()
         .find_map(|domain_2_channel| {
-            if domain_2_channel.port_id == format!("wasm.{}", polytone_note_on_domain_2_address) {
+            if domain_2_channel.port_id == format!("wasm.{polytone_note_on_domain_2_address}") {
                 Some(domain_2_channel.clone())
             } else {
                 None

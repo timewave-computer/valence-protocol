@@ -114,7 +114,7 @@ impl ProgramConfigUpdate {
                 .context(ManagerError::LibraryIdIsMissing(*id).to_string())?;
 
             // Add authorization to update the library
-            let label = format!("update_library_{}", id);
+            let label = format!("update_library_{id}");
 
             // Create authorization if we don't already have one
             if !config.authorizations.iter().any(|auth| auth.label == label) {
@@ -230,7 +230,7 @@ impl ProgramConfigUpdate {
                         .authorizations
                         .iter_mut()
                         .find(|a| a.label == label)
-                        .context(format!("Failed to find authorization {}", label))?;
+                        .context(format!("Failed to find authorization {label}"))?;
 
                     if let Some(not_before) = not_before {
                         auth.not_before = not_before;
