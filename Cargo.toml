@@ -98,7 +98,8 @@ valence-supervaults-lper = { path = "contracts/libraries/supervaults-lper", feat
 valence-supervaults-withdrawer = { path = "contracts/libraries/supervaults-withdrawer", features = ["library"] }
 valence-clearing-queue = { path = "contracts/libraries/clearing-queue", features = ["library"] }
 valence-maxbtc-issuer = { path = "contracts/libraries/max-btc-issuer", features = ["library"] }
-
+valence-duality-lper = { path = "contracts/libraries/duality-lper", features = ["library"] }
+valence-duality-withdrawer = { path = "contracts/libraries/duality-withdrawer", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
@@ -129,6 +130,8 @@ valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 valence-lending-utils          = { path = "packages/lending-utils" }
 valence-supervaults-utils      = { path = "packages/supervaults-utils" }
 valence-magma-utils            = { path = "packages/magma-utils" }
+valence-duality-utils          = { path = "packages/duality-utils" }
+
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
