@@ -950,6 +950,30 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceMagmaLper"
+            ],
+            "properties": {
+              "ValenceMagmaLper": {
+                "$ref": "#/definitions/LibraryConfig17"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceMagmaWithdrawer"
+            ],
+            "properties": {
+              "ValenceMagmaWithdrawer": {
+                "$ref": "#/definitions/LibraryConfig18"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -1128,6 +1152,71 @@
             "$ref": "#/definitions/LibraryAccountType"
           },
           "pool_addr": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfig17": {
+        "type": "object",
+        "required": [
+          "input_addr",
+          "lp_config",
+          "output_addr"
+        ],
+        "properties": {
+          "input_addr": {
+            "description": "Address of the input account",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
+          },
+          "lp_config": {
+            "description": "Configuration for the liquidity provider This includes the pool address and asset data",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LiquidityProviderConfig5"
+              }
+            ]
+          },
+          "output_addr": {
+            "description": "Address of the output account",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfig18": {
+        "type": "object",
+        "required": [
+          "input_addr",
+          "output_addr",
+          "vault_addr"
+        ],
+        "properties": {
+          "input_addr": {
+            "description": "Address of the input account",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
+          },
+          "output_addr": {
+            "description": "Address of the output account",
+            "allOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              }
+            ]
+          },
+          "vault_addr": {
             "type": "string"
           }
         },
@@ -1553,6 +1642,30 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceMagmaLper"
+            ],
+            "properties": {
+              "ValenceMagmaLper": {
+                "$ref": "#/definitions/LibraryConfigUpdate17"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ValenceMagmaWithdrawer"
+            ],
+            "properties": {
+              "ValenceMagmaWithdrawer": {
+                "$ref": "#/definitions/LibraryConfigUpdate18"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -1814,6 +1927,74 @@
             ]
           },
           "pool_addr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfigUpdate17": {
+        "type": "object",
+        "properties": {
+          "input_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lp_config": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LiquidityProviderConfig5"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LibraryConfigUpdate18": {
+        "type": "object",
+        "properties": {
+          "input_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_addr": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/LibraryAccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vault_addr": {
             "type": [
               "string",
               "null"
@@ -2315,6 +2496,28 @@
           },
           "pool_addr": {
             "description": "Address of the pool we are going to provide liquidity for",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LiquidityProviderConfig5": {
+        "type": "object",
+        "required": [
+          "asset_data",
+          "vault_addr"
+        ],
+        "properties": {
+          "asset_data": {
+            "description": "Denoms of both assets we are going to provide liquidity for",
+            "allOf": [
+              {
+                "$ref": "#/definitions/AssetData"
+              }
+            ]
+          },
+          "vault_addr": {
+            "description": "Address of the vault we are going to provide liquidity for",
             "type": "string"
           }
         },

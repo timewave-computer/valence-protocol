@@ -100,6 +100,8 @@ pub enum LibraryConfig {
     ValenceMarsLending(valence_mars_lending::msg::LibraryConfig),
     ValenceDualityLper(valence_duality_lper::msg::LibraryConfig),
     ValenceDualityWithdrawer(valence_duality_withdrawer::msg::LibraryConfig),
+    ValenceMagmaLper(valence_magma_lper::msg::LibraryConfig),
+    ValenceMagmaWithdrawer(valence_magma_withdrawer::msg::LibraryConfig),
 }
 
 impl LibraryConfig {
