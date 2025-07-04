@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>EVM - Valence Protocol Documentation</title>
+        <title>Magma Withdrawer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -171,18 +171,66 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
-<p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
+                        <h1 id="magma-withdrawer-library"><a class="header" href="#magma-withdrawer-library">Magma Withdrawer library</a></h1>
+<p>The <strong>Valence Magma Withdrawer library</strong> allows users to <strong>withdraw liquidity</strong> from Magma Vault from an <strong>input account</strong> and receive the withdrawn tokens into an <strong>output account</strong>.</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High-level flow</a></h2>
+<pre class="mermaid">---
+title: Magma Liquidity Withdrawal
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+          Account))
+  P[Processor]
+  S[Magma
+      Liquidity
+      Withdrawal]
+  M[Magma Vault]
+  P -- 1/Withdraw Liquidity --&gt; S
+  S -- 2/Query balance --&gt; IA
+  S -- 3/Do Withdraw Liquidity --&gt; IA
+  IA -- 4/Withdraw Liquidity
+                  [Shares] --&gt; M
+  M -- 4'/Transfer assets --&gt; OA
+</pre>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>WithdrawLiquidity</strong></td><td><code>token_min_amount_0: Option&lt;Uint128&gt;</code> <br><code>token_min_amount_1: Option&lt;Uint128&gt;</code></td><td>Withdraw liquidity from the configured <strong>Magma Vault</strong> from the <strong>input account</strong>, and receive tokens to the configured <strong>output account</strong>.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    // Address of the input account 
+    pub input_addr: LibraryAccountType,
+    // Address of the output account 
+    pub output_addr: LibraryAccountType,
+    // Address of the vault we are going to withdraw liquidity from 
+    pub vault_addr: String,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="implementation-details"><a class="header" href="#implementation-details">Implementation Details</a></h2>
+<h3 id="withdrawal-process"><a class="header" href="#withdrawal-process">Withdrawal Process</a></h3>
+<ol>
+<li><strong>Balance Check</strong>: Queries the balance of the shares in the input account. To withdraw liquidity, the wallet address must have a positive balance of shares amount.</li>
+<li><strong>Withdraw Liquidity</strong>: Executes a <code>Withdraw</code> message, which withdraws the shares of liquidity to the Valence output account.</li>
+</ol>
+<h2 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h2>
+<ul>
+<li><strong>No available shares for withdrawal</strong>: Returns an error if attempting to withdraw with a zero input value of shares.</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/magma_withdrawer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/magma_lper.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -192,11 +240,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/magma_withdrawer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/magma_lper.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
