@@ -27,7 +27,7 @@ graph LR
 ```
 | Function    | Parameters | Description |
 |-------------|------------|-------------|
-| **WithdrawLiquidity** | `token_min_amount_0: Option<Uint128>` <br>`token_min_amount_1: Option<Uint128>` |  Withdraw liquidity from the configured **Magma Vault** from the **input account**, and receive tokens to the configured **output account**. 
+| **WithdrawLiquidity** | `token_min_amount_0: Option<String>` <br>`token_min_amount_1: Option<String>` |  Withdraw liquidity from the configured **Magma Vault** from the **input account**, and receive tokens to the configured **output account**. 
 
 ## Configuration
 

@@ -59,10 +59,12 @@ pub fn process_function(
             token_min_amount_1,
         } => {
             let deposit_msg = valence_magma_utils::msg::DepositMsg {
-                amount0_min: token_min_amount_0.unwrap_or_default(),
-                amount1_min: token_min_amount_1.unwrap_or_default(),
+                amount0_min: token_min_amount_0.unwrap_or_else(|| "0".to_string()),
+                amount1_min: token_min_amount_1.unwrap_or_else(|| "0".to_string()),
                 to: cfg.output_addr.to_string(),
             };
+
+            let execute_msg = valence_magma_utils::msg::ExecuteMsg::Deposit(deposit_msg);
 
             let bal_asset_0 = deps
                 .querier
@@ -73,7 +75,7 @@ pub fn process_function(
 
             let cosmos_msg: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cfg.lp_config.vault_addr.to_string(),
-                msg: to_json_binary(&deposit_msg)?,
+                msg: to_json_binary(&execute_msg)?,
                 funds: vec![bal_asset_0.clone(), bal_asset_1.clone()],
             });
 

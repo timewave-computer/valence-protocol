@@ -30,7 +30,7 @@ graph LR
 
 | Function    | Parameters | Description |
 |-------------|------------|-------------|
-| **ProvideLiquidity** | `amount_0_min: Option<Uint128>` <br>`amount_1_min: Option<Uint128>` | Provide double-sided liquidity to the pre-configured **Magma Vault** from the **input account**, and receive the **shares** into the **output account**. |
+| **ProvideLiquidity** | `amount_0_min: Option<String>` <br>`amount_1_min: Option<String>` | Provide double-sided liquidity to the pre-configured **Magma Vault** from the **input account**, and receive the **shares** into the **output account**. |
 
 ## Configuration
 
