@@ -67,22 +67,25 @@ pub fn process_function(
                 .querier
                 .query_wasm_smart(cfg.vault_addr.to_string(), &shares_query)?;
 
-            if shares.balance.is_zero() {
+            if shares.balance.clone() == "0" {
                 return Err(LibraryError::ExecutionError(
                     "No available shares for withdrawal".to_string(),
                 ));
             }
 
             let withdraw_msg = valence_magma_utils::msg::WithdrawMsg {
-                shares: shares.balance,
-                amount0_min: token_min_amount_0.unwrap_or_default(),
-                amount1_min: token_min_amount_1.unwrap_or_default(),
+                shares: shares.balance.clone(),
+                amount0_min: token_min_amount_0.unwrap_or_else(|| "0".to_string()),
+                amount1_min: token_min_amount_1.unwrap_or_else(|| "0".to_string()),
+
                 to: cfg.output_addr.to_string(),
             };
 
+            let execute_msg = valence_magma_utils::msg::ExecuteMsg::Withdraw(withdraw_msg);
+
             let cosmos_msg: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cfg.vault_addr.to_string(),
-                msg: to_json_binary(&withdraw_msg)?,
+                msg: to_json_binary(&execute_msg)?,
                 funds: vec![],
             });
 
@@ -91,7 +94,7 @@ pub fn process_function(
             Ok(Response::new()
                 .add_message(withdraw_liquidity_msg)
                 .add_attribute("method", "withdraw")
-                .add_attribute("shares", shares.balance.to_string()))
+                .add_attribute("shares", shares.balance))
         }
     }
 }
