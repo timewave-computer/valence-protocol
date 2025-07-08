@@ -1925,7 +1925,7 @@ The library can be configured to make use of IBC Eureka as follows:</p>
 <li><code>recover_address</code> - address on the intermediate chain that will be used to recover the funds in case the transfer fails.</li>
 <li><code>source_channel</code> - source channel on the intermediate chain</li>
 <li><code>memo(Optional)</code> - memo to be passed in the IBC transfer message. Currently not used but could potentially be used in the future.</li>
-<li><code>timeout(Optional)</code> - timeout in seconds for the Eureka Transfer. If not provided, a default 43200 seconds (12 hours) will be used. Which is the same that Skip Go uses.</li>
+<li><code>timeout(Optional)</code> - timeout in seconds for the Eureka Transfer. If not provided, a default 43200 seconds (12 hours) will be used. Which is the same that Skip Go uses. <strong>IMPORTANT</strong>: Skip relayers are currently ignoring IBC Eureka transfers with a timeout of less than 10 hours (36000 seconds), therefore we suggest using 12 hours as the default timeout or at least a value higher than 10 hours.</li>
 </ul>
 </li>
 </ul>
@@ -3821,6 +3821,7 @@ graph LR
         IEurekaHandler eurekaHandler;
     }
 </code></pre>
+<p><strong>IMPORTANT</strong>: Skip relayers are currently ignoring IBC Eureka transfers with a timeout of less than 10 hours (36000 seconds), therefore we suggest using 12 hours as the default timeout or at least a value higher than 10 hours.</p>
 <h2 id="special-considerations"><a class="header" href="#special-considerations">Special Considerations</a></h2>
 <ul>
 <li>The EurekaHandler contract on Ethereum that is used to transfer from Ethereum to IBC chains is at <code>0xfc2d0487a0ae42ae7329a80dc269916a9184cf7c</code>.</li>

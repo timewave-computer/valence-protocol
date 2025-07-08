@@ -262,6 +262,7 @@ graph LR
         IEurekaHandler eurekaHandler;
     }
 </code></pre>
+<p><strong>IMPORTANT</strong>: Skip relayers are currently ignoring IBC Eureka transfers with a timeout of less than 10 hours (36000 seconds), therefore we suggest using 12 hours as the default timeout or at least a value higher than 10 hours.</p>
 <h2 id="special-considerations"><a class="header" href="#special-considerations">Special Considerations</a></h2>
 <ul>
 <li>The EurekaHandler contract on Ethereum that is used to transfer from Ethereum to IBC chains is at <code>0xfc2d0487a0ae42ae7329a80dc269916a9184cf7c</code>.</li>
