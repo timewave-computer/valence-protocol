@@ -1,22 +1,22 @@
 [workspace]
 members = [
-  "contracts/accounts/*",
-  "contracts/libraries/*",
-  "contracts/encoders/*",
-  "contracts/authorization",
-  "contracts/processor",
-  "contracts/testing/*",
-  "contracts/program-registry",
-  "contracts/middleware/type-registries/osmosis/osmo-26-0-0",
-  "contracts/middleware/broker",
-  "contracts/middleware/asserter",
-  "contracts/middleware/verification-gateway",
-  "contracts/middleware/dynamic-ratio-query-provider",
-  "packages/*",
-  "program-manager",
-  "e2e",
-  "examples/*",
-  "deployment/scripts/*",
+    "contracts/accounts/*",
+    "contracts/libraries/*",
+    "contracts/encoders/*",
+    "contracts/authorization",
+    "contracts/processor",
+    "contracts/testing/*",
+    "contracts/program-registry",
+    "contracts/middleware/type-registries/osmosis/osmo-26-0-0",
+    "contracts/middleware/broker",
+    "contracts/middleware/asserter",
+    "contracts/middleware/verification-gateway",
+    "contracts/middleware/dynamic-ratio-query-provider",
+    "packages/*",
+    "program-manager",
+    "e2e",
+    "examples/*",
+    "deployment/scripts/*",
 ]
 resolver = "2"
 
@@ -64,41 +64,47 @@ osmosis-std        = "0.26.0"
 osmosis-std-derive = "0.26.0"
 
 # our contracts
-valence-authorization                = { path = "contracts/authorization", features = ["library"] }
-valence-base-account                 = { path = "contracts/accounts/base_account", features = ["library"] }
-valence-interchain-account           = { path = "contracts/accounts/interchain_account", features = ["library"] }
-valence-storage-account              = { path = "contracts/accounts/storage_account", features = ["library"] }
-valence-processor                    = { path = "contracts/processor", features = ["library"] }
-valence-splitter-library             = { path = "contracts/libraries/splitter", features = ["library"] }
-valence-dynamic-ratio-query-provider = { path = "contracts/middleware/dynamic-ratio-query-provider", features = ["library"] }
-valence-test-library                 = { path = "contracts/testing/test-library", features = ["library"] }
-valence-test-icq-lib                 = { path = "contracts/testing/test-icq-lib", features = ["library"] }
-valence-workflow-registry            = { path = "contracts/workflow-registry", features = ["library"] }
-valence-astroport-lper               = { path = "contracts/libraries/astroport-lper", features = ["library"] }
-valence-forwarder-library            = { path = "contracts/libraries/forwarder", features = ["library"] }
-valence-astroport-withdrawer         = { path = "contracts/libraries/astroport-withdrawer", features = ["library"] }
+valence-authorization = { path = "contracts/authorization", features = ["library"] }
+valence-base-account = { path = "contracts/accounts/base_account", features = ["library"] }
+valence-interchain-account = { path = "contracts/accounts/interchain_account", features = ["library"] }
+valence-storage-account = { path = "contracts/accounts/storage_account", features = ["library"] }
+valence-processor = { path = "contracts/processor", features = ["library"] }
+valence-splitter-library = { path = "contracts/libraries/splitter", features = ["library"] }
+valence-dynamic-ratio-query-provider = { path = "contracts/middleware/dynamic-ratio-query-provider", features = [
+    "library",
+] }
+valence-test-library = { path = "contracts/testing/test-library", features = ["library"] }
+valence-test-icq-lib = { path = "contracts/testing/test-icq-lib", features = ["library"] }
+valence-workflow-registry = { path = "contracts/workflow-registry", features = ["library"] }
+valence-astroport-lper = { path = "contracts/libraries/astroport-lper", features = ["library"] }
+valence-forwarder-library = { path = "contracts/libraries/forwarder", features = ["library"] }
+valence-astroport-withdrawer = { path = "contracts/libraries/astroport-withdrawer", features = ["library"] }
 valence-generic-ibc-transfer-library = { path = "contracts/libraries/generic-ibc-transfer", features = ["library"] }
 valence-neutron-ibc-transfer-library = { path = "contracts/libraries/neutron-ibc-transfer", features = ["library"] }
-valence-reverse-splitter-library     = { path = "contracts/libraries/reverse-splitter", features = ["library"] }
-valence-osmosis-gamm-lper            = { path = "contracts/libraries/osmosis-gamm-lper", features = ["library"] }
-valence-osmosis-gamm-withdrawer      = { path = "contracts/libraries/osmosis-gamm-withdrawer", features = ["library"] }
-valence-osmosis-cl-lper              = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
-valence-osmosis-cl-withdrawer        = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
-valence-encoder-broker               = { path = "contracts/encoders/broker", features = ["library"] }
-valence-neutron-ic-querier           = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
-valence-drop-liquid-staker           = { path = "contracts/libraries/drop-liquid-staker", features = ["library"] }
-valence-drop-liquid-unstaker         = { path = "contracts/libraries/drop-liquid-unstaker", features = ["library"] }
-valence-ica-cctp-transfer            = { path = "contracts/libraries/ica-cctp-transfer", features = ["library"] }
-valence-ica-ibc-transfer             = { path = "contracts/libraries/ica-ibc-transfer", features = ["library"] }
-valence-supervaults-lper             = { path = "contracts/libraries/supervaults-lper", features = ["library"] }
-valence-supervaults-withdrawer       = { path = "contracts/libraries/supervaults-withdrawer", features = ["library"] }
-valence-clearing-queue               = { path = "contracts/libraries/clearing-queue", features = ["library"] }
+valence-reverse-splitter-library = { path = "contracts/libraries/reverse-splitter", features = ["library"] }
+valence-osmosis-gamm-lper = { path = "contracts/libraries/osmosis-gamm-lper", features = ["library"] }
+valence-osmosis-gamm-withdrawer = { path = "contracts/libraries/osmosis-gamm-withdrawer", features = ["library"] }
+valence-osmosis-cl-lper = { path = "contracts/libraries/osmosis-cl-lper", features = ["library"] }
+valence-osmosis-cl-withdrawer = { path = "contracts/libraries/osmosis-cl-withdrawer", features = ["library"] }
+valence-magma-lper = { path = "contracts/libraries/magma-lper", features = ["library"] }
+valence-magma-withdrawer = { path = "contracts/libraries/magma-withdrawer", features = ["library"] }
+valence-encoder-broker = { path = "contracts/encoders/broker", features = ["library"] }
+valence-neutron-ic-querier = { path = "contracts/libraries/neutron-ic-querier", features = ["library"] }
+valence-drop-liquid-staker = { path = "contracts/libraries/drop-liquid-staker", features = ["library"] }
+valence-drop-liquid-unstaker = { path = "contracts/libraries/drop-liquid-unstaker", features = ["library"] }
+valence-ica-cctp-transfer = { path = "contracts/libraries/ica-cctp-transfer", features = ["library"] }
+valence-ica-ibc-transfer = { path = "contracts/libraries/ica-ibc-transfer", features = ["library"] }
+valence-supervaults-lper = { path = "contracts/libraries/supervaults-lper", features = ["library"] }
+valence-supervaults-withdrawer = { path = "contracts/libraries/supervaults-withdrawer", features = ["library"] }
+valence-clearing-queue = { path = "contracts/libraries/clearing-queue", features = ["library"] }
 valence-clearing-queue-supervaults   = { path = "contracts/libraries/clearing-queue-supervaults", features = ["library"] }
-valence-maxbtc-issuer                = { path = "contracts/libraries/max-btc-issuer", features = ["library"] }
+valence-maxbtc-issuer = { path = "contracts/libraries/max-btc-issuer", features = ["library"] }
+valence-duality-lper = { path = "contracts/libraries/duality-lper", features = ["library"] }
+valence-duality-withdrawer = { path = "contracts/libraries/duality-withdrawer", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
-  "library",
+    "library",
 ] }
 valence-middleware-broker = { path = "contracts/middleware/broker", features = ["library"] }
 valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
@@ -125,6 +131,9 @@ valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 valence-lending-utils          = { path = "packages/lending-utils" }
 valence-supervaults-utils      = { path = "packages/supervaults-utils" }
 valence-strategist-utils       = { path = "packages/strategist-utils" }
+valence-magma-utils            = { path = "packages/magma-utils" }
+valence-duality-utils          = { path = "packages/duality-utils" }
+
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }

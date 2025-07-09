@@ -10502,6 +10502,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-duality-lper"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "schemars",
+ "valence-account-utils",
+ "valence-duality-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+]
+
+[[package]]
+name = "valence-duality-utils"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "valence-duality-withdrawer"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "schemars",
+ "valence-account-utils",
+ "valence-duality-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+]
+
+[[package]]
 name = "valence-dynamic-ratio-query-provider"
 version = "0.2.0"
 dependencies = [
@@ -10834,6 +10874,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "valence-magma-lper"
+version = "0.2.0"
+dependencies = [
+ "cosmos-sdk-proto 0.20.0",
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+ "valence-magma-utils",
+]
+
+[[package]]
+name = "valence-magma-utils"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "valence-magma-withdrawer"
+version = "0.2.0"
+dependencies = [
+ "cosmos-sdk-proto 0.20.0",
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+ "valence-magma-utils",
+]
+
+[[package]]
 name = "valence-mars-lending"
 version = "0.2.0"
 dependencies = [
@@ -11146,11 +11235,15 @@ dependencies = [
  "valence-authorization-utils",
  "valence-drop-liquid-staker",
  "valence-drop-liquid-unstaker",
+ "valence-duality-lper",
+ "valence-duality-withdrawer",
  "valence-forwarder-library",
  "valence-generic-ibc-transfer-library",
  "valence-library-base",
  "valence-library-utils",
  "valence-macros",
+ "valence-magma-lper",
+ "valence-magma-withdrawer",
  "valence-mars-lending",
  "valence-neutron-ibc-transfer-library",
  "valence-osmosis-cl-lper",

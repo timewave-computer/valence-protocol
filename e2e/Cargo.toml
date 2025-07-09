@@ -18,38 +18,38 @@ name = "eth_to_base_vault_pancake"
 path = "examples/eth_to_base_vault_pancake/vault.rs"
 
 [dependencies]
-localic-std                          = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
-localic-utils                        = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
-sha2                                 = { workspace = true }
-hex                                  = { workspace = true }
-serde_json                           = { workspace = true }
-env_logger                           = { workspace = true }
-log                                  = { workspace = true }
-rand                                 = "0.8.5"
-cosmos-grpc-client                   = "3.0.1"
-persistence-std                      = "1.2.0"
-polytone-note                        = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
-polytone-voice                       = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
-cosmwasm-std                         = { workspace = true }
-cosmwasm-std-old                     = { package = "cosmwasm-std", version = "1.5.7" }
-cw-utils                             = { workspace = true }
-valence-authorization                = { workspace = true }
-valence-processor                    = { workspace = true }
-valence-authorization-utils          = { workspace = true }
-valence-processor-utils              = { workspace = true }
-valence-account-utils                = { workspace = true }
-valence-storage-account              = { workspace = true }
-valence-interchain-account           = { workspace = true }
-valence-library-utils                = { workspace = true }
-valence-splitter-library             = { workspace = true }
-valence-reverse-splitter-library     = { workspace = true }
-valence-forwarder-library            = { workspace = true }
-valence-astroport-lper               = { workspace = true }
-valence-astroport-withdrawer         = { workspace = true }
-valence-astroport-utils              = { workspace = true }
-valence-program-manager              = { workspace = true }
-valence-program-registry-utils       = { workspace = true }
-valence-ibc-utils                    = { workspace = true }
+localic-std = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
+localic-utils = { git = "https://github.com/timewave-computer/localic-utils", branch = "main" }
+sha2 = { workspace = true }
+hex = { workspace = true }
+serde_json = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+rand = "0.8.5"
+cosmos-grpc-client = "3.0.1"
+persistence-std = "1.2.0"
+polytone-note = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
+polytone-voice = { git = "https://github.com/DA0-DA0/polytone", rev = "f70440a" }
+cosmwasm-std = { workspace = true }
+cosmwasm-std-old = { package = "cosmwasm-std", version = "1.5.7" }
+cw-utils = { workspace = true }
+valence-authorization = { workspace = true }
+valence-processor = { workspace = true }
+valence-authorization-utils = { workspace = true }
+valence-processor-utils = { workspace = true }
+valence-account-utils = { workspace = true }
+valence-storage-account = { workspace = true }
+valence-interchain-account = { workspace = true }
+valence-library-utils = { workspace = true }
+valence-splitter-library = { workspace = true }
+valence-reverse-splitter-library = { workspace = true }
+valence-forwarder-library = { workspace = true }
+valence-astroport-lper = { workspace = true }
+valence-astroport-withdrawer = { workspace = true }
+valence-astroport-utils = { workspace = true }
+valence-program-manager = { workspace = true }
+valence-program-registry-utils = { workspace = true }
+valence-ibc-utils = { workspace = true }
 valence-generic-ibc-transfer-library = { workspace = true }
 valence-neutron-ibc-transfer-library = { workspace = true }
 valence-osmosis-gamm-lper            = { workspace = true }

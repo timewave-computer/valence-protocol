@@ -301,8 +301,7 @@ mod functions {
             ensure!(
                 settlement_acc_bal.amount >= payout_coin.amount,
                 LibraryError::ExecutionError(format!(
-                    "insufficient settlement acc balance to fulfill obligation: {} < {}",
-                    settlement_acc_bal, payout_coin
+                    "insufficient settlement acc balance to fulfill obligation: {settlement_acc_bal} < {payout_coin}",
                 ))
             );
         }

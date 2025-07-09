@@ -6,10 +6,10 @@ authors     = { workspace = true }
 description = "Helpers for off-chain strategists"
 
 [dependencies]
-cosmwasm-std                = { workspace = true }
-serde                       = { workspace = true }
-serde_json                  = { workspace = true }
-async-trait                 = "0.1.77"
-log                         = { workspace = true }
-tokio                       = { workspace = true }
-toml                        = "0.8.19"
+cosmwasm-std = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+async-trait  = "0.1.77"
+log          = { workspace = true }
+tokio        = { workspace = true }
+toml         = "0.8.19"

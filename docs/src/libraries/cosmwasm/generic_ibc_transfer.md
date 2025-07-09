@@ -168,7 +168,7 @@ The library can be configured to make use of IBC Eureka as follows:
   - `recover_address` - address on the intermediate chain that will be used to recover the funds in case the transfer fails.
   - `source_channel` - source channel on the intermediate chain
   - `memo(Optional)` - memo to be passed in the IBC transfer message. Currently not used but could potentially be used in the future.
-  - `timeout(Optional)` - timeout in seconds for the Eureka Transfer. If not provided, a default 43200 seconds (12 hours) will be used. Which is the same that Skip Go uses.
+  - `timeout(Optional)` - timeout in seconds for the Eureka Transfer. If not provided, a default 43200 seconds (12 hours) will be used. Which is the same that Skip Go uses. **IMPORTANT**: Skip relayers are currently ignoring IBC Eureka transfers with a timeout of less than 10 hours (36000 seconds), therefore we suggest using 12 hours as the default timeout or at least a value higher than 10 hours.
 
 Consider an example configuration transferring ATOM tokens from Neutron to Ethereum.
 Library config may look like this:

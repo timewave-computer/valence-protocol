@@ -164,8 +164,7 @@ fn validate_supervaults_settlement_info(
         ensure!(
             check_duplicated.insert(supervault_addr.to_string()),
             LibraryError::ConfigurationError(format!(
-                "Duplicate supervault address: {}",
-                supervault_addr
+                "Duplicate supervault address: {supervault_addr}",
             ))
         );
         total_supervaults_ratio += info.settlement_ratio;
@@ -179,8 +178,7 @@ fn validate_supervaults_settlement_info(
     ensure!(
         total_supervaults_ratio == Decimal::one(),
         LibraryError::ConfigurationError(format!(
-            "Total supervaults settlement ratio must be 1, got {}",
-            total_supervaults_ratio
+            "Total supervaults settlement ratio must be 1, got {total_supervaults_ratio}"
         ))
     );
 
