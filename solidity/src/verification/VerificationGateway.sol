@@ -15,7 +15,7 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
     address public verifier;
 
     /// @notice domainVK used to verify domain proofs
-    bytes32 domainVK;
+    bytes32 public domainVK;
 
     /**
      * @notice Mapping of program verification keys by user address and registry ID
