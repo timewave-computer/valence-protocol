@@ -70,6 +70,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
             to_json_binary(&verify_proof(&domain_vk, domain_proof, domain_inputs)?)
         }
+        QueryMsg::Ownership {} => to_json_binary(&cw_ownable::get_ownership(deps.storage)?),
     }
 }
 
