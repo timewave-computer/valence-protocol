@@ -259,6 +259,7 @@ contract OneWayVault is
         _validateConfig(config);
 
         ONE_SHARE = 10 ** decimals();
+        require(startingRate > 0, "Starting redemption rate cannot be zero");
         redemptionRate = startingRate; // Initialize at specified starting rate
         lastRateUpdateTimestamp = uint64(block.timestamp); // Set initial timestamp for rate updates
     }
