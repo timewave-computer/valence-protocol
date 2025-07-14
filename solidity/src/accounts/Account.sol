@@ -18,6 +18,9 @@ abstract contract Account is Ownable, IERC721Receiver {
     /// @dev Emitted when trying to execute through an address that is not the owner or an approved library
     error NotOwnerOrLibrary(address _sender);
 
+    /// @dev Emitted when trying to execute a call with a zero address target
+    error ZeroAddressTarget();
+
     /**
      * @dev Contract constructor
      * @param _owner Address that will be set as the initial owner
@@ -60,18 +63,26 @@ abstract contract Account is Ownable, IERC721Receiver {
             revert NotOwnerOrLibrary(msg.sender);
         }
 
+        // Ensure the target address is not zero
+        // This prevents accidental calls to the zero address which might lead to loss of funds or unexpected behavior
+        if (_target == address(0)) revert ZeroAddressTarget();
+
         (bool success, bytes memory returnData) = _target.call{value: _value}(_data);
 
         if (!success) {
-            assembly {
-                // returnData contains ABI-encoded error data:
-                // - First 32 bytes: Length of the error data (accessed via mload(returnData))
-                // - Next n bytes: Actual error data
+            if (returnData.length > 0) {
+                assembly {
+                    // returnData contains ABI-encoded error data:
+                    // - First 32 bytes: Length of the error data (accessed via mload(returnData))
+                    // - Next n bytes: Actual error data
 
-                // add(32, returnData): Skip first 32 bytes (length) to get to actual error data
-                // mload(returnData): Load the length of the error data
-                // revert(error_data_pointer, error_data_length)
-                revert(add(32, returnData), mload(returnData))
+                    // add(32, returnData): Skip first 32 bytes (length) to get to actual error data
+                    // mload(returnData): Load the length of the error data
+                    // revert(error_data_pointer, error_data_length)
+                    revert(add(32, returnData), mload(returnData))
+                }
+            } else {
+                revert("Contract call failed without error data");
             }
         }
 

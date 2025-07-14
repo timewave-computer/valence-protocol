@@ -45,8 +45,6 @@ contract BaseAccountTest is Test {
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    error NotOwnerOrLibrary(address _sender);
-
     function setUp() public {
         owner = address(1);
         library1 = address(2);
@@ -161,6 +159,14 @@ contract BaseAccountTest is Test {
         vm.prank(library1);
         vm.expectRevert();
         account.execute(address(target), 1 ether, "");
+    }
+
+    function test_RevertWhen_TargetIsZeroAddress() public {
+        bytes memory callData = abi.encodeWithSelector(TestTarget.setValue.selector, 123);
+
+        vm.prank(library1);
+        vm.expectRevert(bytes4(keccak256("ZeroAddressTarget()")));
+        account.execute(address(0), 0, callData);
     }
 
     function test_ExecuteRevert() public {
