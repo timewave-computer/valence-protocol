@@ -315,7 +315,7 @@ abstract contract ProcessorBase is Ownable {
      * @dev Only callable by the contract owner
      * @param _address The address to be authorized
      */
-    function addAuthorizedAddress(address _address) public onlyOwner {
+    function addAuthorizedAddress(address _address) external onlyOwner {
         // Check that address is not the zero address
         if (_address == address(0)) {
             revert ProcessorErrors.InvalidAddress();
@@ -335,7 +335,7 @@ abstract contract ProcessorBase is Ownable {
      * @dev Only callable by the contract owner
      * @param _address The address to be removed from the authorized list
      */
-    function removeAuthorizedAddress(address _address) public onlyOwner {
+    function removeAuthorizedAddress(address _address) external onlyOwner {
         // Check that address is currently authorized
         if (!authorizedAddresses[_address]) {
             revert ProcessorErrors.AddressNotAuthorized();
