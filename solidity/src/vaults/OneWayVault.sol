@@ -515,6 +515,9 @@ contract OneWayVault is
         if (_vaultState.pausedByStaleRate && msg.sender != owner()) {
             revert("Only owner can unpause if paused by stale rate");
         }
+        if (uint64(block.timestamp) - lastRateUpdateTimestamp > config.maxRateUpdateDelay) {
+            revert("Cannot unpause while rate is stale");
+        }
         delete vaultState;
         emit PausedStateChanged(false);
     }
