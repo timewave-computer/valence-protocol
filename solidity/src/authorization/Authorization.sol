@@ -558,6 +558,11 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         bytes32[] calldata vks,
         bool[] memory validateBlockNumber
     ) external onlyOwner {
+        // Check that the verification gateway is set
+        if (address(verificationGateway) == address(0)) {
+            revert("Verification gateway not set");
+        }
+
         // Since we are allowing multiple registries to be added at once, we need to check that the arrays are the same length
         // because for each registry we have a list of users, a verification key and a boolean
         // Allowing multiple to be added is useful for gas optimization
@@ -584,6 +589,11 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @param registries Array of registry IDs to be removed
      */
     function removeRegistries(uint64[] memory registries) external onlyOwner {
+        // Check that the verification gateway is set
+        if (address(verificationGateway) == address(0)) {
+            revert("Verification gateway not set");
+        }
+
         for (uint256 i = 0; i < registries.length; i++) {
             // Remove the registry from the verification gateway
             verificationGateway.removeRegistry(registries[i]);
