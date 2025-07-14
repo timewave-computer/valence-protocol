@@ -64,7 +64,7 @@ abstract contract ProcessorBase is Ownable {
      * @notice Handles incoming messages from an authorized addresses
      * @param _body The message payload
      */
-    function execute(bytes calldata _body) external payable virtual;
+    function execute(bytes calldata _body) external virtual;
 
     /**
      * @notice Handles pause messages
@@ -120,6 +120,12 @@ abstract contract ProcessorBase is Ownable {
         bytes memory errorData;
         bool succeeded = true;
 
+        // Check that the number of messages matches the number of functions
+        // for protection against mismatched inputs
+        if (nonAtomicSubroutine.functions.length != messages.length) {
+            revert("Number of messages does not match number of functions");
+        }
+
         // Execute each function until one fails
         for (uint8 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
             address targetContract = nonAtomicSubroutine.functions[i].contractAddress;
@@ -172,6 +178,12 @@ abstract contract ProcessorBase is Ownable {
         // It's external to allow try-catch pattern for atomicity
         if (msg.sender != address(this)) {
             revert ProcessorErrors.UnauthorizedAccess();
+        }
+
+        // Check that the number of messages matches the number of functions
+        // for protection against mismatched inputs
+        if (atomicSubroutine.functions.length != messages.length) {
+            revert("Number of messages does not match number of functions");
         }
 
         for (uint8 i = 0; i < atomicSubroutine.functions.length; i++) {
@@ -303,7 +315,7 @@ abstract contract ProcessorBase is Ownable {
      * @dev Only callable by the contract owner
      * @param _address The address to be authorized
      */
-    function addAuthorizedAddress(address _address) public onlyOwner {
+    function addAuthorizedAddress(address _address) external onlyOwner {
         // Check that address is not the zero address
         if (_address == address(0)) {
             revert ProcessorErrors.InvalidAddress();
@@ -323,7 +335,7 @@ abstract contract ProcessorBase is Ownable {
      * @dev Only callable by the contract owner
      * @param _address The address to be removed from the authorized list
      */
-    function removeAuthorizedAddress(address _address) public onlyOwner {
+    function removeAuthorizedAddress(address _address) external onlyOwner {
         // Check that address is currently authorized
         if (!authorizedAddresses[_address]) {
             revert ProcessorErrors.AddressNotAuthorized();

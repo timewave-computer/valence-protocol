@@ -35,7 +35,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @notice Boolean indicating whether to store callbacks or just emit events for them
      * @dev If true, the contract will store callback data in the contract's state
      */
-    bool public storeCallbacks;
+    bool public immutable storeCallbacks;
 
     /**
      * @notice Event emitted when a callback is received from the processor
@@ -333,11 +333,11 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
             _requireAdminAccess();
         }
 
-        // Forward the validated and modified message to the processor
-        processor.execute(message);
-
         // Increment the execution ID for the next message
         executionId++;
+
+        // Forward the validated and modified message to the processor
+        processor.execute(message);
     }
 
     /**
@@ -558,6 +558,11 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         bytes32[] calldata vks,
         bool[] memory validateBlockNumber
     ) external onlyOwner {
+        // Check that the verification gateway is set
+        if (address(verificationGateway) == address(0)) {
+            revert("Verification gateway not set");
+        }
+
         // Since we are allowing multiple registries to be added at once, we need to check that the arrays are the same length
         // because for each registry we have a list of users, a verification key and a boolean
         // Allowing multiple to be added is useful for gas optimization
@@ -584,6 +589,11 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @param registries Array of registry IDs to be removed
      */
     function removeRegistries(uint64[] memory registries) external onlyOwner {
+        // Check that the verification gateway is set
+        if (address(verificationGateway) == address(0)) {
+            revert("Verification gateway not set");
+        }
+
         for (uint256 i = 0; i < registries.length; i++) {
             // Remove the registry from the verification gateway
             verificationGateway.removeRegistry(registries[i]);

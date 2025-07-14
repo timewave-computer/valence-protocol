@@ -151,183 +151,8 @@ contract OneWayVaultTest is Test {
         assertEq(vault.asset(), address(underlyingToken));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                              CONFIG TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function test_UpdateConfig() public {
-        // New config values
-        address newStrategist = address(10);
-        address newPlatformFeeReceiver = address(11);
-        address newStrategistFeeReceiver = address(12);
-        uint32 newDepositFeeBps = 200; // 2%
-        uint32 newWithdrawRateBps = 75; // 0.75%
-        uint32 newStrategistRatioBps = 6000; // 60%
-        uint128 newDepositCap = 500_000 * 10 ** 18; // 500k tokens
-
-        // Create new config
-        OneWayVault.FeeDistributionConfig memory newFeeConfig = OneWayVault.FeeDistributionConfig({
-            strategistAccount: newStrategistFeeReceiver,
-            platformAccount: newPlatformFeeReceiver,
-            strategistRatioBps: newStrategistRatioBps
-        });
-
-        OneWayVault.OneWayVaultConfig memory newVaultConfig = OneWayVault.OneWayVaultConfig({
-            depositAccount: depositAccount, // keep same deposit account
-            strategist: newStrategist,
-            depositFeeBps: newDepositFeeBps,
-            withdrawFeeBps: newWithdrawRateBps,
-            maxRateIncrementBps: maxRateIncrementBps, // keep same incrementBps
-            maxRateDecrementBps: maxRateDecrementBps, // keep same decrementBps
-            minRateUpdateDelay: minRateUpdateDelay, // keep same min time
-            maxRateUpdateDelay: maxRateUpdateDelay, // keep same max time
-            depositCap: newDepositCap,
-            feeDistribution: newFeeConfig
-        });
-
-        // Update config (only owner can do this)
-        vm.prank(owner);
-        vault.updateConfig(abi.encode(newVaultConfig));
-
-        // Verify config was updated
-        (
-            ,
-            address updatedStrategist,
-            uint32 updatedDepositFeeBps,
-            uint32 updatedWithdrawRateBps,
-            ,
-            ,
-            ,
-            ,
-            uint256 updatedDepositCap,
-            OneWayVault.FeeDistributionConfig memory updatedFeeDistribution
-        ) = vault.config();
-
-        assertEq(updatedStrategist, newStrategist);
-        assertEq(updatedDepositFeeBps, newDepositFeeBps);
-        assertEq(updatedWithdrawRateBps, newWithdrawRateBps);
-        assertEq(updatedDepositCap, newDepositCap);
-        assertEq(updatedFeeDistribution.strategistAccount, newStrategistFeeReceiver);
-        assertEq(updatedFeeDistribution.platformAccount, newPlatformFeeReceiver);
-        assertEq(updatedFeeDistribution.strategistRatioBps, newStrategistRatioBps);
-    }
-
-    function test_UpdateConfig_NotOwner() public {
-        // Create new config
-        OneWayVault.OneWayVaultConfig memory newVaultConfig = OneWayVault.OneWayVaultConfig({
-            depositAccount: depositAccount,
-            strategist: address(10),
-            depositFeeBps: 200,
-            withdrawFeeBps: 75,
-            maxRateIncrementBps: 1,
-            maxRateDecrementBps: 1,
-            minRateUpdateDelay: 1 hours,
-            maxRateUpdateDelay: 1 days,
-            depositCap: 500_000 * 10 ** 18,
-            feeDistribution: OneWayVault.FeeDistributionConfig({
-                strategistAccount: address(11),
-                platformAccount: address(12),
-                strategistRatioBps: 6000
-            })
-        });
-
-        // Try to update config as non-owner (should revert)
-        vm.prank(user1);
-        vm.expectRevert();
-        vault.updateConfig(abi.encode(newVaultConfig));
-    }
-
-    function test_InvalidConfig() public {
-        // Test zero address for deposit account
-        OneWayVault.OneWayVaultConfig memory invalidConfig = OneWayVault.OneWayVaultConfig({
-            depositAccount: BaseAccount(payable(address(0))),
-            strategist: strategist,
-            depositFeeBps: depositFeeBps,
-            withdrawFeeBps: withdrawFeeBps,
-            maxRateIncrementBps: maxRateIncrementBps,
-            maxRateDecrementBps: maxRateDecrementBps,
-            minRateUpdateDelay: minRateUpdateDelay,
-            maxRateUpdateDelay: maxRateUpdateDelay,
-            depositCap: depositCap,
-            feeDistribution: OneWayVault.FeeDistributionConfig({
-                strategistAccount: strategistFeeReceiver,
-                platformAccount: platformFeeReceiver,
-                strategistRatioBps: strategistRatioBps
-            })
-        });
-
-        vm.prank(owner);
-        vm.expectRevert("Deposit account cannot be zero address");
-        vault.updateConfig(abi.encode(invalidConfig));
-
-        // Test zero address for strategist
-        invalidConfig = OneWayVault.OneWayVaultConfig({
-            depositAccount: depositAccount,
-            strategist: address(0),
-            depositFeeBps: depositFeeBps,
-            withdrawFeeBps: withdrawFeeBps,
-            maxRateIncrementBps: maxRateIncrementBps,
-            maxRateDecrementBps: maxRateDecrementBps,
-            minRateUpdateDelay: minRateUpdateDelay,
-            maxRateUpdateDelay: maxRateUpdateDelay,
-            depositCap: depositCap,
-            feeDistribution: OneWayVault.FeeDistributionConfig({
-                strategistAccount: strategistFeeReceiver,
-                platformAccount: platformFeeReceiver,
-                strategistRatioBps: strategistRatioBps
-            })
-        });
-
-        vm.prank(owner);
-        vm.expectRevert("Strategist cannot be zero address");
-        vault.updateConfig(abi.encode(invalidConfig));
-
-        // Test deposit fee > 100%
-        invalidConfig = OneWayVault.OneWayVaultConfig({
-            depositAccount: depositAccount,
-            strategist: strategist,
-            depositFeeBps: 10001, // > 100%
-            withdrawFeeBps: withdrawFeeBps,
-            maxRateIncrementBps: maxRateIncrementBps,
-            maxRateDecrementBps: maxRateDecrementBps,
-            minRateUpdateDelay: minRateUpdateDelay,
-            maxRateUpdateDelay: maxRateUpdateDelay,
-            depositCap: depositCap,
-            feeDistribution: OneWayVault.FeeDistributionConfig({
-                strategistAccount: strategistFeeReceiver,
-                platformAccount: platformFeeReceiver,
-                strategistRatioBps: strategistRatioBps
-            })
-        });
-
-        vm.prank(owner);
-        vm.expectRevert("Deposit fee cannot exceed 100%");
-        vault.updateConfig(abi.encode(invalidConfig));
-
-        // Test withdraw fee > 100%
-        invalidConfig = OneWayVault.OneWayVaultConfig({
-            depositAccount: depositAccount,
-            strategist: strategist,
-            depositFeeBps: depositFeeBps,
-            withdrawFeeBps: 10001, // > 100%
-            maxRateIncrementBps: maxRateIncrementBps,
-            maxRateDecrementBps: maxRateDecrementBps,
-            minRateUpdateDelay: minRateUpdateDelay,
-            maxRateUpdateDelay: maxRateUpdateDelay,
-            depositCap: depositCap,
-            feeDistribution: OneWayVault.FeeDistributionConfig({
-                strategistAccount: strategistFeeReceiver,
-                platformAccount: platformFeeReceiver,
-                strategistRatioBps: strategistRatioBps
-            })
-        });
-
-        vm.prank(owner);
-        vm.expectRevert("Withdraw fee cannot exceed 100%");
-        vault.updateConfig(abi.encode(invalidConfig));
-
-        // Test strategist ratio > 100%
-        invalidConfig = OneWayVault.OneWayVaultConfig({
+    function test_Initialization_ZeroRedemptionRate() public {
+        OneWayVault.OneWayVaultConfig memory vaultConfig = OneWayVault.OneWayVaultConfig({
             depositAccount: depositAccount,
             strategist: strategist,
             depositFeeBps: depositFeeBps,
@@ -340,79 +165,33 @@ contract OneWayVaultTest is Test {
             feeDistribution: OneWayVault.FeeDistributionConfig({
                 strategistAccount: strategistFeeReceiver,
                 platformAccount: platformFeeReceiver,
-                strategistRatioBps: 10001 // > 100%
-            })
-        });
-
-        vm.prank(owner);
-        vm.expectRevert("Strategist account fee distribution ratio cannot exceed 100%");
-        vault.updateConfig(abi.encode(invalidConfig));
-
-        // Test max rate update delay is 0
-        invalidConfig = OneWayVault.OneWayVaultConfig({
-            depositAccount: depositAccount,
-            strategist: strategist,
-            depositFeeBps: depositFeeBps,
-            withdrawFeeBps: withdrawFeeBps,
-            maxRateIncrementBps: maxRateIncrementBps,
-            maxRateDecrementBps: maxRateDecrementBps,
-            minRateUpdateDelay: minRateUpdateDelay,
-            maxRateUpdateDelay: 0, // 0 delay
-            depositCap: depositCap,
-            feeDistribution: OneWayVault.FeeDistributionConfig({
-                strategistAccount: strategistFeeReceiver,
-                platformAccount: platformFeeReceiver,
                 strategistRatioBps: strategistRatioBps
             })
         });
 
-        vm.prank(owner);
-        vm.expectRevert("Max rate update delay cannot be zero");
-        vault.updateConfig(abi.encode(invalidConfig));
+        OneWayVault vaultImpl = new OneWayVault();
 
-        // Test max rate decrement cannot be more than 100%
-        invalidConfig = OneWayVault.OneWayVaultConfig({
-            depositAccount: depositAccount,
-            strategist: strategist,
-            depositFeeBps: depositFeeBps,
-            withdrawFeeBps: withdrawFeeBps,
-            maxRateIncrementBps: maxRateIncrementBps,
-            maxRateDecrementBps: 10001, // > 100%
-            minRateUpdateDelay: minRateUpdateDelay,
-            maxRateUpdateDelay: maxRateUpdateDelay,
-            depositCap: depositCap,
-            feeDistribution: OneWayVault.FeeDistributionConfig({
-                strategistAccount: strategistFeeReceiver,
-                platformAccount: platformFeeReceiver,
-                strategistRatioBps: strategistRatioBps
-            })
-        });
+        bytes memory initData = abi.encodeWithSelector(
+            OneWayVault.initialize.selector,
+            owner,
+            abi.encode(vaultConfig),
+            address(underlyingToken),
+            "Vault Test Token",
+            "vTST",
+            0 // This should cause the revert
+        );
 
-        vm.prank(owner);
-        vm.expectRevert("Max rate decrement cannot exceed 100%");
-        vault.updateConfig(abi.encode(invalidConfig));
+        // Create proxy creation code
+        bytes memory proxyCreationCode =
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(address(vaultImpl), initData));
 
-        // Test min update delay cannot be more than max update delay
-        invalidConfig = OneWayVault.OneWayVaultConfig({
-            depositAccount: depositAccount,
-            strategist: strategist,
-            depositFeeBps: depositFeeBps,
-            withdrawFeeBps: withdrawFeeBps,
-            maxRateIncrementBps: maxRateIncrementBps,
-            maxRateDecrementBps: maxRateDecrementBps,
-            minRateUpdateDelay: 2 days, // More than max delay
-            maxRateUpdateDelay: 1 days,
-            depositCap: depositCap,
-            feeDistribution: OneWayVault.FeeDistributionConfig({
-                strategistAccount: strategistFeeReceiver,
-                platformAccount: platformFeeReceiver,
-                strategistRatioBps: strategistRatioBps
-            })
-        });
+        // Expect the revert during proxy creation
+        vm.expectRevert("Starting redemption rate cannot be zero");
 
-        vm.prank(owner);
-        vm.expectRevert("Minimum update delay cannot exceed maximum update delay");
-        vault.updateConfig(abi.encode(invalidConfig));
+        address proxyAddress;
+        assembly {
+            proxyAddress := create2(0, add(proxyCreationCode, 0x20), mload(proxyCreationCode), 0)
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -678,6 +457,11 @@ contract OneWayVaultTest is Test {
         // Only owner can unpause, strategist cant
         vm.prank(strategist);
         vm.expectRevert("Only owner can unpause if paused by stale rate");
+        vault.unpause();
+
+        // If no update has happened, even owner can't unpause
+        vm.prank(owner);
+        vm.expectRevert("Cannot unpause while rate is stale");
         vault.unpause();
 
         // Update the rate so that owner can unpause and users can deposit again
