@@ -388,7 +388,7 @@ contract OneWayVault is
      * @param receiver Address to receive the vault shares
      * @return shares Amount of shares minted to receiver
      */
-    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+    function deposit(uint256 assets, address receiver) public override whenNotPaused nonReentrant returns (uint256) {
         if (_checkAndHandleStaleRate()) {
             return 0; // Exit early if vault was just paused
         }
@@ -419,7 +419,7 @@ contract OneWayVault is
      * @param receiver Address to receive the shares
      * @return assets Total amount of assets deposited (including fees)
      */
-    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+    function mint(uint256 shares, address receiver) public override whenNotPaused nonReentrant returns (uint256) {
         if (_checkAndHandleStaleRate()) {
             return 0; // Exit early if vault was just paused
         }
