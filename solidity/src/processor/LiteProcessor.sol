@@ -64,7 +64,7 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
      * @notice Handles incoming messages from an authorized addresses
      * @param _body The message payload
      */
-    function execute(bytes calldata _body) external payable override {
+    function execute(bytes calldata _body) external override {
         // Verify sender is authorized address
         require(authorizedAddresses[msg.sender], ProcessorErrors.UnauthorizedAccess());
 
