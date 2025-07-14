@@ -165,7 +165,7 @@ contract BaseAccountTest is Test {
         bytes memory callData = abi.encodeWithSelector(TestTarget.setValue.selector, 123);
 
         vm.prank(library1);
-        vm.expectRevert();
+        vm.expectRevert(bytes4(keccak256("ZeroAddressTarget()")));
         account.execute(address(0), 0, callData);
     }
 
