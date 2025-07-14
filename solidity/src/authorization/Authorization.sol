@@ -35,7 +35,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @notice Boolean indicating whether to store callbacks or just emit events for them
      * @dev If true, the contract will store callback data in the contract's state
      */
-    bool public storeCallbacks;
+    bool public immutable storeCallbacks;
 
     /**
      * @notice Event emitted when a callback is received from the processor
@@ -333,11 +333,11 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
             _requireAdminAccess();
         }
 
-        // Forward the validated and modified message to the processor
-        processor.execute(message);
-
         // Increment the execution ID for the next message
         executionId++;
+
+        // Forward the validated and modified message to the processor
+        processor.execute(message);
     }
 
     /**

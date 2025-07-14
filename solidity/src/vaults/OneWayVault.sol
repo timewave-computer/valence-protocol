@@ -249,11 +249,12 @@ contract OneWayVault is
         string memory vaultTokenName,
         string memory vaultTokenSymbol,
         uint256 startingRate
-    ) public initializer {
+    ) external initializer {
         __ERC20_init(vaultTokenName, vaultTokenSymbol);
         __ERC4626_init(IERC20(underlying));
         __Ownable_init(_owner);
         __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
 
         config = abi.decode(_config, (OneWayVaultConfig));
         _validateConfig(config);
@@ -277,7 +278,7 @@ contract OneWayVault is
      * @dev Validates all configuration parameters before updating
      * @param _config Encoded OneWayVaultConfig struct
      */
-    function updateConfig(bytes memory _config) public onlyOwner {
+    function updateConfig(bytes memory _config) external onlyOwner {
         OneWayVaultConfig memory decodedConfig = abi.decode(_config, (OneWayVaultConfig));
 
         _validateConfig(decodedConfig);
@@ -399,15 +400,14 @@ contract OneWayVault is
         }
 
         uint256 depositFee = calculateDepositFee(assets);
-        uint256 assetsAfterFee;
-        assetsAfterFee = assets - depositFee;
+        uint256 assetsAfterFee = assets - depositFee;
 
         if (depositFee > 0) {
             feesAccruedInAsset += depositFee;
         }
 
         uint256 shares = previewDeposit(assetsAfterFee);
-        _deposit(_msgSender(), receiver, assets, shares);
+        _deposit(msg.sender, receiver, assets, shares);
 
         return shares;
     }
@@ -434,7 +434,7 @@ contract OneWayVault is
             feesAccruedInAsset += fee;
         }
 
-        _deposit(_msgSender(), receiver, grossAssets, shares);
+        _deposit(msg.sender, receiver, grossAssets, shares);
 
         return grossAssets;
     }
@@ -539,8 +539,7 @@ contract OneWayVault is
         // This formula ensures that after the fee is deducted, exactly baseAssets remain
         uint256 grossAssets = baseAssets.mulDiv(BASIS_POINTS, BASIS_POINTS - feeBps, Math.Rounding.Ceil);
 
-        uint256 fee;
-        fee = grossAssets - baseAssets;
+        uint256 fee = grossAssets - baseAssets;
 
         return (grossAssets, fee);
     }
@@ -587,7 +586,7 @@ contract OneWayVault is
      * @param owner Address that owns the shares
      */
     function withdraw(uint256 assets, string calldata receiver, address owner)
-        public
+        external
         payable
         nonReentrant
         whenNotPaused
@@ -630,7 +629,7 @@ contract OneWayVault is
      * @param owner Address that owns the shares
      */
     function redeem(uint256 shares, string calldata receiver, address owner)
-        public
+        external
         payable
         nonReentrant
         whenNotPaused

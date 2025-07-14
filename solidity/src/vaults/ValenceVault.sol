@@ -228,6 +228,7 @@ contract ValenceVault is
         __ERC4626_init(IERC20(underlying));
         __Ownable_init(_owner);
         __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
 
         config = abi.decode(_config, (VaultConfig));
         _validateConfig(config);
