@@ -64,7 +64,7 @@ abstract contract ProcessorBase is Ownable {
      * @notice Handles incoming messages from an authorized addresses
      * @param _body The message payload
      */
-    function execute(bytes calldata _body) external payable virtual;
+    function execute(bytes calldata _body) external virtual;
 
     /**
      * @notice Handles pause messages
