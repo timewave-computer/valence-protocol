@@ -244,6 +244,46 @@ contract AuthorizationZKTest is Test {
         vm.stopPrank();
     }
 
+    function test_RevertWhen_AddRegistriesNoVerificationGateway() public {
+        vm.startPrank(owner);
+
+        // Deploy a new authorization contract without a verification gateway
+        Authorization authWithoutGateway = new Authorization(owner, address(processor), address(0), true);
+
+        // Create registry data
+        uint64[] memory registries = new uint64[](1);
+        registries[0] = registryId1;
+
+        address[][] memory users = new address[][](1);
+        users[0] = new address[](1);
+        users[0][0] = user1;
+
+        bytes32[] memory vks = new bytes32[](1);
+        vks[0] = vk1;
+
+        bool[] memory validateBlockNumbers = new bool[](1);
+        validateBlockNumbers[0] = validateBlockNumber1;
+
+        // Should fail because verification gateway is not set
+        vm.expectRevert("Verification gateway not set");
+        authWithoutGateway.addRegistries(registries, users, vks, validateBlockNumbers);
+
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_RemoveRegistriesNoVerificationGateway() public {
+        vm.startPrank(owner);
+
+        // Deploy a new authorization contract without a verification gateway
+        Authorization authWithoutGateway = new Authorization(owner, address(processor), address(0), true);
+
+        // Should fail because verification gateway is not set
+        vm.expectRevert("Verification gateway not set");
+        authWithoutGateway.removeRegistries(new uint64[](1));
+
+        vm.stopPrank();
+    }
+
     // ======================= ZK MESSAGE EXECUTION TESTS =======================
 
     function test_RevertWhen_VerificationGatewayNotSet() public {

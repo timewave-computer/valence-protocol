@@ -259,6 +259,7 @@ contract OneWayVault is
         _validateConfig(config);
 
         ONE_SHARE = 10 ** decimals();
+        require(startingRate > 0, "Starting redemption rate cannot be zero");
         redemptionRate = startingRate; // Initialize at specified starting rate
         lastRateUpdateTimestamp = uint64(block.timestamp); // Set initial timestamp for rate updates
     }
@@ -515,6 +516,13 @@ contract OneWayVault is
         if (_vaultState.pausedByStaleRate && msg.sender != owner()) {
             revert("Only owner can unpause if paused by stale rate");
         }
+        if (
+            _vaultState.pausedByStaleRate
+                && uint64(block.timestamp) - lastRateUpdateTimestamp > config.maxRateUpdateDelay
+        ) {
+            revert("Cannot unpause while rate is stale");
+        }
+
         delete vaultState;
         emit PausedStateChanged(false);
     }
