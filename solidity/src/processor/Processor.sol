@@ -64,7 +64,7 @@ contract Processor is IMessageRecipient, ProcessorBase, ReentrancyGuard {
      * @notice Handles incoming messages from an authorized addresses
      * @param _body The message payload
      */
-    function execute(bytes calldata _body) external payable override nonReentrant {
+    function execute(bytes calldata _body) external override nonReentrant {
         // TODO: Implement the execute function
     }
 }
