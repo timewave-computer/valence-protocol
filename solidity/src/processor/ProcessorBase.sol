@@ -120,6 +120,12 @@ abstract contract ProcessorBase is Ownable {
         bytes memory errorData;
         bool succeeded = true;
 
+        // Check that the number of messages matches the number of functions
+        // for protection against mismatched inputs
+        if (nonAtomicSubroutine.functions.length != messages.length) {
+            revert("Number of messages does not match number of functions");
+        }
+
         // Execute each function until one fails
         for (uint8 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
             address targetContract = nonAtomicSubroutine.functions[i].contractAddress;
@@ -172,6 +178,12 @@ abstract contract ProcessorBase is Ownable {
         // It's external to allow try-catch pattern for atomicity
         if (msg.sender != address(this)) {
             revert ProcessorErrors.UnauthorizedAccess();
+        }
+
+        // Check that the number of messages matches the number of functions
+        // for protection against mismatched inputs
+        if (atomicSubroutine.functions.length != messages.length) {
+            revert("Number of messages does not match number of functions");
         }
 
         for (uint8 i = 0; i < atomicSubroutine.functions.length; i++) {
