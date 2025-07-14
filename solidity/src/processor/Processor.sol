@@ -8,6 +8,11 @@ import {ProcessorErrors} from "./libs/ProcessorErrors.sol";
 import {ProcessorEvents} from "./libs/ProcessorEvents.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+/**
+ * @title Processor
+ * @notice (unimplemented) A full implementation of a Processor.
+ * @dev Implements IMessageRecipient for Hyperlane message handling, ProcessorBase for core shared processor logic and ReentrancyGuard to prevent re-entrancy attacks.
+ */
 contract Processor is IMessageRecipient, ProcessorBase, ReentrancyGuard {
     // Use the library for the Queue type
     using QueueMap for QueueMap.Queue;
