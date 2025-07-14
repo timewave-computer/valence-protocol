@@ -7,13 +7,14 @@ import {IProcessorMessageTypes} from "./interfaces/IProcessorMessageTypes.sol";
 import {IProcessor} from "./interfaces/IProcessor.sol";
 import {ProcessorErrors} from "./libs/ProcessorErrors.sol";
 import {ProcessorBase} from "./ProcessorBase.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title LiteProcessor
  * @notice A lightweight processor for handling cross-chain messages with atomic and non-atomic execution
- * @dev Implements IMessageRecipient for Hyperlane message handling and ProcessorBase for core shared processor logic
+ * @dev Implements IMessageRecipient for Hyperlane message handling, ProcessorBase for core shared processor logic and ReentrancyGuard to prevent re-entrancy attacks.
  */
-contract LiteProcessor is IMessageRecipient, ProcessorBase {
+contract LiteProcessor is IMessageRecipient, ProcessorBase, ReentrancyGuard {
     // ============ Constructor ============
     /**
      * @notice Initializes the LiteProcessor contract
@@ -64,7 +65,7 @@ contract LiteProcessor is IMessageRecipient, ProcessorBase {
      * @notice Handles incoming messages from an authorized addresses
      * @param _body The message payload
      */
-    function execute(bytes calldata _body) external override {
+    function execute(bytes calldata _body) external override nonReentrant {
         // Verify sender is authorized address
         require(authorizedAddresses[msg.sender], ProcessorErrors.UnauthorizedAccess());
 
