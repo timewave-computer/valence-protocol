@@ -94,10 +94,19 @@ mod functions {
     /// non-error response in order to not block future obligation processing.
     fn swallow_obligation_registration_err(
         deps: DepsMut,
+        mut cfg: Config,
         id: Uint64,
         err: String,
     ) -> Result<Response, LibraryError> {
+        // set the obligation status to error with the specified msg
         OBLIGATION_ID_TO_STATUS_MAP.save(deps.storage, id.u64(), &ObligationStatus::Error(err))?;
+
+        // set the latest registered obligation id to the current id being registered
+        cfg.latest_id = Some(id);
+
+        // save the config with the incremented id
+        valence_library_base::save_config(deps.storage, &cfg)?;
+
         Ok(Response::default())
     }
 
@@ -144,7 +153,7 @@ mod functions {
         // and return
         let validated_recipient = match deps.api.addr_validate(&recipient) {
             Ok(addr) => addr,
-            Err(e) => return swallow_obligation_registration_err(deps, id, e.to_string()),
+            Err(e) => return swallow_obligation_registration_err(deps, cfg, id, e.to_string()),
         };
 
         // validate the payout amount. in case 0 is passed in, we immediately tag the
@@ -152,6 +161,7 @@ mod functions {
         if payout_amount.is_zero() {
             return swallow_obligation_registration_err(
                 deps,
+                cfg,
                 id,
                 "cannot register obligation with zero payout amount".to_string(),
             );
@@ -246,6 +256,7 @@ mod functions {
         if filtered_payout.is_empty() {
             return swallow_obligation_registration_err(
                 deps,
+                cfg,
                 id,
                 "all obligations 0-amount".to_string(),
             );
