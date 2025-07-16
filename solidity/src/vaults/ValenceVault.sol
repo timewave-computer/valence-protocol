@@ -824,10 +824,6 @@ contract ValenceVault is
 
         // Burn shares first (CEI pattern)
         if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-            if (allowed < shares) {
-                revert InsufficientAllowance(shares, allowed);
-            }
             _spendAllowance(owner, msg.sender, shares);
         }
         _burn(owner, shares);

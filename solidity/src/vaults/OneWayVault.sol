@@ -675,10 +675,6 @@ contract OneWayVault is
     function _withdraw(uint256 sharesToBurn, uint256 postFeeShares, string calldata receiver, address owner) internal {
         // Burn shares first (CEI pattern - Checks, Effects, Interactions)
         if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-            if (allowed < sharesToBurn) {
-                revert("Insufficient allowance");
-            }
             _spendAllowance(owner, msg.sender, sharesToBurn);
         }
         _burn(owner, sharesToBurn);
