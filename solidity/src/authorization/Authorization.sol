@@ -555,7 +555,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     function addRegistries(
         uint64[] memory registries,
         address[][] memory users,
-        bytes32[] calldata vks,
+        bytes[] calldata vks,
         bool[] memory validateBlockNumber
     ) external onlyOwner {
         // Check that the verification gateway is set

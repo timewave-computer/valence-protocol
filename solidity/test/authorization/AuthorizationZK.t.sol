@@ -29,8 +29,8 @@ contract AuthorizationZKTest is Test {
     // ZK registry configuration
     uint64 registryId1 = 101;
     uint64 registryId2 = 102;
-    bytes32 vk1 = bytes32(uint256(0x123456));
-    bytes32 vk2 = bytes32(uint256(0x789abc));
+    bytes vk1 = abi.encodePacked(bytes32(uint256(0x123456)));
+    bytes vk2 = abi.encodePacked(bytes32(uint256(0x789abc)));
     bool validateBlockNumber1 = false;
     bool validateBlockNumber2 = true;
 
@@ -43,7 +43,7 @@ contract AuthorizationZKTest is Test {
         // Deploy verification gateway
         verificationGateway = new SP1VerificationGateway();
 
-        bytes32 domainVK = bytes32(uint256(0xdeadbeef));
+        bytes memory domainVK = abi.encodePacked(bytes32(uint256(0xdeadbeef)));
         bytes memory initializeData =
             abi.encodeWithSelector(verificationGateway.initialize.selector, verifier, domainVK);
 
@@ -86,7 +86,7 @@ contract AuthorizationZKTest is Test {
         users[1][0] = address(0); // Permissionless access
 
         // Create verification keys
-        bytes32[] memory vks = new bytes32[](2);
+        bytes[] memory vks = new bytes[](2);
         vks[0] = vk1;
         vks[1] = vk2;
 
@@ -99,7 +99,7 @@ contract AuthorizationZKTest is Test {
         auth.addRegistries(registries, users, vks, validateBlockNumbers);
 
         // Verify registry 1
-        bytes32 storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
+        bytes memory storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
         assertEq(storedVk1, vk1, "Verification key for registry 1 should be stored correctly");
 
         // Check authorized users for registry 1
@@ -109,7 +109,7 @@ contract AuthorizationZKTest is Test {
         assertEq(authorizedUsers1[1], user2, "Registry 1 should authorize user2");
 
         // Verify registry 2
-        bytes32 storedVk2 = verificationGateway.programVKs(address(auth), registryId2);
+        bytes memory storedVk2 = verificationGateway.programVKs(address(auth), registryId2);
         assertEq(storedVk2, vk2, "Verification key for registry 2 should be stored correctly");
 
         // Check authorized users for registry 2
@@ -137,7 +137,7 @@ contract AuthorizationZKTest is Test {
         users[1] = new address[](1);
         users[1][0] = user2;
 
-        bytes32[] memory vks = new bytes32[](2);
+        bytes[] memory vks = new bytes[](2);
         vks[0] = vk1;
         vks[1] = vk2;
 
@@ -148,7 +148,7 @@ contract AuthorizationZKTest is Test {
         auth.addRegistries(registriesToAdd, users, vks, validateBlockNumbers);
 
         // Verify registries were added
-        bytes32 storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
+        bytes memory storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
         assertEq(storedVk1, vk1, "Registry 1 should be added");
 
         // Now remove one registry
@@ -158,8 +158,8 @@ contract AuthorizationZKTest is Test {
         auth.removeRegistries(registriesToRemove);
 
         // Verify registry was removed
-        bytes32 removedVk = verificationGateway.programVKs(address(auth), registryId1);
-        assertEq(removedVk, bytes32(0), "Registry 1 should be removed from verification gateway");
+        bytes memory removedVk = verificationGateway.programVKs(address(auth), registryId1);
+        assertEq(removedVk.length, 0, "Registry 1 should be removed from verification gateway");
 
         // Verify the authorization data was also removed
         address[] memory authorizedUsers1 = auth.getZkAuthorizationsList(registryId1);
@@ -170,7 +170,7 @@ contract AuthorizationZKTest is Test {
         assertEq(lastExecBlock, 0, "Last execution block should be cleared for registry 1");
 
         // Verify other registry still exists
-        bytes32 storedVk2 = verificationGateway.programVKs(address(auth), registryId2);
+        bytes memory storedVk2 = verificationGateway.programVKs(address(auth), registryId2);
         assertEq(storedVk2, vk2, "Registry 2 should still exist");
 
         vm.stopPrank();
@@ -189,7 +189,7 @@ contract AuthorizationZKTest is Test {
         users[0] = new address[](1);
         users[0][0] = user1;
 
-        bytes32[] memory vks = new bytes32[](1);
+        bytes[] memory vks = new bytes[](1);
         vks[0] = vk1;
 
         bool[] memory validateBlockNumbers = new bool[](2);
@@ -232,7 +232,7 @@ contract AuthorizationZKTest is Test {
         users[0] = new address[](1);
         users[0][0] = user1;
 
-        bytes32[] memory vks = new bytes32[](2);
+        bytes[] memory vks = new bytes[](2);
         vks[0] = vk1;
         vks[1] = vk2;
 
@@ -260,7 +260,7 @@ contract AuthorizationZKTest is Test {
         users[0] = new address[](1);
         users[0][0] = user1;
 
-        bytes32[] memory vks = new bytes32[](1);
+        bytes[] memory vks = new bytes[](1);
         vks[0] = vk1;
 
         bool[] memory validateBlockNumbers = new bool[](1);
@@ -316,7 +316,7 @@ contract AuthorizationZKTest is Test {
         users[0] = new address[](1);
         users[0][0] = user1;
 
-        bytes32[] memory vks = new bytes32[](1);
+        bytes[] memory vks = new bytes[](1);
         vks[0] = vk1;
 
         bool[] memory validateBlockNumbers = new bool[](1);
@@ -349,7 +349,7 @@ contract AuthorizationZKTest is Test {
         users[0] = new address[](1);
         users[0][0] = user1;
 
-        bytes32[] memory vks = new bytes32[](1);
+        bytes[] memory vks = new bytes[](1);
         vks[0] = vk1;
 
         bool[] memory validateBlockNumbers = new bool[](1);
