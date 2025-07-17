@@ -254,6 +254,18 @@ impl LibraryConfigUpdate {
 
         if let Some(mars_settlement_ratio) = self.mars_settlement_ratio {
             DecimalRange::new(Decimal::zero(), Decimal::one()).contains(mars_settlement_ratio)?;
+            // because mars settlement ratio is tightly coupled with supervaults settlement info,
+            // we need to do additional validations when mars settlement ratio is 100%
+            if mars_settlement_ratio == Decimal::one() {
+                ensure!(
+                    self.supervaults_settlement_info.is_some(),
+                    LibraryError::ConfigurationError(
+                        "updating cfg to 100% Mars settlement ratio requires explicit supervaults_settlement_info update"
+                            .to_string()
+                    )
+                );
+            }
+
             config.mars_settlement_ratio = mars_settlement_ratio;
         }
 
