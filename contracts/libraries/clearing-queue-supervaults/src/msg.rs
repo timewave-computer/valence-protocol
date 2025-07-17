@@ -122,25 +122,46 @@ impl LibraryConfig {
         // validate the mars settlement ratio
         DecimalRange::new(Decimal::zero(), Decimal::one()).contains(self.mars_settlement_ratio)?;
 
-        // check that the supervaults settlement information is not empty
-        ensure!(
-            !self.supervaults_settlement_info.is_empty(),
-            LibraryError::ConfigurationError(
-                "supervaults settlement information cannot be empty".to_string()
-            )
-        );
+        // if 100% is configured to go to Mars, we assert that supervaults settlement
+        // info is empty
+        if self.mars_settlement_ratio == Decimal::one() {
+            ensure!(
+                self.supervaults_settlement_info.is_empty(),
+                LibraryError::ConfigurationError(
+                    "supervaults settlement information must be empty with 100% Mars ratio"
+                        .to_string()
+                )
+            );
 
-        // validate supervaults settlement information
-        let supervaults_info =
-            validate_supervaults_settlement_info(&self.supervaults_settlement_info, api)?;
+            Ok((
+                settlement_acc_addr,
+                self.denom.clone(),
+                self.latest_id,
+                self.mars_settlement_ratio,
+                // passing empty vec for supervaults
+                vec![],
+            ))
+        } else {
+            // check that the supervaults settlement information is not empty
+            ensure!(
+                !self.supervaults_settlement_info.is_empty(),
+                LibraryError::ConfigurationError(
+                    "supervaults settlement information cannot be empty".to_string()
+                )
+            );
 
-        Ok((
-            settlement_acc_addr,
-            self.denom.clone(),
-            self.latest_id,
-            self.mars_settlement_ratio,
-            supervaults_info,
-        ))
+            // validate supervaults settlement information
+            let supervaults_info =
+                validate_supervaults_settlement_info(&self.supervaults_settlement_info, api)?;
+
+            Ok((
+                settlement_acc_addr,
+                self.denom.clone(),
+                self.latest_id,
+                self.mars_settlement_ratio,
+                supervaults_info,
+            ))
+        }
     }
 }
 
@@ -237,17 +258,28 @@ impl LibraryConfigUpdate {
         }
 
         if let Some(supervaults_settlement_info) = self.supervaults_settlement_info {
-            ensure!(
-                !supervaults_settlement_info.is_empty(),
-                LibraryError::ConfigurationError(
-                    "supervaults settlement information cannot be empty".to_string()
-                )
-            );
+            if config.mars_settlement_ratio == Decimal::one() {
+                ensure!(
+                    supervaults_settlement_info.is_empty(),
+                    LibraryError::ConfigurationError(
+                        "supervaults settlement information must be empty with 100% Mars ratio"
+                            .to_string()
+                    )
+                );
+                config.supervaults_settlement_info = vec![];
+            } else {
+                ensure!(
+                    !supervaults_settlement_info.is_empty(),
+                    LibraryError::ConfigurationError(
+                        "supervaults settlement information cannot be empty".to_string()
+                    )
+                );
 
-            // validate supervaults settlement information
-            let supervaults_info =
-                validate_supervaults_settlement_info(&supervaults_settlement_info, deps.api)?;
-            config.supervaults_settlement_info = supervaults_info;
+                // validate supervaults settlement information
+                let supervaults_info =
+                    validate_supervaults_settlement_info(&supervaults_settlement_info, deps.api)?;
+                config.supervaults_settlement_info = supervaults_info;
+            }
         }
 
         valence_library_base::save_config(deps.storage, &config)?;
