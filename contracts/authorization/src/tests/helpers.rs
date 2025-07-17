@@ -1,3 +1,4 @@
+use cosmwasm_std::Binary;
 use margined_neutron_std::types::{
     cosmos::base::v1beta1::Coin,
     cosmwasm::wasm::v1::{
@@ -201,6 +202,8 @@ pub fn instantiate_and_set_verification_gateway(
     app: &NeutronTestApp,
     signer: &SigningAccount,
     authorization: String,
+    owner: String,
+    domain_vk: Binary,
 ) {
     let wasm = Wasm::new(app);
     let code_id = wasm
@@ -216,7 +219,7 @@ pub fn instantiate_and_set_verification_gateway(
     let verification_gateway = wasm
         .instantiate(
             code_id,
-            &valence_verification_gateway::msg::InstantiateMsg {},
+            &valence_verification_gateway::msg::InstantiateMsg { domain_vk, owner },
             None,
             "verification_gateway".into(),
             &[],

@@ -768,12 +768,6 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         vec![],
     );
 
-    instantiate_and_set_verification_gateway(
-        &setup.app,
-        &setup.owner_accounts[0],
-        authorization.clone(),
-    );
-
     // VK of the program that accepts 2 registry values and creates a message to pause the processor for registry 1 and
     // creates a message to resume it for registry 2
     let program_vk = "LMOPRy+6Xxgx8zUgILvnM0dXQT4shd9cZs9UbVrVazpUvSAARnj1VX+iHQETTMo3wWZBFOK2U1ulExNWmKo8AxPLGxdMzm5rqCF/OF4QO0IfjGhF/GPMJNGeOi8CAAAAAAAAAAcAAAAAAAAAUHJvZ3JhbRMAAAAAAAAAAQAAAA4AAAAAAAAAAAAIAAAAAAAEAAAAAAAAAEJ5dGUQAAAAAAAAAAEAAAALAAAAAAAAAAAAAQAAAAAAAgAAAAAAAAAEAAAAAAAAAEJ5dGUBAAAAAAAAAAcAAAAAAAAAUHJvZ3JhbQAAAAAAAAAA";
@@ -796,6 +790,14 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         &GROTH16_VK_BYTES,
     )
     .unwrap();
+
+    instantiate_and_set_verification_gateway(
+        &setup.app,
+        &setup.owner_accounts[0],
+        authorization.clone(),
+        setup.owner_addr.to_string(),
+        Binary::from(sp1_vk.bytes32().into_bytes()),
+    );
 
     // Let's create two zk authorizations, one to pause the processor and another to resume it, pause will have registry 1 and resume will have registry 2
     let zk_authorization_pause = ZkAuthorizationInfo {
@@ -843,6 +845,8 @@ fn pause_and_resume_processor_using_zk_authorizations() {
             label: "pause".to_string(),
             message: Binary::from(proof_pause_inputs.clone()),
             proof: Binary::from(proof_pause_bytes.clone()),
+            domain_message: Binary::from(proof_pause_inputs.clone()),
+            domain_proof: Binary::from(proof_pause_bytes.clone()),
         }),
         &[],
         &setup.user_accounts[0],
@@ -867,8 +871,10 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         &authorization,
         &ExecuteMsg::PermissionlessAction(PermissionlessMsg::ExecuteZkAuthorization {
             label: "resume".to_string(),
-            message: Binary::from(proof_resume_inputs),
-            proof: Binary::from(proof_resume_bytes),
+            message: Binary::from(proof_resume_inputs.clone()),
+            proof: Binary::from(proof_resume_bytes.clone()),
+            domain_message: Binary::from(proof_resume_inputs),
+            domain_proof: Binary::from(proof_resume_bytes),
         }),
         &[],
         &setup.user_accounts[0],
@@ -903,8 +909,10 @@ fn pause_and_resume_processor_using_zk_authorizations() {
             &authorization,
             &ExecuteMsg::PermissionlessAction(PermissionlessMsg::ExecuteZkAuthorization {
                 label: "pause".to_string(),
-                message: Binary::from(proof_pause_inputs),
-                proof: Binary::from(proof_pause_bytes),
+                message: Binary::from(proof_pause_inputs.clone()),
+                proof: Binary::from(proof_pause_bytes.clone()),
+                domain_message: Binary::from(proof_pause_inputs),
+                domain_proof: Binary::from(proof_pause_bytes),
             }),
             &[],
             &setup.user_accounts[0],
