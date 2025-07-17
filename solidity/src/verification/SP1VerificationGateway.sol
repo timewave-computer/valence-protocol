@@ -47,16 +47,36 @@ contract SP1VerificationGateway is VerificationGateway {
         bytes calldata domainMessage
     ) external view override returns (bool) {
         // Get the VK for the sender and the registry
-        bytes32 vk = programVKs[msg.sender][registry];
+        bytes memory vk = programVKs[msg.sender][registry];
 
         // If the VK is not set, revert
-        require(vk != bytes32(0), "VK not set for sender and registry");
+        require(vk.length != 0, "VK not set for user and registry");
+        require(vk.length == 32, "VK must be 32 bytes");
 
         // Call the specific verifier
         ISP1Verifier sp1Verifier = getVerifier();
 
-        sp1Verifier.verifyProof(vk, message, proof);
-        sp1Verifier.verifyProof(domainVK, domainMessage, domainProof);
+        // Get the domainVK
+        bytes memory _domainVK = domainVK;
+
+        // Convert bytes to bytes32
+        bytes32 vkBytes32;
+        assembly {
+            // Skips the first 32 bytes (length) and reads the next 32 bytes
+            // This assumes vk is at least 32 bytes long, which is checked above
+            vkBytes32 := mload(add(vk, 32))
+        }
+
+        bytes32 domainVKBytes32;
+        require(_domainVK.length == 32, "Domain VK must be 32 bytes");
+        assembly {
+            // Skips the first 32 bytes (length) and reads the next 32 bytes
+            // This assumes vk is at least 32 bytes long, which is checked above
+            domainVKBytes32 := mload(add(_domainVK, 32))
+        }
+
+        sp1Verifier.verifyProof(vkBytes32, message, proof);
+        sp1Verifier.verifyProof(domainVKBytes32, domainMessage, domainProof);
 
         return true;
     }
