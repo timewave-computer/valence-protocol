@@ -14,6 +14,9 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
     /// @notice Generic verifier address that will be specialized in derived contracts
     address public verifier;
 
+    /// @notice domainVK used to verify domain proofs
+    bytes32 public domainVK;
+
     /**
      * @notice Mapping of program verification keys by user address and registry ID
      * @dev Maps: user address => registry ID => verification key
@@ -31,12 +34,15 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
     /**
      * @notice Initializes the verification gateway replacing the constructor with an initializer with the verifier address
      * @param _verifier Address of the verification contract
+     * @param _domainVK The domain verification key that is going to be used for this verification gateway
      */
-    function initialize(address _verifier) external initializer {
+    function initialize(address _verifier, bytes32 _domainVK) external initializer {
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         require(_verifier != address(0), "Verifier cannot be zero address");
         verifier = _verifier;
+        require(_domainVK != bytes32(0), "Domain VK cannot be zero");
+        domainVK = _domainVK;
     }
 
     /**
@@ -47,6 +53,16 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
     function updateVerifier(address _verifier) external onlyOwner {
         require(_verifier != address(0), "Verifier cannot be zero address");
         verifier = _verifier;
+    }
+
+    /**
+     * @notice Updates the domainVK
+     * @dev Only the owner can perform this action
+     * @param _domainVK The new domainVK
+     */
+    function updateDomainVK(bytes32 _domainVK) external onlyOwner {
+        require(_domainVK != bytes32(0), "Domain VK cannot be zero");
+        domainVK = _domainVK;
     }
 
     /**
@@ -74,7 +90,15 @@ abstract contract VerificationGateway is Initializable, OwnableUpgradeable, UUPS
      * @param registry The registry data used in verification
      * @param proof The proof to verify
      * @param message The message associated with the proof
+     * @param domainProof The domain proof to verify against the domain verification key
+     * @param domainMessage The message associated with the domain proof
      * @return True if the proof is valid, false or revert otherwise
      */
-    function verify(uint64 registry, bytes calldata proof, bytes calldata message) external virtual returns (bool);
+    function verify(
+        uint64 registry,
+        bytes calldata proof,
+        bytes calldata message,
+        bytes calldata domainProof,
+        bytes calldata domainMessage
+    ) external virtual returns (bool);
 }

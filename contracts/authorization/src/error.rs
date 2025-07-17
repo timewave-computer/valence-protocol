@@ -155,4 +155,7 @@ pub enum ZKErrorReason {
 
     #[error("This message is not for this authorization contract!")]
     InvalidAuthorizationContract {},
+
+    #[error("Invalid Coprocessor root")]
+    InvalidCoprocessorRoot {},
 }

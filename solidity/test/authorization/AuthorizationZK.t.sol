@@ -43,7 +43,9 @@ contract AuthorizationZKTest is Test {
         // Deploy verification gateway
         verificationGateway = new SP1VerificationGateway();
 
-        bytes memory initializeData = abi.encodeWithSelector(verificationGateway.initialize.selector, verifier);
+        bytes32 domainVK = bytes32(uint256(0xdeadbeef));
+        bytes memory initializeData =
+            abi.encodeWithSelector(verificationGateway.initialize.selector, verifier, domainVK);
 
         // Deploy the proxy and initialize it
         ERC1967Proxy proxy = new ERC1967Proxy(address(verificationGateway), initializeData);
@@ -298,7 +300,7 @@ contract AuthorizationZKTest is Test {
 
         // Should fail because verification gateway is not set
         vm.expectRevert("Verification gateway not set");
-        authWithoutGateway.executeZKMessage(zkMessage, dummyProof);
+        authWithoutGateway.executeZKMessage(zkMessage, dummyProof, zkMessage, dummyProof);
 
         vm.stopPrank();
     }
@@ -328,7 +330,7 @@ contract AuthorizationZKTest is Test {
 
         // Should fail because address is not the authorization contract
         vm.expectRevert("Invalid authorization contract");
-        auth.executeZKMessage(zkMessage, dummyProof);
+        auth.executeZKMessage(zkMessage, dummyProof, zkMessage, dummyProof);
 
         vm.stopPrank();
     }
@@ -366,7 +368,7 @@ contract AuthorizationZKTest is Test {
 
         // Should fail because address is unauthorized
         vm.expectRevert("Unauthorized address for this registry");
-        auth.executeZKMessage(zkMessage, dummyProof);
+        auth.executeZKMessage(zkMessage, dummyProof, zkMessage, dummyProof);
 
         vm.stopPrank();
     }

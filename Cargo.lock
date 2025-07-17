@@ -11434,6 +11434,8 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
  "cw2 2.0.0",
  "sp1-verifier",
  "thiserror 1.0.69",

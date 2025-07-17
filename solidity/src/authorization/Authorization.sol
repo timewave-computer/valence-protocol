@@ -622,11 +622,25 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @dev The proof is verified using the verification gateway before executing the message
      * @param _message Encoded ZK message to be executed
      * @param _proof Proof associated with the ZK message
+     * @param _domainMessage Encoded domain message associated with the domain proof
+     * @param _domainProof domain proof to verify the coprocessor root
      */
-    function executeZKMessage(bytes calldata _message, bytes calldata _proof) external nonReentrant {
+    function executeZKMessage(
+        bytes calldata _message,
+        bytes calldata _proof,
+        bytes calldata _domainMessage,
+        bytes calldata _domainProof
+    ) external nonReentrant {
         // Check that the verification gateway is set
         if (address(verificationGateway) == address(0)) {
             revert("Verification gateway not set");
+        }
+
+        // Verify that the first 32 bytes of both messages is the same (coprocessor root)
+        bytes32 first32BytesMessage = bytes32(_message[0:32]);
+        bytes32 first32BytesDomain = bytes32(_domainMessage[0:32]);
+        if (first32BytesMessage != first32BytesDomain) {
+            revert("Coprocessor root mismatch");
         }
 
         // Decode the message to check authorization and apply modifications
@@ -666,7 +680,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         }
 
         // Verify the proof using the verification gateway
-        if (!verificationGateway.verify(decodedZKMessage.registry, _proof, _message)) {
+        if (!verificationGateway.verify(decodedZKMessage.registry, _proof, _message, _domainProof, _domainMessage)) {
             revert("Proof verification failed");
         }
 
