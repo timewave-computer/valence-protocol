@@ -29,8 +29,8 @@ contract AuthorizationZKTest is Test {
     // ZK registry configuration
     uint64 registryId1 = 101;
     uint64 registryId2 = 102;
-    bytes vk1 = abi.encodePacked(bytes32(uint256(0x123456)));
-    bytes vk2 = abi.encodePacked(bytes32(uint256(0x789abc)));
+    bytes vk1 = hex"123456";
+    bytes vk2 = hex"789abc";
     bool validateBlockNumber1 = false;
     bool validateBlockNumber2 = true;
 
@@ -43,7 +43,7 @@ contract AuthorizationZKTest is Test {
         // Deploy verification gateway
         verificationGateway = new SP1VerificationGateway();
 
-        bytes memory domainVK = abi.encodePacked(bytes32(uint256(0xdeadbeef)));
+        bytes memory domainVK = hex"deadbeef";
         bytes memory initializeData =
             abi.encodeWithSelector(verificationGateway.initialize.selector, verifier, domainVK);
 
