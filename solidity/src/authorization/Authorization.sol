@@ -232,10 +232,10 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @notice Adds a new verifier contract for a specific tag
      * @dev Can only be called by the owner
      * @param tag The tag of the verifier
-     * @param _verifier Address of the verifier contract
+     * @param verifier Address of the verifier contract
      */
-    function setVerifierContract(uint64 tag, address _verifier) external onlyOwner {
-        verifierRegistry[tag] = VerificationGateway(_verifier);
+    function setVerifierContract(uint64 tag, address verifier) external onlyOwner {
+        verifierRegistry[tag] = VerificationGateway(verifier);
     }
 
     // ========================= Standard Authorizations =========================
