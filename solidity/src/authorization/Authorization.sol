@@ -145,10 +145,10 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     // ========================= ZK authorizations =========================
 
     /**
-     * @notice Address of the verification gateway contract used for zero-knowledge proof verification
-     * @dev If zero-knowledge proofs are not being used, this can be set to address(0)
+     * @notice Mapping of registry tags to their associated verification gateways
+     * @dev This mapping is used to store the verification gateway for each registry tag
      */
-    VerificationGateway public verificationGateway;
+    mapping(uint64 => VerificationGateway) public verifierRegistry;
 
     /**
      * @notice Structure representing a ZK message that we'll get a proof for
@@ -166,21 +166,29 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     }
 
     /**
-     * @notice Mapping of what addresses are authorized to send messages for a specific registry ID
-     * @dev This mapping is used to check if a user is authorized to send a message for a specific registry ID
-     * @dev The mapping is structured as follows:
-     *     registry ID -> user addresses
-     *     If address(0) is used as the user address, it indicates permissionless access
+     * @notice Structure representing the ZK authorization data
+     * @dev This structure contains the allowed execution addresses, verifier tag, and metadata hash
+     * @param allowedExecutionAddresses Array of addresses that are allowed to execute messages for this registry
+     * @param verifierTag The tag of the verifier that is used to verify the proof
+     * @param validateBlockNumberExecution Boolean indicating if we need to validate the last block execution for this registry
+     * @param metadataHash The hash of the program metadata used to link the VK to the program
      */
-    mapping(uint64 => address[]) public zkAuthorizations;
+    struct ZkAuthorizationData {
+        address[] allowedExecutionAddresses;
+        uint64 verifierTag;
+        bool validateBlockNumberExecution;
+        bytes32 metadataHash;
+    }
 
     /**
-     * @notice Mapping of registry ID to boolean indicating if we need to validate the last block execution
-     * @dev This mapping is used to check if we need to validate the last block execution for a specific registry ID
-     * @dev The mapping is structured as follows:
-     *     registry ID -> boolean indicating if we need to validate the last block execution
+     * @notice Mapping of registry ID to ZK authorization data
+     * @dev This mapping is used to store the ZK authorization data for each registry ID
+     * @dev The ZkAuthorizationData contains the allowed execution addresses, verifier tag, and metadata hash
+     * @dev This mapping is used to check if a user is authorized to send a message for a specific registry ID
+     * @dev It also contains the verifier tag to know what verifier to use and metadata hash to link the VK to the program
      */
-    mapping(uint64 => bool) public validateBlockNumberExecution;
+    mapping(uint64 => ZkAuthorizationData) public zkAuthorizations;
+
     /**
      * @notice Mapping of the last block a proof was executed for
      * @dev This mapping is used to prevent replay attacks by ensuring that proofs that are older or the same than the last executed one cannot be used
@@ -197,17 +205,13 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @dev Initializes the contract with owner, processor, and optional verifier
      * @param _owner Address that will be set as the owner of this contract
      * @param _processor Address of the processor contract that will execute messages
-     * @param _verificationGateway Address of the ZK verification gateway contract (can be address(0) if not using ZK proofs)
      * @param _storeCallbacks Boolean indicating whether to store callbacks or just emitting events
      */
-    constructor(address _owner, address _processor, address _verificationGateway, bool _storeCallbacks)
-        Ownable(_owner)
-    {
+    constructor(address _owner, address _processor, bool _storeCallbacks) Ownable(_owner) {
         if (_processor == address(0)) {
             revert("Processor cannot be zero address");
         }
         processor = ProcessorBase(_processor);
-        verificationGateway = VerificationGateway(_verificationGateway);
         executionId = 0;
         storeCallbacks = _storeCallbacks;
     }
@@ -225,12 +229,13 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     }
 
     /**
-     * @notice Updates the ZK verification gateway contract address
+     * @notice Adds a new verifier contract for a specific tag
      * @dev Can only be called by the owner
-     * @param _verificationGateway New verificationGateway contract address
+     * @param tag The tag of the verifier
+     * @param _verifier Address of the verifier contract
      */
-    function updateVerificationGateway(address _verificationGateway) external onlyOwner {
-        verificationGateway = VerificationGateway(_verificationGateway);
+    function setVerifierContract(uint64 tag, address _verifier) external onlyOwner {
+        verifierRegistry[tag] = VerificationGateway(_verifier);
     }
 
     // ========================= Standard Authorizations =========================
@@ -548,38 +553,33 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @notice Adds a new registry with its associated users and verification keys
      * @dev This function allows the owner to add multiple registries and their associated users and verification keys
      * @param registries Array of registry IDs to be added
-     * @param users Array of arrays of user addresses associated with each registry
      * @param vks Array of verification keys associated with each registry
-     * @param validateBlockNumber Array of booleans indicating if we need to validate the last block execution for each registry
+     * @param zkAuthorizationsData Array of ZK authorization data associated with each registry
      */
     function addRegistries(
         uint64[] memory registries,
-        address[][] memory users,
         bytes[] calldata vks,
-        bool[] memory validateBlockNumber
+        ZkAuthorizationData[] calldata zkAuthorizationsData
     ) external onlyOwner {
-        // Check that the verification gateway is set
-        if (address(verificationGateway) == address(0)) {
-            revert("Verification gateway not set");
-        }
-
         // Since we are allowing multiple registries to be added at once, we need to check that the arrays are the same length
-        // because for each registry we have a list of users, a verification key and a boolean
+        // because for each registry we have a list of vks and a list of authorizationData
         // Allowing multiple to be added is useful for gas optimization
         require(
-            users.length == registries.length && users.length == vks.length
-                && users.length == validateBlockNumber.length,
+            registries.length == vks.length && registries.length == zkAuthorizationsData.length,
             "Array lengths must match"
         );
 
         for (uint256 i = 0; i < registries.length; i++) {
+            // Get the verification gateway for this registry
+            VerificationGateway verificationGateway = verifierRegistry[zkAuthorizationsData[i].verifierTag];
+            // Check that the verification gateway is set
+            if (address(verificationGateway) == address(0)) {
+                revert("Verification gateway not set for this tag");
+            }
+
             // Add the registry to the verification gateway
             verificationGateway.addRegistry(registries[i], vks[i]);
-            zkAuthorizations[registries[i]] = users[i];
-            // Only store if true because default is false
-            if (validateBlockNumber[i]) {
-                validateBlockNumberExecution[registries[i]] = true;
-            }
+            zkAuthorizations[registries[i]] = zkAuthorizationsData[i];
         }
     }
 
@@ -589,19 +589,20 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @param registries Array of registry IDs to be removed
      */
     function removeRegistries(uint64[] memory registries) external onlyOwner {
-        // Check that the verification gateway is set
-        if (address(verificationGateway) == address(0)) {
-            revert("Verification gateway not set");
-        }
-
         for (uint256 i = 0; i < registries.length; i++) {
+            // Get the verification gateway tag for this registry
+            uint64 tag = zkAuthorizations[registries[i]].verifierTag;
+            // Get the verification gateway for this registry
+            VerificationGateway verificationGateway = verifierRegistry[tag];
+            // Check that the verification gateway is set
+            if (address(verificationGateway) == address(0)) {
+                revert("Verification gateway not set for this tag");
+            }
             // Remove the registry from the verification gateway
             verificationGateway.removeRegistry(registries[i]);
             delete zkAuthorizations[registries[i]];
             // Delete the last execution block for the registry
             delete zkAuthorizationLastExecutionBlock[registries[i]];
-            // Delete the validation flag for the registry
-            delete validateBlockNumberExecution[registries[i]];
         }
     }
 
@@ -613,7 +614,8 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @dev It's useful for checking which addresses have permission to send messages in one go
      */
     function getZkAuthorizationsList(uint64 registryId) public view returns (address[] memory) {
-        return zkAuthorizations[registryId];
+        ZkAuthorizationData memory zkAuthorizationData = zkAuthorizations[registryId];
+        return zkAuthorizationData.allowedExecutionAddresses;
     }
 
     /**
@@ -631,11 +633,6 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         bytes calldata _domainMessage,
         bytes calldata _domainProof
     ) external nonReentrant {
-        // Check that the verification gateway is set
-        if (address(verificationGateway) == address(0)) {
-            revert("Verification gateway not set");
-        }
-
         // Verify that the first 32 bytes of both messages is the same (coprocessor root)
         bytes32 first32BytesMessage = bytes32(_message[0:32]);
         bytes32 first32BytesDomain = bytes32(_domainMessage[0:32]);
@@ -655,11 +652,16 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
             revert("Invalid authorization contract");
         }
 
+        // Get the authorization data for this registry
+        ZkAuthorizationData memory zkAuthorizationData = zkAuthorizations[decodedZKMessage.registry];
+
         // Check that sender is authorized to send this message
-        address[] memory authorizedAddresses = zkAuthorizations[decodedZKMessage.registry];
         bool isAuthorized = false;
-        for (uint256 i = 0; i < authorizedAddresses.length; i++) {
-            if (authorizedAddresses[i] == msg.sender || authorizedAddresses[i] == address(0)) {
+        for (uint256 i = 0; i < zkAuthorizationData.allowedExecutionAddresses.length; i++) {
+            if (
+                zkAuthorizationData.allowedExecutionAddresses[i] == msg.sender
+                    || zkAuthorizationData.allowedExecutionAddresses[i] == address(0)
+            ) {
                 isAuthorized = true;
                 break;
             }
@@ -669,14 +671,17 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
             revert("Unauthorized address for this registry");
         }
 
-        // Cache the validate block condition
-        bool validateBlockNumberExecCondition = validateBlockNumberExecution[decodedZKMessage.registry];
-
         // If we need to validate the last block execution, check that the block number is greater than the last one
-        if (validateBlockNumberExecCondition) {
+        if (zkAuthorizationData.validateBlockNumberExecution) {
             if (decodedZKMessage.blockNumber <= zkAuthorizationLastExecutionBlock[decodedZKMessage.registry]) {
                 revert("Proof no longer valid");
             }
+        }
+
+        // Get the verification gateway for this registry and verify that it's set
+        VerificationGateway verificationGateway = verifierRegistry[zkAuthorizationData.verifierTag];
+        if (address(verificationGateway) == address(0)) {
+            revert("Verification gateway not set for this tag");
         }
 
         // Verify the proof using the verification gateway
@@ -704,7 +709,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         executionId++;
 
         // Update the last execution block for the registry (only if we need to validate the last block execution)
-        if (validateBlockNumberExecCondition) {
+        if (zkAuthorizationData.validateBlockNumberExecution) {
             zkAuthorizationLastExecutionBlock[decodedZKMessage.registry] = decodedZKMessage.blockNumber;
         }
 

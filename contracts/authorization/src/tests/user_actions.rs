@@ -791,12 +791,15 @@ fn pause_and_resume_processor_using_zk_authorizations() {
     )
     .unwrap();
 
+    let verifier_tag = 1;
+
     instantiate_and_set_verification_gateway(
         &setup.app,
         &setup.owner_accounts[0],
         authorization.clone(),
         setup.owner_addr.to_string(),
         Binary::from(sp1_vk.bytes32().into_bytes()),
+        verifier_tag,
     );
 
     // Let's create two zk authorizations, one to pause the processor and another to resume it, pause will have registry 1 and resume will have registry 2
@@ -805,6 +808,8 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         mode: AuthorizationModeInfo::Permissionless,
         registry: 1,
         vk: Binary::from(sp1_vk.bytes32().into_bytes()),
+        verifier_tag,
+        metadata_hash: Binary::default(),
         validate_last_block_execution: false,
     };
     let zk_authorization_resume = ZkAuthorizationInfo {
@@ -812,6 +817,8 @@ fn pause_and_resume_processor_using_zk_authorizations() {
         mode: AuthorizationModeInfo::Permissionless,
         registry: 2,
         vk: Binary::from(sp1_vk.bytes32().into_bytes()),
+        verifier_tag,
+        metadata_hash: Binary::default(),
         validate_last_block_execution: false,
     };
     let zk_authorizations = vec![zk_authorization_pause, zk_authorization_resume];
