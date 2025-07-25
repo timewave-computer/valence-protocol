@@ -454,9 +454,11 @@ contract AavePositionManagerTest is Test {
         assets[1] = debtToken;
         uint256 amount = vm.randomUint();
         address rewardToken = vm.randomAddress();
-        
+
         // expect
-        vm.expectCall(address(inputAccount), abi.encodeWithSignature(
+        vm.expectCall(
+            address(inputAccount),
+            abi.encodeWithSignature(
                 "execute(address,uint256,bytes)",
                 address(rewardsController),
                 0,
@@ -502,7 +504,9 @@ contract AavePositionManagerTest is Test {
         address rewardToken = vm.randomAddress();
 
         // expect
-        vm.expectCall(address(inputAccount), abi.encodeWithSignature(
+        vm.expectCall(
+            address(inputAccount),
+            abi.encodeWithSignature(
                 "execute(address,uint256,bytes)",
                 address(rewardsController),
                 0,
@@ -519,5 +523,42 @@ contract AavePositionManagerTest is Test {
         // when
         vm.prank(processor);
         aavePositionManager.claimRewards(rewardToken, amount);
+    }
+
+    function testClaimAllRewards() public {
+        // Execute claimAllRewards as processor
+        // given
+        address[] memory assets = new address[](2);
+        assets[0] = aToken;
+        assets[1] = debtToken;
+
+        // expect
+        vm.expectCall(
+            address(inputAccount),
+            abi.encodeWithSignature(
+                "execute(address,uint256,bytes)",
+                address(rewardsController),
+                0,
+                abi.encodeWithSignature("claimAllRewards(address[],address)", assets, address(outputAccount))
+            )
+        );
+
+        // when
+        vm.prank(processor);
+        aavePositionManager.claimAllRewards();
+    }
+
+    function testUnauthorizedClaimAllRewards() public {
+        // given
+        address[] memory assets = new address[](2);
+        assets[0] = aToken;
+        assets[1] = debtToken;
+
+        // expect
+        vm.expectRevert("Only the processor can call this function");
+
+        // when
+        vm.prank(makeAddr("unauthorized"));
+        aavePositionManager.claimAllRewards();
     }
 }

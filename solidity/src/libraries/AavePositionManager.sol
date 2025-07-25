@@ -288,6 +288,21 @@ contract AavePositionManager is Library {
         config.inputAccount.execute(address(storedDerivedConfig.rewardsController), 0, encodedClaimRewardsCall);
     }
 
+    function claimAllRewards() external onlyProcessor {
+        // Get the current configuration.
+        AavePositionManagerDerivedConfig memory storedDerivedConfig = derivedConfig;
+
+        // Claim all rewards from the Aave protocol.
+        address[] memory assets = new address[](2);
+        assets[0] = storedDerivedConfig.aToken;
+        assets[1] = storedDerivedConfig.debtToken;
+        bytes memory encodedClaimRewardsCall =
+            abi.encodeCall(IRewardsController.claimAllRewards, (assets, address(config.outputAccount)));
+
+        // Execute the claim rewards from the input account
+        config.inputAccount.execute(address(storedDerivedConfig.rewardsController), 0, encodedClaimRewardsCall);
+    }
+
     /**
      * @dev Internal initialization function called during construction
      * @param _config New configuration
