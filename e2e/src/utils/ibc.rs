@@ -22,7 +22,7 @@ pub fn send_successful_ibc_transfer(
     let mut tries = 0;
     loop {
         if tries >= max_tries {
-            panic!("Failed to send IBC transfer after {} tries", max_tries);
+            panic!("Failed to send IBC transfer after {max_tries} tries");
         }
         tries += 1;
         test_ctx

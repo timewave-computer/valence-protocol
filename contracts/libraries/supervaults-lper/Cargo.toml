@@ -14,11 +14,11 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-std                = { workspace = true }
-cosmwasm-schema             = { workspace = true }
-cw-ownable                  = { workspace = true }
-valence-macros              = { workspace = true }
-valence-library-utils       = { workspace = true }
-valence-library-base        = { workspace = true }
-valence-account-utils       = { workspace = true }
-valence-supervaults-utils   = { workspace = true }
+cosmwasm-std              = { workspace = true }
+cosmwasm-schema           = { workspace = true }
+cw-ownable                = { workspace = true }
+valence-macros            = { workspace = true }
+valence-library-utils     = { workspace = true }
+valence-library-base      = { workspace = true }
+valence-account-utils     = { workspace = true }
+valence-supervaults-utils = { workspace = true }

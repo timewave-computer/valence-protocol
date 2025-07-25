@@ -1,3 +1,4 @@
+use cosmwasm_std::Binary;
 use margined_neutron_std::types::{
     cosmos::base::v1beta1::Coin,
     cosmwasm::wasm::v1::{
@@ -98,9 +99,9 @@ pub fn store_and_instantiate_authorization_with_processor_contract(
     let extended_wasm = ExtendedWasm::new(app);
 
     let wasm_byte_code_authorization =
-        std::fs::read(format!("{}/valence_authorization.wasm", ARTIFACTS_DIR)).unwrap();
+        std::fs::read(format!("{ARTIFACTS_DIR}/valence_authorization.wasm")).unwrap();
     let wasm_byte_code_processor =
-        std::fs::read(format!("{}/valence_processor.wasm", ARTIFACTS_DIR)).unwrap();
+        std::fs::read(format!("{ARTIFACTS_DIR}/valence_processor.wasm")).unwrap();
 
     let code_response = wasm
         .store_code(&wasm_byte_code_authorization, None, signer)
@@ -169,7 +170,7 @@ pub fn store_and_instantiate_test_library(
     admin: Option<&str>,
 ) -> String {
     let wasm_byte_code =
-        std::fs::read(format!("{}/valence_test_library.wasm", ARTIFACTS_DIR)).unwrap();
+        std::fs::read(format!("{ARTIFACTS_DIR}/valence_test_library.wasm")).unwrap();
 
     let code_id = wasm
         .store_code(&wasm_byte_code, None, signer)
@@ -201,15 +202,13 @@ pub fn instantiate_and_set_verification_gateway(
     app: &NeutronTestApp,
     signer: &SigningAccount,
     authorization: String,
+    owner: String,
+    domain_vk: Binary,
 ) {
     let wasm = Wasm::new(app);
     let code_id = wasm
         .store_code(
-            &std::fs::read(format!(
-                "{}/valence_verification_gateway.wasm",
-                ARTIFACTS_DIR
-            ))
-            .unwrap(),
+            &std::fs::read(format!("{ARTIFACTS_DIR}/valence_verification_gateway.wasm",)).unwrap(),
             None,
             signer,
         )
@@ -220,7 +219,7 @@ pub fn instantiate_and_set_verification_gateway(
     let verification_gateway = wasm
         .instantiate(
             code_id,
-            &valence_verification_gateway::msg::InstantiateMsg {},
+            &valence_verification_gateway::msg::InstantiateMsg { domain_vk, owner },
             None,
             "verification_gateway".into(),
             &[],

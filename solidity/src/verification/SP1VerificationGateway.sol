@@ -36,23 +36,36 @@ contract SP1VerificationGateway is VerificationGateway {
      * @param registry The registry used in verification
      * @param proof The proof to verify
      * @param message The message associated with the proof
+     * @param domainProof The domain proof to verify
+     * @param domainMessage The domain message associated with the domain proof
      */
-    function verify(uint64 registry, bytes calldata proof, bytes calldata message)
-        external
-        view
-        override
-        returns (bool)
-    {
-        // Get the VK for the sender and the registry
-        bytes32 vk = programVKs[msg.sender][registry];
+    function verify(
+        uint64 registry,
+        bytes calldata proof,
+        bytes calldata message,
+        bytes calldata domainProof,
+        bytes calldata domainMessage
+    ) external view override returns (bool) {
+        // Get the VK for the sender and the registry (gas-friendly storage reference)
+        bytes memory vk = programVKs[msg.sender][registry];
+        // Get the domainVK
+        bytes memory _domainVK = domainVK;
 
-        // If the VK is not set, revert
-        require(vk != bytes32(0), "VK not set for sender and registry");
+        // Validation
+        require(vk.length != 0, "VK not set for user and registry");
+        require(vk.length == 32, "VK must be 32 bytes");
+        require(_domainVK.length == 32, "Domain VK must be 32 bytes");
 
-        // Call the specific verifier
+        // Convert to bytes32 - we've already checked the length above so it won't truncate
+        bytes32 vkBytes32 = bytes32(vk);
+        bytes32 domainVKBytes32 = bytes32(_domainVK);
+
+        // Get verifier
         ISP1Verifier sp1Verifier = getVerifier();
 
-        sp1Verifier.verifyProof(vk, message, proof);
+        // Verify proofs
+        sp1Verifier.verifyProof(vkBytes32, message, proof);
+        sp1Verifier.verifyProof(domainVKBytes32, domainMessage, domainProof);
 
         return true;
     }

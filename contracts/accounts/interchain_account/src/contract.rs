@@ -262,8 +262,8 @@ mod execute {
         )?;
         Ok(Response::default()
             .add_attribute("method", "update_ownership")
-            .add_attribute("action", format!("{:?}", action))
-            .add_attribute("result", format!("{:?}", result)))
+            .add_attribute("action", format!("{action:?}"))
+            .add_attribute("result", format!("{result:?}")))
     }
 }
 

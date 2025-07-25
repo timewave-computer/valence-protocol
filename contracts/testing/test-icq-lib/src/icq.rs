@@ -159,11 +159,7 @@ pub fn sudo_kv_query_result(
     query_id: u64,
 ) -> StdResult<Response<NeutronMsg>> {
     deps.api.debug(
-        format!(
-            "WASMDEBUG: sudo_kv_query_result received; query_id: {:?}",
-            query_id,
-        )
-        .as_str(),
+        format!("WASMDEBUG: sudo_kv_query_result received; query_id: {query_id:?}").as_str(),
     );
 
     let registered_query_result = get_raw_interchain_query_result(deps.as_ref(), query_id)
@@ -263,11 +259,11 @@ mod test {
 
         let osmo_pool: Pool = any_msg.try_into().unwrap();
 
-        println!("osmo pool : {:?}", osmo_pool);
+        println!("osmo pool : {osmo_pool:?}");
 
         let json_str: String = to_json_string(&osmo_pool).unwrap();
         let json_value: Value = serde_json::from_str(&json_str).unwrap();
-        println!("json value: {:?}", json_value);
+        println!("json value: {json_value:?}");
     }
 
     #[test]
@@ -287,7 +283,7 @@ mod test {
         let balances: neutron_sdk::interchain_queries::v047::types::Balances =
             KVReconstruct::reconstruct(&[storage_value]).unwrap();
 
-        println!("balances: {:?}", balances);
+        println!("balances: {balances:?}");
     }
 
     #[test]

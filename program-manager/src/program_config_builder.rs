@@ -36,7 +36,7 @@ impl ProgramConfigBuilder {
         self.account_id += 1;
 
         if self.program_config.accounts.insert(id, info).is_some() {
-            panic!("Account with id {} already exists", id);
+            panic!("Account with id {id} already exists");
         }
 
         LibraryAccountType::AccountId(id)
@@ -47,7 +47,7 @@ impl ProgramConfigBuilder {
         self.library_id += 1;
 
         if self.program_config.libraries.insert(id, info).is_some() {
-            panic!("Library with id {} already exists", id);
+            panic!("Library with id {id} already exists");
         }
 
         LibraryAccountType::LibraryId(id)

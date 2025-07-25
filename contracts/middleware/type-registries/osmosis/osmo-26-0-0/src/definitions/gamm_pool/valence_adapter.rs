@@ -168,7 +168,7 @@ mod tests {
 
         let osmosis_pool = OsmosisXykPool::try_from_canonical(pool).unwrap();
 
-        println!("osmosis_pool: {:?}", osmosis_pool);
+        println!("osmosis_pool: {osmosis_pool:?}");
         assert_eq!(osmosis_pool.address, "pool1");
         assert_eq!(osmosis_pool.id, 1);
         assert_eq!(osmosis_pool.future_pool_governor, "gov1");
@@ -217,7 +217,7 @@ mod tests {
         };
 
         let canonical_valence_xyk_pool = OsmosisXykPool(pool).try_to_canonical().unwrap();
-        println!("parsed xyk pool: {:?}", canonical_valence_xyk_pool);
+        println!("parsed xyk pool: {canonical_valence_xyk_pool:?}");
 
         let valence_xyk_pool = match canonical_valence_xyk_pool {
             ValenceType::XykPool(pool) => pool,

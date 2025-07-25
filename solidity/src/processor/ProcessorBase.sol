@@ -64,7 +64,7 @@ abstract contract ProcessorBase is Ownable {
      * @notice Handles incoming messages from an authorized addresses
      * @param _body The message payload
      */
-    function execute(bytes calldata _body) external payable virtual;
+    function execute(bytes calldata _body) external virtual;
 
     /**
      * @notice Handles pause messages
@@ -120,6 +120,12 @@ abstract contract ProcessorBase is Ownable {
         bytes memory errorData;
         bool succeeded = true;
 
+        // Check that the number of messages matches the number of functions
+        // for protection against mismatched inputs
+        if (nonAtomicSubroutine.functions.length != messages.length) {
+            revert("Number of messages does not match number of functions");
+        }
+
         // Execute each function until one fails
         for (uint8 i = 0; i < nonAtomicSubroutine.functions.length; i++) {
             address targetContract = nonAtomicSubroutine.functions[i].contractAddress;
@@ -136,13 +142,14 @@ abstract contract ProcessorBase is Ownable {
                 break;
             }
 
-            (bool success, bytes memory err) = targetContract.call(messages[i]);
+            (bool success, bytes memory data) = targetContract.call(messages[i]);
 
             if (success) {
                 executedCount++;
             } else {
                 succeeded = false;
-                errorData = err;
+                // Forces the compiler to properly handle the memory allocation for data during compilation.
+                errorData = data.length > 0 ? data : bytes("Contract call failed without error data");
                 break;
             }
         }
@@ -173,6 +180,12 @@ abstract contract ProcessorBase is Ownable {
             revert ProcessorErrors.UnauthorizedAccess();
         }
 
+        // Check that the number of messages matches the number of functions
+        // for protection against mismatched inputs
+        if (atomicSubroutine.functions.length != messages.length) {
+            revert("Number of messages does not match number of functions");
+        }
+
         for (uint8 i = 0; i < atomicSubroutine.functions.length; i++) {
             address targetContract = atomicSubroutine.functions[i].contractAddress;
             // Check contract existence, need to do this check because in EVM
@@ -191,17 +204,21 @@ abstract contract ProcessorBase is Ownable {
              * @dev When a contract call fails, Solidity captures the revert data (error)
              *      in a bytes array with a 32-byte length prefix. To correctly propagate
              *      the original error, we need to:
-             *      1. Capture both success status and error data from the call
+             *      1. Capture both success status and data from the call
              *      2. If call failed, use assembly to revert with the original error:
-             *         - Skip the 32-byte length prefix in memory (add(err, 32))
-             *         - Use the length value at the start of err (mload(err))
+             *         - Skip the 32-byte length prefix in memory (add(data, 32))
+             *         - Use the length value at the start of data (mload(data))
              *         - Revert with exactly the original error data
              */
-            (bool success, bytes memory err) = targetContract.call(messages[i]);
+            (bool success, bytes memory data) = targetContract.call(messages[i]);
             if (!success) {
-                // Forward the original error data
-                assembly {
-                    revert(add(err, 32), mload(err))
+                // Forces the compiler to properly handle the memory allocation for data during compilation.
+                if (data.length > 0) {
+                    assembly {
+                        revert(add(32, data), mload(data))
+                    }
+                } else {
+                    revert("Contract call failed without error data");
                 }
             }
         }
@@ -298,7 +315,7 @@ abstract contract ProcessorBase is Ownable {
      * @dev Only callable by the contract owner
      * @param _address The address to be authorized
      */
-    function addAuthorizedAddress(address _address) public onlyOwner {
+    function addAuthorizedAddress(address _address) external onlyOwner {
         // Check that address is not the zero address
         if (_address == address(0)) {
             revert ProcessorErrors.InvalidAddress();
@@ -318,7 +335,7 @@ abstract contract ProcessorBase is Ownable {
      * @dev Only callable by the contract owner
      * @param _address The address to be removed from the authorized list
      */
-    function removeAuthorizedAddress(address _address) public onlyOwner {
+    function removeAuthorizedAddress(address _address) external onlyOwner {
         // Check that address is currently authorized
         if (!authorizedAddresses[_address]) {
             revert ProcessorErrors.AddressNotAuthorized();

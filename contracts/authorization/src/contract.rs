@@ -176,7 +176,18 @@ pub fn execute(
                 label,
                 message,
                 proof,
-            } => execute_zk_authorization(deps, env, info, label, message, proof),
+                domain_message,
+                domain_proof,
+            } => execute_zk_authorization(
+                deps,
+                env,
+                info,
+                label,
+                message,
+                proof,
+                domain_message,
+                domain_proof,
+            ),
         },
         ExecuteMsg::InternalAuthorizationAction(internal_authorization_msg) => {
             match internal_authorization_msg {
@@ -910,6 +921,7 @@ fn set_verification_gateway(
         .add_attribute("verification_gateway", verification_gateway))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn execute_zk_authorization(
     deps: DepsMut,
     env: Env,
@@ -917,6 +929,8 @@ fn execute_zk_authorization(
     label: String,
     message: Binary,
     proof: Binary,
+    domain_message: Binary,
+    domain_proof: Binary,
 ) -> Result<Response, ContractError> {
     let zk_authorization = ZK_AUTHORIZATIONS
         .load(deps.storage, label.clone())
@@ -946,7 +960,7 @@ fn execute_zk_authorization(
 
     // Verify the proof with the verification gateway
     let valid: bool = deps.querier.query_wasm_smart(
-        verification_gateway,
+        verification_gateway.clone(),
         &valence_verification_gateway::msg::QueryMsg::VerifyProof {
             vk: zk_authorization.vk,
             proof,
@@ -955,6 +969,27 @@ fn execute_zk_authorization(
     )?;
     if !valid {
         return Err(ContractError::ZK(ZKErrorReason::InvalidZKProof {}));
+    }
+
+    // Verify the domain proof with the verification gateway
+    let valid_domain: bool = deps.querier.query_wasm_smart(
+        verification_gateway,
+        &valence_verification_gateway::msg::QueryMsg::VerifyDomainProof {
+            domain_proof,
+            domain_inputs: domain_message.clone(),
+        },
+    )?;
+    if !valid_domain {
+        return Err(ContractError::ZK(ZKErrorReason::InvalidZKProof {}));
+    }
+
+    // Compare the first 32 bytes of both messages to ensure the coprocessor root is the same
+    let message_slice = message.as_slice();
+    let domain_message_slice = domain_message.as_slice();
+    let message_coprocessor_root = &message_slice[..32];
+    let domain_message_coprocessor_root = &domain_message_slice[..32];
+    if message_coprocessor_root != domain_message_coprocessor_root {
+        return Err(ContractError::ZK(ZKErrorReason::InvalidCoprocessorRoot {}));
     }
 
     // Now that proof is validated we are going to extract the ZkMessage from the message
@@ -1719,7 +1754,7 @@ fn assert_owner_or_subowner(store: &dyn Storage, address: Addr) -> Result<(), Co
 
 /// Returns the full denom of a tokenfactory token: factory/<contract_address>/<label>
 pub fn build_tokenfactory_denom(contract_address: &str, label: &str) -> String {
-    format!("factory/{}/{}", contract_address, label)
+    format!("factory/{contract_address}/{label}")
 }
 
 /// Unique ID for an execution on any processor

@@ -129,7 +129,7 @@ fn try_get_kv_key(
         .querier
         .query_wasm_smart(registry, &RegistryQueryMsg::KVKey { type_id, params })?;
 
-    println!("[broker] response kv key: {:?}", response);
+    println!("[broker] response kv key: {response:?}");
 
     to_json_binary(&response)
 }
@@ -148,11 +148,11 @@ fn try_to_canonical(
 }
 
 fn try_from_canonical(deps: Deps, registry: String, canonical: ValenceType) -> StdResult<Binary> {
-    println!("[broker] try_from_canonical: {:?}", canonical);
+    println!("[broker] try_from_canonical: {canonical:?}");
     let response: NativeTypeWrapper = deps.querier.query_wasm_smart(
         registry,
         &RegistryQueryMsg::FromCanonical { obj: canonical },
     )?;
-    println!("[broker] response: {:?}", response);
+    println!("[broker] response: {response:?}");
     to_json_binary(&response)
 }

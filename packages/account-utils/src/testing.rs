@@ -172,7 +172,7 @@ pub trait AccountTestSuite {
                 owner.clone(),
                 &msg,
                 &[],
-                format!("CW20 {}", name),
+                format!("CW20 {name}"),
                 Some(owner.to_string()),
             )
             .unwrap();

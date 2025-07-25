@@ -14,7 +14,7 @@ pub fn decode(msg: &HexBinary) -> StdResult<Binary> {
     // Wrap it in a Binary
     let binary = Binary::new(
         serde_json::to_vec(&processor_callback)
-            .map_err(|e| StdError::generic_err(format!("Failed to serialize callback: {}", e)))?,
+            .map_err(|e| StdError::generic_err(format!("Failed to serialize callback: {e}")))?,
     );
 
     Ok(binary)

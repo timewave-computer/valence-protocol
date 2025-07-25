@@ -128,7 +128,12 @@ contract OneWayVault is
      * @param depositAccount Account where deposits are held
      * @param strategist Address of the vault strategist
      * @param depositFeeBps Fee charged on deposits in basis points (1 BPS = 0.01%)
-     * @param withdrawRateBps Fee charged on withdrawals in basis points (1 BPS = 0.01%)
+     * @param withdrawFeeBps Fee charged on withdrawals in basis points (1 BPS = 0.01%)
+     * @param maxRateIncrementBps Maximum allowed relative increase in redemption rate per update (in basis points).
+     *     For example, if maxRateIncrementBps is 100 (1%), at a redemption rate of 200, the new rate can go up to 202.
+     * @param maxRateDecrementBps Maximum allowed relative decrease in redemption rate per update (in basis points).
+     *     For example, if maxRateDecrementBps is 50 (0.5%), at a redemption rate of 200, the new rate can go down to 199
+     * @param minRateUpdateDelay Minimum time required between redemption rate updates (in seconds)
      * @param maxRateUpdateDelay Maximum time allowed between redemption rate updates (in seconds) before vault automatically pauses
      * @param depositCap Maximum assets that can be deposited (0 means no cap)
      * @param feeDistribution Configuration for fee distribution between platform and strategist
@@ -137,7 +142,10 @@ contract OneWayVault is
         BaseAccount depositAccount;
         address strategist;
         uint32 depositFeeBps;
-        uint32 withdrawRateBps;
+        uint32 withdrawFeeBps;
+        uint32 maxRateIncrementBps;
+        uint32 maxRateDecrementBps;
+        uint64 minRateUpdateDelay;
         uint64 maxRateUpdateDelay;
         uint256 depositCap;
         FeeDistributionConfig feeDistribution;
@@ -241,16 +249,18 @@ contract OneWayVault is
         string memory vaultTokenName,
         string memory vaultTokenSymbol,
         uint256 startingRate
-    ) public initializer {
+    ) external initializer {
         __ERC20_init(vaultTokenName, vaultTokenSymbol);
         __ERC4626_init(IERC20(underlying));
         __Ownable_init(_owner);
         __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
 
         config = abi.decode(_config, (OneWayVaultConfig));
         _validateConfig(config);
 
         ONE_SHARE = 10 ** decimals();
+        require(startingRate > 0, "Starting redemption rate cannot be zero");
         redemptionRate = startingRate; // Initialize at specified starting rate
         lastRateUpdateTimestamp = uint64(block.timestamp); // Set initial timestamp for rate updates
     }
@@ -269,7 +279,7 @@ contract OneWayVault is
      * @dev Validates all configuration parameters before updating
      * @param _config Encoded OneWayVaultConfig struct
      */
-    function updateConfig(bytes memory _config) public onlyOwner {
+    function updateConfig(bytes memory _config) external onlyOwner {
         OneWayVaultConfig memory decodedConfig = abi.decode(_config, (OneWayVaultConfig));
 
         _validateConfig(decodedConfig);
@@ -297,12 +307,20 @@ contract OneWayVault is
             revert("Deposit fee cannot exceed 100%");
         }
 
-        if (decodedConfig.withdrawRateBps > BASIS_POINTS) {
+        if (decodedConfig.withdrawFeeBps > BASIS_POINTS) {
             revert("Withdraw fee cannot exceed 100%");
+        }
+
+        if (decodedConfig.maxRateDecrementBps > BASIS_POINTS) {
+            revert("Max rate decrement cannot exceed 100%");
         }
 
         if (decodedConfig.maxRateUpdateDelay == 0) {
             revert("Max rate update delay cannot be zero");
+        }
+
+        if (decodedConfig.minRateUpdateDelay > decodedConfig.maxRateUpdateDelay) {
+            revert("Minimum update delay cannot exceed maximum update delay");
         }
 
         if (decodedConfig.feeDistribution.strategistRatioBps > BASIS_POINTS) {
@@ -372,7 +390,7 @@ contract OneWayVault is
      * @param receiver Address to receive the vault shares
      * @return shares Amount of shares minted to receiver
      */
-    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+    function deposit(uint256 assets, address receiver) public override whenNotPaused nonReentrant returns (uint256) {
         if (_checkAndHandleStaleRate()) {
             return 0; // Exit early if vault was just paused
         }
@@ -383,15 +401,14 @@ contract OneWayVault is
         }
 
         uint256 depositFee = calculateDepositFee(assets);
-        uint256 assetsAfterFee;
-        assetsAfterFee = assets - depositFee;
+        uint256 assetsAfterFee = assets - depositFee;
 
         if (depositFee > 0) {
             feesAccruedInAsset += depositFee;
         }
 
         uint256 shares = previewDeposit(assetsAfterFee);
-        _deposit(_msgSender(), receiver, assets, shares);
+        _deposit(msg.sender, receiver, assets, shares);
 
         return shares;
     }
@@ -403,7 +420,7 @@ contract OneWayVault is
      * @param receiver Address to receive the shares
      * @return assets Total amount of assets deposited (including fees)
      */
-    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+    function mint(uint256 shares, address receiver) public override whenNotPaused nonReentrant returns (uint256) {
         if (_checkAndHandleStaleRate()) {
             return 0; // Exit early if vault was just paused
         }
@@ -418,7 +435,7 @@ contract OneWayVault is
             feesAccruedInAsset += fee;
         }
 
-        _deposit(_msgSender(), receiver, grossAssets, shares);
+        _deposit(msg.sender, receiver, grossAssets, shares);
 
         return grossAssets;
     }
@@ -435,6 +452,22 @@ contract OneWayVault is
         }
 
         OneWayVaultConfig memory _config = config;
+
+        // Check that enough time has passed since last update
+        if (uint64(block.timestamp) - lastRateUpdateTimestamp < _config.minRateUpdateDelay) {
+            revert("Minimum rate update delay not passed");
+        }
+
+        // Check that the new rate is within allowed increment/decrement limits
+        if (newRate > redemptionRate) {
+            // Rate increase
+            uint256 maxIncrement = (redemptionRate * config.maxRateIncrementBps) / BASIS_POINTS;
+            require(newRate - redemptionRate <= maxIncrement, "Rate increase exceeds maximum allowed increment");
+        } else if (newRate < redemptionRate) {
+            // Rate decrease
+            uint256 maxDecrement = (redemptionRate * config.maxRateDecrementBps) / BASIS_POINTS;
+            require(redemptionRate - newRate <= maxDecrement, "Rate decrease exceeds maximum allowed decrement");
+        }
 
         // Distribute accumulated fees
         _distributeFees(_config.feeDistribution);
@@ -483,6 +516,13 @@ contract OneWayVault is
         if (_vaultState.pausedByStaleRate && msg.sender != owner()) {
             revert("Only owner can unpause if paused by stale rate");
         }
+        if (
+            _vaultState.pausedByStaleRate
+                && uint64(block.timestamp) - lastRateUpdateTimestamp > config.maxRateUpdateDelay
+        ) {
+            revert("Cannot unpause while rate is stale");
+        }
+
         delete vaultState;
         emit PausedStateChanged(false);
     }
@@ -507,8 +547,7 @@ contract OneWayVault is
         // This formula ensures that after the fee is deducted, exactly baseAssets remain
         uint256 grossAssets = baseAssets.mulDiv(BASIS_POINTS, BASIS_POINTS - feeBps, Math.Rounding.Ceil);
 
-        uint256 fee;
-        fee = grossAssets - baseAssets;
+        uint256 fee = grossAssets - baseAssets;
 
         return (grossAssets, fee);
     }
@@ -539,7 +578,7 @@ contract OneWayVault is
      * @return The withdrawal fee amount in the same decimals as the asset
      */
     function calculateWithdrawalFee(uint256 assets) public view returns (uint256) {
-        uint32 feeBps = config.withdrawRateBps;
+        uint32 feeBps = config.withdrawFeeBps;
         if (feeBps == 0) return 0;
 
         uint256 fee = assets.mulDiv(feeBps, BASIS_POINTS, Math.Rounding.Ceil);
@@ -554,12 +593,7 @@ contract OneWayVault is
      * @param receiver Address to receive the withdrawn assets on the destination domain (as string)
      * @param owner Address that owns the shares
      */
-    function withdraw(uint256 assets, string calldata receiver, address owner)
-        public
-        payable
-        nonReentrant
-        whenNotPaused
-    {
+    function withdraw(uint256 assets, string calldata receiver, address owner) external nonReentrant whenNotPaused {
         if (_checkAndHandleStaleRate()) {
             return; // Exit early if vault was just paused
         }
@@ -597,12 +631,7 @@ contract OneWayVault is
      * @param receiver Address to receive the redeemed assets on destination domain (as string)
      * @param owner Address that owns the shares
      */
-    function redeem(uint256 shares, string calldata receiver, address owner)
-        public
-        payable
-        nonReentrant
-        whenNotPaused
-    {
+    function redeem(uint256 shares, string calldata receiver, address owner) external nonReentrant whenNotPaused {
         if (_checkAndHandleStaleRate()) {
             return; // Exit early if vault was just paused
         }
@@ -646,10 +675,6 @@ contract OneWayVault is
     function _withdraw(uint256 sharesToBurn, uint256 postFeeShares, string calldata receiver, address owner) internal {
         // Burn shares first (CEI pattern - Checks, Effects, Interactions)
         if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-            if (allowed < sharesToBurn) {
-                revert("Insufficient allowance");
-            }
             _spendAllowance(owner, msg.sender, sharesToBurn);
         }
         _burn(owner, sharesToBurn);
