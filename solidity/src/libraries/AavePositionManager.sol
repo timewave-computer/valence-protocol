@@ -8,6 +8,7 @@ import {AToken} from "aave-v3-origin/protocol/tokenization/AToken.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {IAaveIncentivesController} from "aave-v3-origin/interfaces/IAaveIncentivesController.sol";
 import {IRewardsDistributor} from "aave-v3-origin/rewards/interfaces/IRewardsDistributor.sol";
+import {IRewardsController} from "aave-v3-origin/rewards/interfaces/IRewardsController.sol";
 import {console} from "forge-std/src/console.sol";
 
 /**
@@ -264,6 +265,27 @@ contract AavePositionManager is Library {
             address(storedDerivedConfig.rewardsController)
         ).getAllUserRewards(assets, address(config.inputAccount));
         return (rewardTokens, rewardAmounts);
+    }
+
+    function claimRewards(address rewardToken, uint256 amount) external onlyProcessor {
+        // Get the current configuration.
+        AavePositionManagerDerivedConfig memory storedDerivedConfig = derivedConfig;
+
+        // If amount is 0, use uint256.max to claim as much as possible
+        if (amount == 0) {
+            amount = type(uint256).max;
+        }
+
+        // Claim the rewards from the Aave protocol.
+        address[] memory assets = new address[](2);
+        assets[0] = storedDerivedConfig.aToken;
+        assets[1] = storedDerivedConfig.debtToken;
+        bytes memory encodedClaimRewardsCall = abi.encodeCall(
+            IRewardsController.claimRewards, (assets, amount, address(config.outputAccount), rewardToken)
+        );
+
+        // Execute the claim rewards from the input account
+        config.inputAccount.execute(address(storedDerivedConfig.rewardsController), 0, encodedClaimRewardsCall);
     }
 
     /**
