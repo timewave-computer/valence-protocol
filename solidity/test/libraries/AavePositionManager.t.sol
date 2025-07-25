@@ -8,6 +8,8 @@ import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 import {MockAavePool} from "../mocks/MockAavePool.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {AToken} from "aave-v3-origin/protocol/tokenization/AToken.sol";
+import {IAaveIncentivesController} from "aave-v3-origin/interfaces/IAaveIncentivesController.sol";
 
 contract AavePositionManagerTest is Test {
     // Contract under test
@@ -46,6 +48,7 @@ contract AavePositionManagerTest is Test {
 
         // Deploy AavePositionManager contract
         vm.startPrank(owner);
+        vm.mockCall(address(0xa), abi.encodeWithSignature("getIncentivesController()"), abi.encode(address(0xc)));
 
         // Create and encode config directly
         AavePositionManager.AavePositionManagerConfig memory config = AavePositionManager.AavePositionManagerConfig({
@@ -180,6 +183,32 @@ contract AavePositionManagerTest is Test {
         vm.prank(unauthorized);
         vm.expectRevert();
         aavePositionManager.updateConfig(abi.encode(config));
+    }
+
+    function testDerivedConfig() public {
+        (IAaveIncentivesController rewardsController, address aToken, address debtToken) = aavePositionManager.derivedConfig();
+        assertEq(address(rewardsController), address(0xc));
+        assertEq(aToken, address(0xa));
+        assertEq(debtToken, address(0xB));
+    }
+
+    function testDerivedConfigUpdate() public {
+        vm.mockCall(address(0xa), abi.encodeWithSignature("getIncentivesController()"), abi.encode(address(0xd)));
+        AavePositionManager.AavePositionManagerConfig memory newConfig = AavePositionManager.AavePositionManagerConfig({
+            poolAddress: IPool(address(mockPool)),
+            inputAccount: inputAccount,
+            outputAccount: outputAccount,
+            supplyAsset: address(supplyToken),
+            borrowAsset: address(borrowToken),
+            referralCode: referralCode
+        });
+        vm.prank(owner);
+        aavePositionManager.updateConfig(abi.encode(newConfig));
+        
+        (IAaveIncentivesController rewardsController, address aToken, address debtToken) = aavePositionManager.derivedConfig();
+        assertEq(address(rewardsController), address(0xd));
+        assertEq(aToken, address(0xa));
+        assertEq(debtToken, address(0xB));
     }
 
     // ============== Supply Tests ==============
@@ -354,4 +383,5 @@ contract AavePositionManagerTest is Test {
         vm.expectRevert();
         aavePositionManager.repayWithShares(100 * 10 ** 18);
     }
+    
 }

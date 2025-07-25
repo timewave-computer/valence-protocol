@@ -4,7 +4,9 @@ pragma solidity ^0.8.28;
 import {Library} from "./Library.sol";
 import {BaseAccount} from "../accounts/BaseAccount.sol";
 import {IPool} from "aave-v3-origin/interfaces/IPool.sol";
+import {AToken} from "aave-v3-origin/protocol/tokenization/AToken.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
+import {IAaveIncentivesController} from "aave-v3-origin/interfaces/IAaveIncentivesController.sol";
 
 /**
  * @title AavePositionManager
@@ -34,6 +36,15 @@ contract AavePositionManager is Library {
 
     /// @notice Holds the current configuration for the AavePositionManager.
     AavePositionManagerConfig public config;
+
+    // To manage rewards
+    struct AavePositionManagerDerivedConfig {
+        IAaveIncentivesController rewardsController;
+        address aToken;
+        address debtToken;
+    }
+
+    AavePositionManagerDerivedConfig public derivedConfig;
 
     /**
      * @dev Constructor initializes the contract with the owner, processor, and initial configuration.
@@ -245,6 +256,7 @@ contract AavePositionManager is Library {
      */
     function _initConfig(bytes memory _config) internal override {
         config = validateConfig(_config);
+        _fetchDerivedConfig();
     }
 
     /**
@@ -255,5 +267,18 @@ contract AavePositionManager is Library {
     function updateConfig(bytes memory _config) public override onlyOwner {
         // Validate and update the configuration.
         config = validateConfig(_config);
+        _fetchDerivedConfig();
+    }
+
+    function _fetchDerivedConfig() internal {
+        // Get the aToken and debtToken addresses
+        address aToken = config.poolAddress.getReserveAToken(config.supplyAsset);
+        address debtToken = config.poolAddress.getReserveVariableDebtToken(config.borrowAsset);
+
+        derivedConfig = AavePositionManagerDerivedConfig({
+            aToken: aToken,
+            debtToken: debtToken,
+            rewardsController: AToken(aToken).getIncentivesController()
+        });
     }
 }
