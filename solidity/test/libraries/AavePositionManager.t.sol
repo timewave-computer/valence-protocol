@@ -221,7 +221,10 @@ contract AavePositionManagerTest is Test {
     }
 
     function testDerivedConfigUpdate() public {
-        vm.mockCall(address(aToken), abi.encodeWithSignature("getIncentivesController()"), abi.encode(address(0xd)));
+        address newRewardsController = makeAddr("newRewardsController");
+        vm.mockCall(
+            address(aToken), abi.encodeWithSignature("getIncentivesController()"), abi.encode(newRewardsController)
+        );
         AavePositionManager.AavePositionManagerConfig memory newConfig = AavePositionManager.AavePositionManagerConfig({
             poolAddress: IPool(address(mockPool)),
             inputAccount: inputAccount,
@@ -235,7 +238,7 @@ contract AavePositionManagerTest is Test {
 
         (IAaveIncentivesController _rewardsController, address _aToken, address _debtToken) =
             aavePositionManager.derivedConfig();
-        assertEq(address(_rewardsController), address(0xd));
+        assertEq(address(_rewardsController), newRewardsController);
         assertEq(_aToken, aToken);
         assertEq(_debtToken, debtToken);
     }
@@ -416,7 +419,6 @@ contract AavePositionManagerTest is Test {
     //  ============== Rewards Tests ==============
 
     function testGetAllRewards() public {
-        // Execute claimRewards as processor
         // given
         address[] memory assets = new address[](2);
         assets[0] = aToken;
@@ -434,7 +436,6 @@ contract AavePositionManagerTest is Test {
         );
 
         // when
-        // vm.prank(processor);
         (address[] memory _rewardTokens, uint256[] memory _rewardAmounts) = aavePositionManager.getAllRewards();
 
         // then
@@ -447,7 +448,6 @@ contract AavePositionManagerTest is Test {
     }
 
     function testClaimRewards() public {
-        // Execute claimRewards as processor
         // given
         address[] memory assets = new address[](2);
         assets[0] = aToken;
@@ -478,7 +478,6 @@ contract AavePositionManagerTest is Test {
     }
 
     function testUnauthorizedClaimRewards() public {
-        // Execute claimRewards as processor
         // given
         address[] memory assets = new address[](2);
         assets[0] = aToken;
@@ -495,7 +494,6 @@ contract AavePositionManagerTest is Test {
     }
 
     function testClaimRewardsWithZeroAmount() public {
-        // Execute claimRewards as processor
         // given
         address[] memory assets = new address[](2);
         assets[0] = aToken;
@@ -526,7 +524,6 @@ contract AavePositionManagerTest is Test {
     }
 
     function testClaimAllRewards() public {
-        // Execute claimAllRewards as processor
         // given
         address[] memory assets = new address[](2);
         assets[0] = aToken;

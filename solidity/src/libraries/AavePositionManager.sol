@@ -256,18 +256,17 @@ contract AavePositionManager is Library {
         // Get the current configuration.
         AavePositionManagerDerivedConfig memory storedDerivedConfig = derivedConfig;
 
-        // Claim the rewards from the Aave protocol.
-        address[] memory assets = new address[](2);
-        assets[0] = storedDerivedConfig.aToken;
-        assets[1] = storedDerivedConfig.debtToken;
-        (address[] memory rewardTokens, uint256[] memory rewardAmounts) = IRewardsDistributor(
-            address(storedDerivedConfig.rewardsController)
-        ).getAllUserRewards(assets, address(config.inputAccount));
-        return (rewardTokens, rewardAmounts);
+        address[] memory assets = _getAssets(storedDerivedConfig);
+
+        // Get the rewards from the Aave protocol and return it.
+        return IRewardsDistributor(address(storedDerivedConfig.rewardsController)).getAllUserRewards(
+            assets, address(config.inputAccount)
+        );
     }
 
     function claimRewards(address rewardToken, uint256 amount) external onlyProcessor {
         // Get the current configuration.
+        AavePositionManagerConfig memory storedConfig = config;
         AavePositionManagerDerivedConfig memory storedDerivedConfig = derivedConfig;
 
         // If amount is 0, use uint256.max to claim as much as possible
@@ -276,30 +275,27 @@ contract AavePositionManager is Library {
         }
 
         // Claim the rewards from the Aave protocol.
-        address[] memory assets = new address[](2);
-        assets[0] = storedDerivedConfig.aToken;
-        assets[1] = storedDerivedConfig.debtToken;
+        address[] memory assets = _getAssets(storedDerivedConfig);
         bytes memory encodedClaimRewardsCall = abi.encodeCall(
-            IRewardsController.claimRewards, (assets, amount, address(config.outputAccount), rewardToken)
+            IRewardsController.claimRewards, (assets, amount, address(storedConfig.outputAccount), rewardToken)
         );
 
         // Execute the claim rewards from the input account
-        config.inputAccount.execute(address(storedDerivedConfig.rewardsController), 0, encodedClaimRewardsCall);
+        storedConfig.inputAccount.execute(address(storedDerivedConfig.rewardsController), 0, encodedClaimRewardsCall);
     }
 
     function claimAllRewards() external onlyProcessor {
         // Get the current configuration.
+        AavePositionManagerConfig memory storedConfig = config;
         AavePositionManagerDerivedConfig memory storedDerivedConfig = derivedConfig;
 
         // Claim all rewards from the Aave protocol.
-        address[] memory assets = new address[](2);
-        assets[0] = storedDerivedConfig.aToken;
-        assets[1] = storedDerivedConfig.debtToken;
+        address[] memory assets = _getAssets(storedDerivedConfig);
         bytes memory encodedClaimRewardsCall =
-            abi.encodeCall(IRewardsController.claimAllRewards, (assets, address(config.outputAccount)));
+            abi.encodeCall(IRewardsController.claimAllRewards, (assets, address(storedConfig.outputAccount)));
 
         // Execute the claim rewards from the input account
-        config.inputAccount.execute(address(storedDerivedConfig.rewardsController), 0, encodedClaimRewardsCall);
+        storedConfig.inputAccount.execute(address(storedDerivedConfig.rewardsController), 0, encodedClaimRewardsCall);
     }
 
     /**
@@ -332,5 +328,16 @@ contract AavePositionManager is Library {
             debtToken: debtToken,
             rewardsController: AToken(aToken).getIncentivesController()
         });
+    }
+
+    function _getAssets(AavePositionManagerDerivedConfig memory storedDerivedConfig)
+        internal
+        pure
+        returns (address[] memory)
+    {
+        address[] memory assets = new address[](2);
+        assets[0] = storedDerivedConfig.aToken;
+        assets[1] = storedDerivedConfig.debtToken;
+        return assets;
     }
 }
