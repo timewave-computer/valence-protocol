@@ -25,6 +25,9 @@ contract AavePositionManagerTest is Test {
     // Test addresses
     address public owner;
     address public processor;
+    address public rewardsController;
+    address public aToken;
+    address public debtToken;
     uint16 public referralCode = 0;
 
     // Setup function to initialize test environment
@@ -32,6 +35,9 @@ contract AavePositionManagerTest is Test {
         // Setup test addresses
         owner = makeAddr("owner");
         processor = makeAddr("processor");
+        rewardsController = makeAddr("rewardsController");
+        aToken = makeAddr("aToken");
+        debtToken = makeAddr("debtToken");
 
         // Deploy mock tokens
         supplyToken = new MockERC20("Supply Token", "ST", 18);
@@ -48,7 +54,17 @@ contract AavePositionManagerTest is Test {
 
         // Deploy AavePositionManager contract
         vm.startPrank(owner);
-        vm.mockCall(address(0xa), abi.encodeWithSignature("getIncentivesController()"), abi.encode(address(0xc)));
+        vm.mockCall(
+            address(mockPool),
+            abi.encodeWithSignature("getReserveAToken(address)", address(supplyToken)),
+            abi.encode(aToken)
+        );
+        vm.mockCall(
+            address(mockPool),
+            abi.encodeWithSignature("getReserveVariableDebtToken(address)", address(borrowToken)),
+            abi.encode(debtToken)
+        );
+        vm.mockCall(aToken, abi.encodeWithSignature("getIncentivesController()"), abi.encode(rewardsController));
 
         // Create and encode config directly
         AavePositionManager.AavePositionManagerConfig memory config = AavePositionManager.AavePositionManagerConfig({
@@ -155,6 +171,16 @@ contract AavePositionManagerTest is Test {
             borrowAsset: address(newBorrowToken),
             referralCode: newReferralCode
         });
+        vm.mockCall(
+            address(mockPool),
+            abi.encodeWithSignature("getReserveAToken(address)", address(newSupplyToken)),
+            abi.encode(aToken)
+        );
+        vm.mockCall(
+            address(mockPool),
+            abi.encodeWithSignature("getReserveVariableDebtToken(address)", address(newBorrowToken)),
+            abi.encode(debtToken)
+        );
 
         // Update config as owner
         vm.prank(owner);
@@ -185,15 +211,16 @@ contract AavePositionManagerTest is Test {
         aavePositionManager.updateConfig(abi.encode(config));
     }
 
-    function testDerivedConfig() public {
-        (IAaveIncentivesController rewardsController, address aToken, address debtToken) = aavePositionManager.derivedConfig();
-        assertEq(address(rewardsController), address(0xc));
-        assertEq(aToken, address(0xa));
-        assertEq(debtToken, address(0xB));
+    function testDerivedConfig() public view {
+        (IAaveIncentivesController _rewardsController, address _aToken, address _debtToken) =
+            aavePositionManager.derivedConfig();
+        assertEq(address(_rewardsController), rewardsController);
+        assertEq(_aToken, aToken);
+        assertEq(_debtToken, debtToken);
     }
 
     function testDerivedConfigUpdate() public {
-        vm.mockCall(address(0xa), abi.encodeWithSignature("getIncentivesController()"), abi.encode(address(0xd)));
+        vm.mockCall(address(aToken), abi.encodeWithSignature("getIncentivesController()"), abi.encode(address(0xd)));
         AavePositionManager.AavePositionManagerConfig memory newConfig = AavePositionManager.AavePositionManagerConfig({
             poolAddress: IPool(address(mockPool)),
             inputAccount: inputAccount,
@@ -204,11 +231,12 @@ contract AavePositionManagerTest is Test {
         });
         vm.prank(owner);
         aavePositionManager.updateConfig(abi.encode(newConfig));
-        
-        (IAaveIncentivesController rewardsController, address aToken, address debtToken) = aavePositionManager.derivedConfig();
-        assertEq(address(rewardsController), address(0xd));
-        assertEq(aToken, address(0xa));
-        assertEq(debtToken, address(0xB));
+
+        (IAaveIncentivesController _rewardsController, address _aToken, address _debtToken) =
+            aavePositionManager.derivedConfig();
+        assertEq(address(_rewardsController), address(0xd));
+        assertEq(_aToken, aToken);
+        assertEq(_debtToken, debtToken);
     }
 
     // ============== Supply Tests ==============
@@ -383,5 +411,37 @@ contract AavePositionManagerTest is Test {
         vm.expectRevert();
         aavePositionManager.repayWithShares(100 * 10 ** 18);
     }
-    
+
+    //  ============== Rewards Tests ==============
+
+    function testGetAllRewards() public {
+        // Execute claimRewards as processor
+        // given
+        address[] memory assets = new address[](2);
+        assets[0] = aToken;
+        assets[1] = debtToken;
+        address[] memory rewardTokens = new address[](2);
+        rewardTokens[0] = address(0x11);
+        rewardTokens[1] = address(0x12);
+        uint256[] memory rewardAmounts = new uint256[](2);
+        rewardAmounts[0] = 100;
+        rewardAmounts[1] = 200;
+        vm.mockCall(
+            address(rewardsController),
+            abi.encodeWithSignature("getAllUserRewards(address[],address)", assets, address(inputAccount)),
+            abi.encode(rewardTokens, rewardAmounts)
+        );
+
+        // when
+        // vm.prank(processor);
+        (address[] memory _rewardTokens, uint256[] memory _rewardAmounts) = aavePositionManager.getAllRewards();
+
+        // then
+        assertEq(_rewardTokens.length, 2);
+        assertEq(_rewardAmounts.length, 2);
+        assertEq(_rewardTokens[0], rewardTokens[0]);
+        assertEq(_rewardAmounts[0], rewardAmounts[0]);
+        assertEq(_rewardTokens[1], rewardTokens[1]);
+        assertEq(_rewardAmounts[1], rewardAmounts[1]);
+    }
 }

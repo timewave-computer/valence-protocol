@@ -7,6 +7,8 @@ import {IPool} from "aave-v3-origin/interfaces/IPool.sol";
 import {AToken} from "aave-v3-origin/protocol/tokenization/AToken.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {IAaveIncentivesController} from "aave-v3-origin/interfaces/IAaveIncentivesController.sol";
+import {IRewardsDistributor} from "aave-v3-origin/rewards/interfaces/IRewardsDistributor.sol";
+import {console} from "forge-std/src/console.sol";
 
 /**
  * @title AavePositionManager
@@ -248,6 +250,20 @@ contract AavePositionManager is Library {
 
         // Execute the repay from the input account
         storedConfig.inputAccount.execute(address(storedConfig.poolAddress), 0, encodedRepayCall);
+    }
+
+    function getAllRewards() external view returns (address[] memory, uint256[] memory) {
+        // Get the current configuration.
+        AavePositionManagerDerivedConfig memory storedDerivedConfig = derivedConfig;
+
+        // Claim the rewards from the Aave protocol.
+        address[] memory assets = new address[](2);
+        assets[0] = storedDerivedConfig.aToken;
+        assets[1] = storedDerivedConfig.debtToken;
+        (address[] memory rewardTokens, uint256[] memory rewardAmounts) = IRewardsDistributor(
+            address(storedDerivedConfig.rewardsController)
+        ).getAllUserRewards(assets, address(config.inputAccount));
+        return (rewardTokens, rewardAmounts);
     }
 
     /**
