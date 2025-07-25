@@ -9,7 +9,6 @@ import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {IAaveIncentivesController} from "aave-v3-origin/interfaces/IAaveIncentivesController.sol";
 import {IRewardsDistributor} from "aave-v3-origin/rewards/interfaces/IRewardsDistributor.sol";
 import {IRewardsController} from "aave-v3-origin/rewards/interfaces/IRewardsController.sol";
-import {console} from "forge-std/src/console.sol";
 
 /**
  * @title AavePositionManager
