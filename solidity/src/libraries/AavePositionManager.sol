@@ -4,7 +4,11 @@ pragma solidity ^0.8.28;
 import {Library} from "./Library.sol";
 import {BaseAccount} from "../accounts/BaseAccount.sol";
 import {IPool} from "aave-v3-origin/interfaces/IPool.sol";
+import {AToken} from "aave-v3-origin/protocol/tokenization/AToken.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
+import {IAaveIncentivesController} from "aave-v3-origin/interfaces/IAaveIncentivesController.sol";
+import {IRewardsDistributor} from "aave-v3-origin/rewards/interfaces/IRewardsDistributor.sol";
+import {IRewardsController} from "aave-v3-origin/rewards/interfaces/IRewardsController.sol";
 
 /**
  * @title AavePositionManager
@@ -34,6 +38,22 @@ contract AavePositionManager is Library {
 
     /// @notice Holds the current configuration for the AavePositionManager.
     AavePositionManagerConfig public config;
+
+    /**
+     * @title AavePositionManagerDerivedConfig
+     * @notice Configuration struct derived from the AavePositionManagerConfig
+     * @param rewardsController The address of the Aave Incentives Controller contract
+     * @param aToken The address of the aToken issued against the supply asset
+     * @param debtToken The address of the debtToken issued against the borrow asset
+     */
+    struct AavePositionManagerDerivedConfig {
+        IAaveIncentivesController rewardsController;
+        address aToken;
+        address debtToken;
+    }
+
+    /// @notice Holds the derived configuration for the AavePositionManager.
+    AavePositionManagerDerivedConfig public derivedConfig;
 
     /**
      * @dev Constructor initializes the contract with the owner, processor, and initial configuration.
@@ -239,12 +259,59 @@ contract AavePositionManager is Library {
         storedConfig.inputAccount.execute(address(storedConfig.poolAddress), 0, encodedRepayCall);
     }
 
+    function getAllRewards() external view returns (address[] memory, uint256[] memory) {
+        // Get the current configuration.
+        AavePositionManagerDerivedConfig memory storedDerivedConfig = derivedConfig;
+
+        address[] memory assets = _getAssets(storedDerivedConfig);
+
+        // Get the rewards from the Aave protocol and return it.
+        return IRewardsDistributor(address(storedDerivedConfig.rewardsController)).getAllUserRewards(
+            assets, address(config.inputAccount)
+        );
+    }
+
+    function claimRewards(address rewardToken, uint256 amount) external onlyProcessor {
+        // Get the current configuration.
+        AavePositionManagerConfig memory storedConfig = config;
+        AavePositionManagerDerivedConfig memory storedDerivedConfig = derivedConfig;
+
+        // If amount is 0, use uint256.max to claim as much as possible
+        if (amount == 0) {
+            amount = type(uint256).max;
+        }
+
+        // Claim the rewards from the Aave protocol.
+        address[] memory assets = _getAssets(storedDerivedConfig);
+        bytes memory encodedClaimRewardsCall = abi.encodeCall(
+            IRewardsController.claimRewards, (assets, amount, address(storedConfig.outputAccount), rewardToken)
+        );
+
+        // Execute the claim rewards from the input account
+        storedConfig.inputAccount.execute(address(storedDerivedConfig.rewardsController), 0, encodedClaimRewardsCall);
+    }
+
+    function claimAllRewards() external onlyProcessor {
+        // Get the current configuration.
+        AavePositionManagerConfig memory storedConfig = config;
+        AavePositionManagerDerivedConfig memory storedDerivedConfig = derivedConfig;
+
+        // Claim all rewards from the Aave protocol.
+        address[] memory assets = _getAssets(storedDerivedConfig);
+        bytes memory encodedClaimRewardsCall =
+            abi.encodeCall(IRewardsController.claimAllRewards, (assets, address(storedConfig.outputAccount)));
+
+        // Execute the claim rewards from the input account
+        storedConfig.inputAccount.execute(address(storedDerivedConfig.rewardsController), 0, encodedClaimRewardsCall);
+    }
+
     /**
      * @dev Internal initialization function called during construction
      * @param _config New configuration
      */
     function _initConfig(bytes memory _config) internal override {
         config = validateConfig(_config);
+        _fetchDerivedConfig();
     }
 
     /**
@@ -255,5 +322,29 @@ contract AavePositionManager is Library {
     function updateConfig(bytes memory _config) public override onlyOwner {
         // Validate and update the configuration.
         config = validateConfig(_config);
+        _fetchDerivedConfig();
+    }
+
+    function _fetchDerivedConfig() internal {
+        // Get the aToken and debtToken addresses
+        address aToken = config.poolAddress.getReserveAToken(config.supplyAsset);
+        address debtToken = config.poolAddress.getReserveVariableDebtToken(config.borrowAsset);
+
+        derivedConfig = AavePositionManagerDerivedConfig({
+            aToken: aToken,
+            debtToken: debtToken,
+            rewardsController: AToken(aToken).getIncentivesController()
+        });
+    }
+
+    function _getAssets(AavePositionManagerDerivedConfig memory storedDerivedConfig)
+        internal
+        pure
+        returns (address[] memory)
+    {
+        address[] memory assets = new address[](2);
+        assets[0] = storedDerivedConfig.aToken;
+        assets[1] = storedDerivedConfig.debtToken;
+        return assets;
     }
 }
