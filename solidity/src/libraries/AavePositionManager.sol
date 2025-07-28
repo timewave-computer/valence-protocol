@@ -39,13 +39,20 @@ contract AavePositionManager is Library {
     /// @notice Holds the current configuration for the AavePositionManager.
     AavePositionManagerConfig public config;
 
-    // To manage rewards
+    /**
+     * @title AavePositionManagerDerivedConfig
+     * @notice Configuration struct derived from the AavePositionManagerConfig
+     * @param rewardsController The address of the Aave Incentives Controller contract
+     * @param aToken The address of the aToken issued against the supply asset
+     * @param debtToken The address of the debtToken issued against the borrow asset
+     */
     struct AavePositionManagerDerivedConfig {
         IAaveIncentivesController rewardsController;
         address aToken;
         address debtToken;
     }
 
+    /// @notice Holds the derived configuration for the AavePositionManager.
     AavePositionManagerDerivedConfig public derivedConfig;
 
     /**
