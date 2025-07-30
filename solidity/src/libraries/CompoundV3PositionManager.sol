@@ -5,6 +5,7 @@ import {Library} from "./Library.sol";
 import {BaseAccount} from "../accounts/BaseAccount.sol";
 import {IERC20} from "forge-std/src/interfaces/IERC20.sol";
 import {CometMainInterface} from "./interfaces/compoundV3/CometMainInterface.sol";
+import {CometRewards} from "./interfaces/compoundV3/RewardsInterface.sol";
 
 /**
  * @title CompoundV3PositionManager
@@ -26,6 +27,7 @@ contract CompoundV3PositionManager is Library {
         BaseAccount outputAccount;
         address baseAsset;
         address marketProxyAddress;
+        address rewards;
     }
 
     /// @notice Holds the current configuration for the CompoundV3PositionManager.
@@ -67,6 +69,11 @@ contract CompoundV3PositionManager is Library {
         // Ensure the base asset is the same as the base asset of the market proxy
         if (decodedConfig.baseAsset != CometMainInterface(decodedConfig.marketProxyAddress).baseToken()) {
             revert("Market base asset and given base asset are not same");
+        }
+
+        // Ensure rewards is not zero address
+        if (decodedConfig.rewards == address(0)) {
+            revert("Rewards address can't be zero address");
         }
 
         return decodedConfig;
@@ -143,6 +150,44 @@ contract CompoundV3PositionManager is Library {
         );
 
         storedConfig.inputAccount.execute(storedConfig.marketProxyAddress, 0, encodedWithdrawCall);
+    }
+
+    /**
+     * @notice returns the rewards accrued but not yet claimed for the position
+     * @return token The reward token accrued
+     * @return amount The amount of reward token scaled up to token's decimal values
+     */
+    function getRewardOwed() external returns (address token, uint256 amount) {
+        CompoundV3PositionManagerConfig memory storedConfig = config;
+
+        // Get the owed rewards from the market
+        CometRewards.RewardOwed memory rewardOwed = CometRewards(storedConfig.rewards).getRewardOwed(
+            storedConfig.marketProxyAddress, address(storedConfig.inputAccount)
+        );
+        return (rewardOwed.token, rewardOwed.owed);
+    }
+
+    /**
+     * @notice claims the reward accrued by the position to position's output account
+     * @dev Only the designated processor can execute this function.
+     */
+    function claimAllRewards() external onlyProcessor {
+        // Get the current configuration.
+        CompoundV3PositionManagerConfig memory storedConfig = config;
+
+        // Claim all rewards from the Compound protocol.
+        bytes memory encodedClaimRewardsCall = abi.encodeCall(
+            CometRewards.claimTo,
+            (
+                storedConfig.marketProxyAddress,
+                address(storedConfig.inputAccount),
+                address(storedConfig.outputAccount),
+                true
+            )
+        );
+
+        // Execute the claim rewards from the input account
+        storedConfig.inputAccount.execute(address(storedConfig.rewards), 0, encodedClaimRewardsCall);
     }
 
     /**
