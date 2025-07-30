@@ -25,6 +25,7 @@ contract AuthorizationZKTest is Test {
     address unauthorized = address(0x4);
     address verifier = address(0x5);
     bytes32 coprocessorRoot = bytes32(uint256(0x42069));
+    uint64 verifierTag = 1;
 
     // ZK registry configuration
     uint64 registryId1 = 101;
@@ -51,8 +52,11 @@ contract AuthorizationZKTest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(verificationGateway), initializeData);
         verificationGateway = SP1VerificationGateway(address(proxy));
 
-        // Deploy authorization contract with verification gateway
-        auth = new Authorization(owner, address(processor), address(verificationGateway), true);
+        // Deploy authorization contract
+        auth = new Authorization(owner, address(processor), true);
+
+        // Set the verifier contract
+        auth.setVerifierContract(verifierTag, address(verificationGateway));
 
         // Configure processor to accept messages from auth contract
         processor.addAuthorizedAddress(address(auth));
@@ -90,13 +94,24 @@ contract AuthorizationZKTest is Test {
         vks[0] = vk1;
         vks[1] = vk2;
 
-        // Set block number validation flags
-        bool[] memory validateBlockNumbers = new bool[](2);
-        validateBlockNumbers[0] = validateBlockNumber1;
-        validateBlockNumbers[1] = validateBlockNumber2;
+        // Create two ZkAuthorizationData objects
+        Authorization.ZkAuthorizationData[] memory zkAuthData = new Authorization.ZkAuthorizationData[](2);
+        zkAuthData[0] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[0],
+            verifierTag: verifierTag,
+            validateBlockNumberExecution: validateBlockNumber1,
+            metadataHash: bytes32(0)
+        });
+
+        zkAuthData[1] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[1],
+            verifierTag: verifierTag,
+            validateBlockNumberExecution: validateBlockNumber2,
+            metadataHash: bytes32(0)
+        });
 
         // Add registries
-        auth.addRegistries(registries, users, vks, validateBlockNumbers);
+        auth.addRegistries(registries, vks, zkAuthData);
 
         // Verify registry 1
         bytes memory storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
@@ -141,11 +156,21 @@ contract AuthorizationZKTest is Test {
         vks[0] = vk1;
         vks[1] = vk2;
 
-        bool[] memory validateBlockNumbers = new bool[](2);
-        validateBlockNumbers[0] = validateBlockNumber1;
-        validateBlockNumbers[1] = validateBlockNumber2;
+        Authorization.ZkAuthorizationData[] memory zkAuthData = new Authorization.ZkAuthorizationData[](2);
+        zkAuthData[0] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[0],
+            verifierTag: verifierTag,
+            validateBlockNumberExecution: validateBlockNumber1,
+            metadataHash: bytes32(0)
+        });
+        zkAuthData[1] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[1],
+            verifierTag: verifierTag,
+            validateBlockNumberExecution: validateBlockNumber2,
+            metadataHash: bytes32(0)
+        });
 
-        auth.addRegistries(registriesToAdd, users, vks, validateBlockNumbers);
+        auth.addRegistries(registriesToAdd, vks, zkAuthData);
 
         // Verify registries were added
         bytes memory storedVk1 = verificationGateway.programVKs(address(auth), registryId1);
@@ -192,12 +217,16 @@ contract AuthorizationZKTest is Test {
         bytes[] memory vks = new bytes[](1);
         vks[0] = vk1;
 
-        bool[] memory validateBlockNumbers = new bool[](2);
-        validateBlockNumbers[0] = validateBlockNumber1;
-        validateBlockNumbers[1] = validateBlockNumber2;
+        Authorization.ZkAuthorizationData[] memory zkAuthData = new Authorization.ZkAuthorizationData[](1);
+        zkAuthData[0] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[0],
+            verifierTag: verifierTag,
+            validateBlockNumberExecution: validateBlockNumber1,
+            metadataHash: bytes32(0)
+        });
 
         vm.expectRevert();
-        auth.addRegistries(registries, users, vks, validateBlockNumbers);
+        auth.addRegistries(registries, vks, zkAuthData);
 
         vm.stopPrank();
     }
@@ -228,29 +257,33 @@ contract AuthorizationZKTest is Test {
         registries[0] = registryId1;
         registries[1] = registryId2;
 
-        address[][] memory users = new address[][](1); // Only one entry, should have two
+        address[][] memory users = new address[][](2);
         users[0] = new address[](1);
         users[0][0] = user1;
+        users[1] = new address[](1);
+        users[1][0] = user2;
 
         bytes[] memory vks = new bytes[](2);
         vks[0] = vk1;
         vks[1] = vk2;
 
-        bool[] memory validateBlockNumbers = new bool[](2);
-        validateBlockNumbers[0] = validateBlockNumber1;
-        validateBlockNumbers[1] = validateBlockNumber2;
+        // Only one entry, should have two
+        Authorization.ZkAuthorizationData[] memory zkAuthData = new Authorization.ZkAuthorizationData[](1);
+        zkAuthData[0] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[0],
+            verifierTag: verifierTag,
+            validateBlockNumberExecution: validateBlockNumber1,
+            metadataHash: bytes32(0)
+        });
 
         vm.expectRevert("Array lengths must match");
-        auth.addRegistries(registries, users, vks, validateBlockNumbers);
+        auth.addRegistries(registries, vks, zkAuthData);
 
         vm.stopPrank();
     }
 
-    function test_RevertWhen_AddRegistriesNoVerificationGateway() public {
+    function test_RevertWhen_AddRegistriesNoVerifierContract() public {
         vm.startPrank(owner);
-
-        // Deploy a new authorization contract without a verification gateway
-        Authorization authWithoutGateway = new Authorization(owner, address(processor), address(0), true);
 
         // Create registry data
         uint64[] memory registries = new uint64[](1);
@@ -263,12 +296,17 @@ contract AuthorizationZKTest is Test {
         bytes[] memory vks = new bytes[](1);
         vks[0] = vk1;
 
-        bool[] memory validateBlockNumbers = new bool[](1);
-        validateBlockNumbers[0] = validateBlockNumber1;
+        Authorization.ZkAuthorizationData[] memory zkAuthData = new Authorization.ZkAuthorizationData[](1);
+        zkAuthData[0] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[0],
+            verifierTag: 2, // Non-existent verifier tag
+            validateBlockNumberExecution: validateBlockNumber1,
+            metadataHash: bytes32(0)
+        });
 
         // Should fail because verification gateway is not set
-        vm.expectRevert("Verification gateway not set");
-        authWithoutGateway.addRegistries(registries, users, vks, validateBlockNumbers);
+        vm.expectRevert("Verification gateway not set for this tag");
+        auth.addRegistries(registries, vks, zkAuthData);
 
         vm.stopPrank();
     }
@@ -276,34 +314,14 @@ contract AuthorizationZKTest is Test {
     function test_RevertWhen_RemoveRegistriesNoVerificationGateway() public {
         vm.startPrank(owner);
 
-        // Deploy a new authorization contract without a verification gateway
-        Authorization authWithoutGateway = new Authorization(owner, address(processor), address(0), true);
-
-        // Should fail because verification gateway is not set
-        vm.expectRevert("Verification gateway not set");
-        authWithoutGateway.removeRegistries(new uint64[](1));
+        // Should fail because verification gateway is not set for this registry
+        vm.expectRevert("Verification gateway not set for this tag");
+        auth.removeRegistries(new uint64[](1));
 
         vm.stopPrank();
     }
 
     // ======================= ZK MESSAGE EXECUTION TESTS =======================
-
-    function test_RevertWhen_VerificationGatewayNotSet() public {
-        vm.startPrank(owner);
-
-        // Deploy a new authorization contract without a verification gateway
-        Authorization authWithoutGateway = new Authorization(owner, address(processor), address(0), true);
-
-        // Create a ZK message
-        bytes memory zkMessage = createDummyZKMessage(registryId1, address(auth));
-        bytes memory dummyProof = hex"deadbeef"; // Dummy proof data
-
-        // Should fail because verification gateway is not set
-        vm.expectRevert("Verification gateway not set");
-        authWithoutGateway.executeZKMessage(zkMessage, dummyProof, zkMessage, dummyProof);
-
-        vm.stopPrank();
-    }
 
     function test_RevertWhen_InvalidAuthorizationContract() public {
         vm.startPrank(owner);
@@ -319,10 +337,15 @@ contract AuthorizationZKTest is Test {
         bytes[] memory vks = new bytes[](1);
         vks[0] = vk1;
 
-        bool[] memory validateBlockNumbers = new bool[](1);
-        validateBlockNumbers[0] = validateBlockNumber1;
+        Authorization.ZkAuthorizationData[] memory zkAuthData = new Authorization.ZkAuthorizationData[](1);
+        zkAuthData[0] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[0],
+            verifierTag: verifierTag,
+            validateBlockNumberExecution: validateBlockNumber1,
+            metadataHash: bytes32(0)
+        });
 
-        auth.addRegistries(registries, users, vks, validateBlockNumbers);
+        auth.addRegistries(registries, vks, zkAuthData);
 
         // Create a ZK message with an invalid authorization contract
         bytes memory zkMessage = createDummyZKMessage(registryId1, address(user1));
@@ -352,10 +375,15 @@ contract AuthorizationZKTest is Test {
         bytes[] memory vks = new bytes[](1);
         vks[0] = vk1;
 
-        bool[] memory validateBlockNumbers = new bool[](1);
-        validateBlockNumbers[0] = validateBlockNumber1;
+        Authorization.ZkAuthorizationData[] memory zkAuthData = new Authorization.ZkAuthorizationData[](1);
+        zkAuthData[0] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[0],
+            verifierTag: verifierTag,
+            validateBlockNumberExecution: validateBlockNumber1,
+            metadataHash: bytes32(0)
+        });
 
-        auth.addRegistries(registries, users, vks, validateBlockNumbers);
+        auth.addRegistries(registries, vks, zkAuthData);
 
         vm.stopPrank();
 

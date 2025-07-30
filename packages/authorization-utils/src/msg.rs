@@ -236,8 +236,9 @@ pub enum PermissionedMsg {
         domain: Domain,
     },
     // Set a verification gateway contract for ZK authorizations
-    SetVerificationGateway {
-        verification_gateway: String,
+    SetVerifierContract {
+        tag: u64,
+        contract: String,
     },
 }
 
@@ -372,7 +373,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
     #[returns(Addr)]
-    VerificationGateway {},
+    VerificationContract { tag: u64 },
     #[returns(Vec<ProcessorCallbackInfo>)]
     ProcessorCallbacks {
         start_after: Option<u64>,

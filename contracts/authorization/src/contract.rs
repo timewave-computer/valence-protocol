@@ -48,7 +48,7 @@ use crate::{
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
         PROCESSOR_CALLBACKS, PROCESSOR_ON_MAIN_DOMAIN, REGISTRY_LAST_BLOCK_EXECUTION, SUB_OWNERS,
-        VERIFICATION_GATEWAY, ZK_AUTHORIZATIONS,
+        VERIFIER_REGISTRY, ZK_AUTHORIZATIONS,
     },
 };
 
@@ -157,9 +157,9 @@ pub fn execute(
                 } => insert_messages(deps, env, label, queue_position, priority, messages),
                 PermissionedMsg::PauseProcessor { domain } => pause_processor(deps, domain),
                 PermissionedMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
-                PermissionedMsg::SetVerificationGateway {
-                    verification_gateway,
-                } => set_verification_gateway(deps, verification_gateway),
+                PermissionedMsg::SetVerifierContract { tag, contract } => {
+                    set_verifier_contract(deps, tag, contract)
+                }
             }
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
@@ -907,18 +907,20 @@ fn send_msgs(
         .add_attribute("authorization_label", authorization.label))
 }
 
-fn set_verification_gateway(
+fn set_verifier_contract(
     deps: DepsMut,
-    verification_gateway: String,
+    tag: u64,
+    verifier: String,
 ) -> Result<Response, ContractError> {
-    VERIFICATION_GATEWAY.save(
+    VERIFIER_REGISTRY.save(
         deps.storage,
-        &deps.api.addr_validate(verification_gateway.as_str())?,
+        tag,
+        &deps.api.addr_validate(verifier.as_str())?,
     )?;
 
     Ok(Response::new()
-        .add_attribute("action", "set_verification_gateway")
-        .add_attribute("verification_gateway", verification_gateway))
+        .add_attribute("action", "set_verifier_contract")
+        .add_attribute("contract", verifier))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -945,8 +947,8 @@ fn execute_zk_authorization(
     }
 
     // Get the verification gateway address
-    let verification_gateway = VERIFICATION_GATEWAY
-        .load(deps.storage)
+    let verification_gateway = VERIFIER_REGISTRY
+        .load(deps.storage, zk_authorization.verifier_tag)
         .map_err(|_| ContractError::ZK(ZKErrorReason::VerificationGatewayNotSet {}))?;
 
     // Validate that we have permission to execute the zk authorization
@@ -1634,7 +1636,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ZkAuthorizations { start_after, limit } => {
             to_json_binary(&get_zk_authorizations(deps, start_after, limit))
         }
-        QueryMsg::VerificationGateway {} => to_json_binary(&get_verification_gateway(deps)?),
+        QueryMsg::VerificationContract { tag } => {
+            to_json_binary(&get_verification_contract(deps, tag)?)
+        }
         QueryMsg::ProcessorCallbacks { start_after, limit } => {
             to_json_binary(&get_processor_callbacks(deps, start_after, limit))
         }
@@ -1716,8 +1720,8 @@ fn get_zk_authorizations(
         .collect()
 }
 
-fn get_verification_gateway(deps: Deps) -> StdResult<Addr> {
-    VERIFICATION_GATEWAY.load(deps.storage)
+fn get_verification_contract(deps: Deps, tag: u64) -> StdResult<Addr> {
+    VERIFIER_REGISTRY.load(deps.storage, tag)
 }
 
 fn get_processor_callbacks(

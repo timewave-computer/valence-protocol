@@ -158,4 +158,7 @@ pub enum ZKErrorReason {
 
     #[error("Invalid Coprocessor root")]
     InvalidCoprocessorRoot {},
+
+    #[error("Verifier contract already exists for this tag")]
+    VerifierContractAlreadyExists {},
 }
