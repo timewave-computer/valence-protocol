@@ -21,6 +21,7 @@ contract CompoundV3PositionManager is Library {
      * @param outputAccount The Base Account that will receive withdrawals.
      * @param baseAsset Address of the base token of the CompoundV3 market
      * @param marketProxyAddress Address of the CompoundV3 market proxy
+     * @param rewards Address of the CompoundV3 CometRewards contract
      */
     struct CompoundV3PositionManagerConfig {
         BaseAccount inputAccount;
