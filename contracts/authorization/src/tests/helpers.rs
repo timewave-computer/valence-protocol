@@ -204,6 +204,7 @@ pub fn instantiate_and_set_verification_gateway(
     authorization: String,
     owner: String,
     domain_vk: Binary,
+    tag: u64,
 ) {
     let wasm = Wasm::new(app);
     let code_id = wasm
@@ -231,8 +232,9 @@ pub fn instantiate_and_set_verification_gateway(
 
     wasm.execute::<ExecuteMsg>(
         &authorization,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::SetVerificationGateway {
-            verification_gateway,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::SetVerifierContract {
+            tag,
+            contract: verification_gateway,
         }),
         &[],
         signer,
