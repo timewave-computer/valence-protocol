@@ -17,6 +17,7 @@ contract CompoundV3PositionManagerScript is Test {
     BaseAccount public inputAccount;
     BaseAccount public outputAccount;
     CometMainInterface public comet = CometMainInterface(0xc3d688B66703497DAA19211EEdff47f25384cdc3);
+    address constant REWARDS_SEPOLIA = 0x8bF5b658bdF0388E8b482ED51B14aef58f90abfD;
     IERC20 public baseToken;
 
     // current states
@@ -47,7 +48,8 @@ contract CompoundV3PositionManagerScript is Test {
             inputAccount: BaseAccount(payable(address(inputAccount))),
             outputAccount: BaseAccount(payable(address(outputAccount))),
             baseAsset: address(baseToken),
-            marketProxyAddress: address(comet)
+            marketProxyAddress: address(comet),
+            rewards: REWARDS_SEPOLIA
         });
 
         compoundV3PositionManager = new CompoundV3PositionManager(owner, processor, abi.encode(config));
