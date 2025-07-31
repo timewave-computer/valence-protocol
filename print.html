@@ -4107,12 +4107,32 @@ flowchart LR
     MP -- 4/Burn collateral tokens --&gt; IA
     MP -- 5/Send withdrawn tokens --&gt; OA
 </pre>
+<pre class="mermaid">---
+title: Compound V3 Position Manager Claim Rewards
+---
+flowchart LR
+    P[Processor]
+    PM[Compound V3
+    Position Manager Library]
+    IA((Input Account))
+    OA((Output Account))
+    CR((Compound
+    V3 CometRewards))
+
+    P -- 1/claimAllRewards() --&gt; PM
+    PM -- 2/Call claimTo --&gt; IA
+    IA -- 3/claimTo(output
+     account) --&gt; CR
+    CR -- 5/Send accrued reward tokens --&gt; OA
+</pre>
 <h2 id="functions-29"><a class="header" href="#functions-29">Functions</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
 <tr><td><strong>supply</strong></td><td>amount</td><td>Supplies tokens from the <strong>input account</strong> to the Compound V3 protocol. The <strong>input account</strong> will receive the corresponding collateral tokens. If amount is 0 the entire balance will be used.</td></tr>
 <tr><td><strong>withdraw</strong></td><td>amount</td><td>Withdraws previously supplied tokens from Compound V3 and sends them to the <strong>output account</strong>. Passing 0 will withdraw the entire balance.</td></tr>
 <tr><td><strong>supplyCollateral</strong></td><td>asset, amount</td><td>Supplies the token specified in <strong>asset</strong>. Works the same way as <strong>supply</strong> but instead of supplying the token specified in the library config, it supplies the token passed as a parameter</td></tr>
 <tr><td><strong>withdrawCollateral</strong></td><td>asset, amount</td><td>Withdraw the token specified in <strong>asset</strong>. Works the same way as <strong>withdraw</strong> but instead of withdrawing the token specified in the library config, it withdraws the token passed as a parameter</td></tr>
+<tr><td><strong>getRewardOwed</strong></td><td></td><td>Returns the rewards accrued but not yet claimed for the position</td></tr>
+<tr><td><strong>claimAllRewards</strong></td><td></td><td>Claims the reward accrued by the position to position's output account</td></tr>
 </tbody></table>
 </div>
 <h2 id="configuration-31"><a class="header" href="#configuration-31">Configuration</a></h2>
@@ -4125,12 +4145,14 @@ flowchart LR
      * @param outputAccount The Base Account that will receive withdrawals.
      * @param baseAsset Address of the base token of the CompoundV3 market
      * @param marketProxyAddress Address of the CompoundV3 market proxy
+     * @param rewards Address of the CompoundV3 CometRewards contract
      */
     struct CompoundV3PositionManagerConfig {
         BaseAccount inputAccount;
         BaseAccount outputAccount;
         address baseAsset;
         address marketProxyAddress;
+        address rewards;
     }
 </code></pre>
 <h2 id="acknowledgments"><a class="header" href="#acknowledgments">Acknowledgments</a></h2>
