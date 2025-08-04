@@ -191,7 +191,7 @@
 <li>ERC-20 shares are issued to users on Ethereum.</li>
 <li>If a user wishes to redeem their tokens, they can issue a withdrawal request which will burn the user's shares when tokens are redeemed.</li>
 <li>The redemption rate that tells us how many tokens can be redeemed per shares is given by: \( R = \frac{TotalAssets}{TotalIssuedShares} = \frac{TotalInVault + TotalInTransit + TotalInPostion}{TotalIssuedShares}\)</li>
-<li>A permissioned actor called the "Strategist" is authorized to transport funds from Ethereum to Neutron where they are locked in some DeFi protocol. And vice-versa, the Strategist can withdraw from the position so the funds are redeemable on Ethereum. The redemption rate must be adjusted by the Strategist accordingly.</li>
+<li>A permissioned coordinator actor called the "Strategist" is authorized to transport funds from Ethereum to Neutron where they are locked in some DeFi protocol. And vice-versa, the Strategist can withdraw from the position so the funds are redeemable on Ethereum. The redemption rate must be adjusted by the Strategist accordingly.</li>
 </ul>
 <pre class="mermaid">---
 title: Crosschain Vaults Overview
@@ -203,13 +203,13 @@ graph LR
 
 	User -- Tokens --&gt; EV
 	EV -- Shares --&gt; User
-	EV -- Strategist Transport --&gt; NP
-	NP -- Strategist Transport --&gt; EV
+	EV -- Coordinator Transport --&gt; NP
+	NP -- Coordinator Transport --&gt; EV
 </pre>
 <p>While we have chosen Ethereum and Neutron as examples here, one could similarly construct such vaults between any two chains as long as they are supported by Valence Programs.</p>
 <h2 id="implementing-crosschain-vaults-as-a-valence-program"><a class="header" href="#implementing-crosschain-vaults-as-a-valence-program">Implementing Crosschain Vaults as a Valence Program</a></h2>
 <p>Recall that Valence Programs are comprised of Libraries and Accounts. Libraries are a collection of Functions that perform token operations on the Accounts. Since there are two chains here, Libraries and Accounts will exist on both chains.</p>
-<p>Since gas is cheaper on Neutron than on Ethereum, computationally expensive operations, such as constraining the Strategist actions will be done on Neutron. Authorized messages will then be executed by each chain's Processor. Hyperlane is used to pass messages from the Authorization contract on Neutron to the Processor on Ethereum.</p>
+<p>Since gas is cheaper on Neutron than on Ethereum, computationally expensive operations, such as constraining the coordinator actions will be done on Neutron. Authorized messages will then be executed by each chain's Processor. Hyperlane is used to pass messages from the Authorization contract on Neutron to the Processor on Ethereum.</p>
 <pre class="mermaid">---
 title: Program Control
 ---
