@@ -23,7 +23,7 @@ valence-macros          = { workspace = true }
 valence-library-utils   = { workspace = true }
 valence-library-base    = { workspace = true }
 valence-processor-utils = { workspace = true }
-mmvault                 = { git = "https://github.com/neutron-org/slinky-vault", package = "mmvault" }
+mmvault     = { git = "https://github.com/neutron-org/slinky-vault", package = "mmvault", branch = "main" }
 
 [dev-dependencies]
 cw-multi-test         = { workspace = true }
