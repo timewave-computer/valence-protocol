@@ -5669,24 +5669,6 @@ dependencies = [
 
 [[package]]
 name = "mmvault"
-version = "0.1.6"
-source = "git+https://github.com/neutron-org/slinky-vault#8511585e564bca12e814e0c8692add7ae7e3f536"
-dependencies = [
- "cosmwasm-std 2.2.1",
- "cw-storage-plus 2.0.0",
- "cw2 2.0.0",
- "neutron-std 5.1.2",
- "prost 0.12.6",
- "prost-types 0.12.6",
- "schemars",
- "serde",
- "serde_json",
- "test-case",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "mmvault"
 version = "2.0.0"
 source = "git+https://github.com/neutron-org/slinky-vault?rev=3a2537c#3a2537c846731b4752bdbee84eeb562e71273438"
 dependencies = [
@@ -10433,7 +10415,7 @@ dependencies = [
  "cw-ownable",
  "cw-storage-plus 2.0.0",
  "cw-utils 2.0.0",
- "mmvault 2.0.0",
+ "mmvault",
  "valence-account-utils",
  "valence-library-base",
  "valence-library-utils",
@@ -11406,7 +11388,7 @@ version = "0.2.0"
 dependencies = [
  "cosmwasm-schema 2.2.1",
  "cosmwasm-std 2.2.1",
- "mmvault 0.1.6",
+ "mmvault",
  "neutron-std 5.1.2",
  "valence-account-utils",
  "valence-library-utils",
