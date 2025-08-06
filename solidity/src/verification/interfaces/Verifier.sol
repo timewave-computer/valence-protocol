@@ -19,5 +19,6 @@ interface Verifier {
      */
     function verify(bytes calldata vk, bytes calldata proof, bytes calldata inputs, bytes calldata payload)
         external
+        view
         returns (bool);
 }

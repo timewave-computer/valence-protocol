@@ -76,15 +76,12 @@ contract VerificationRouter is Ownable {
         bytes calldata proof,
         bytes calldata inputs,
         bytes calldata payload
-    ) external returns (bool) {
+    ) external view returns (bool) {
         // Ensure the route exists
         address route = routes[name];
         require(route != address(0), "Route not found");
 
         // Call the verify function on the Verifier contract at the route address
-        Verifier(route).verify(vk, proof, inputs, payload);
-
-        // Return true if the verification was successful
-        return true;
+        return Verifier(route).verify(vk, proof, inputs, payload);
     }
 }

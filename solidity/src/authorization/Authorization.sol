@@ -674,7 +674,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
         }
 
         // Verify the proof using the verification router with the specific route provided in the authorization
-        if (!verificationRouter.verify(zkAuthorizationData.route, zkAuthorizationData.vk, _proof, _inputs, payload)) {
+        if (!_verificationRouter.verify(zkAuthorizationData.route, zkAuthorizationData.vk, _proof, _inputs, payload)) {
             revert("Proof verification failed");
         }
 
