@@ -12,7 +12,10 @@ use valence_authorization_utils::{
 
 use crate::{
     contract::build_tokenfactory_denom,
-    error::{AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason, ZKErrorReason},
+    error::{
+        AuthorizationErrorReason, ContractError, MessageErrorReason, UnauthorizedReason,
+        ZKErrorReason,
+    },
     tests::helpers::{instantiate_and_set_verification_router_and_verifier, wait_for_height},
 };
 

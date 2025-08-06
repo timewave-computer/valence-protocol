@@ -931,7 +931,6 @@ fn update_zk_authorization_route(
         .add_attribute("new_route", new_route))
 }
 
-#[allow(clippy::too_many_arguments)]
 fn execute_zk_authorization(
     deps: DepsMut,
     env: Env,
@@ -939,7 +938,7 @@ fn execute_zk_authorization(
     label: String,
     inputs: Binary,
     proof: Binary,
-    domain_proof: Binary,
+    payload: Binary,
 ) -> Result<Response, ContractError> {
     let zk_authorization = ZK_AUTHORIZATIONS
         .load(deps.storage, label.clone())
@@ -986,7 +985,7 @@ fn execute_zk_authorization(
             vk: zk_authorization.vk,
             inputs: inputs.clone(),
             proof,
-            payload: domain_proof.clone(),
+            payload,
         },
     )?;
     if !valid {
