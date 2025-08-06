@@ -192,6 +192,48 @@ contract AuthorizationZKTest is Test {
     }
 
     /**
+     * @notice Test that owner can update a ZkAuthorization route
+     */
+    function testUpdateroute() public {
+        vm.startPrank(owner);
+
+        // Add a registry first
+        uint64[] memory registries = new uint64[](1);
+        registries[0] = registryId1;
+
+        address[][] memory users = new address[][](1);
+        users[0] = new address[](1);
+        users[0][0] = user1;
+
+        Authorization.ZkAuthorizationData[] memory zkAuthData = new Authorization.ZkAuthorizationData[](1);
+        zkAuthData[0] = Authorization.ZkAuthorizationData({
+            allowedExecutionAddresses: users[0],
+            route: route,
+            vk: vk1,
+            validateBlockNumberExecution: validateBlockNumber1,
+            metadataHash: bytes32(0)
+        });
+
+        auth.addRegistries(registries, zkAuthData);
+
+        // Update the route
+        string memory newRoute = "newRoute";
+        auth.updateRegistryRoute(registryId1, newRoute);
+
+        // Verify the route was updated
+        Authorization.ZkAuthorizationData memory updatedAuthData = auth.getZkAuthorizationData(registryId1);
+        assertEq(updatedAuthData.route, newRoute, "Route should be updated correctly");
+
+        vm.stopPrank();
+
+        // Verify that unauthorized users cannot update the route
+        vm.startPrank(unauthorized);
+        vm.expectRevert();
+        auth.updateRegistryRoute(registryId1, "anotherRoute");
+        vm.stopPrank();
+    }
+
+    /**
      * @notice Test that only owner can add registries
      */
     function test_RevertWhen_AddRegistriesUnauthorized() public {
