@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cosmwasm_std::Binary;
 use margined_neutron_std::types::{
     cosmos::base::v1beta1::Coin,
@@ -198,18 +200,27 @@ pub fn wait_for_height(app: &NeutronTestApp, height: u64) {
     }
 }
 
-pub fn instantiate_and_set_verification_gateway(
+pub fn instantiate_and_set_verification_router_and_verifier(
     app: &NeutronTestApp,
     signer: &SigningAccount,
     authorization: String,
     owner: String,
     domain_vk: Binary,
-    tag: u64,
+    route: String,
 ) {
     let wasm = Wasm::new(app);
-    let code_id = wasm
+    let code_id_router = wasm
         .store_code(
-            &std::fs::read(format!("{ARTIFACTS_DIR}/valence_verification_gateway.wasm",)).unwrap(),
+            &std::fs::read(format!("{ARTIFACTS_DIR}/valence_verification_router.wasm",)).unwrap(),
+            None,
+            signer,
+        )
+        .unwrap()
+        .data
+        .code_id;
+    let code_id_verifier = wasm
+        .store_code(
+            &std::fs::read(format!("{ARTIFACTS_DIR}/valence_sp1_verifier.wasm",)).unwrap(),
             None,
             signer,
         )
@@ -217,12 +228,30 @@ pub fn instantiate_and_set_verification_gateway(
         .data
         .code_id;
 
-    let verification_gateway = wasm
+    let verifier = wasm
         .instantiate(
-            code_id,
-            &valence_verification_gateway::msg::InstantiateMsg { domain_vk, owner },
+            code_id_verifier,
+            &valence_verification_utils::verifier::InstantiateMsg { domain_vk },
             None,
-            "verification_gateway".into(),
+            "sp1-verifier".into(),
+            &[],
+            signer,
+        )
+        .unwrap()
+        .data
+        .address;
+
+    let mut initial_routes = HashMap::new();
+    initial_routes.insert(route.clone(), verifier.clone());
+    let verification_router = wasm
+        .instantiate(
+            code_id_router,
+            &valence_verification_router::msg::InstantiateMsg {
+                owner: owner.clone(),
+                initial_routes,
+            },
+            None,
+            "verification_router".into(),
             &[],
             signer,
         )
@@ -232,9 +261,8 @@ pub fn instantiate_and_set_verification_gateway(
 
     wasm.execute::<ExecuteMsg>(
         &authorization,
-        &ExecuteMsg::PermissionedAction(PermissionedMsg::SetVerifierContract {
-            tag,
-            contract: verification_gateway,
+        &ExecuteMsg::PermissionedAction(PermissionedMsg::SetVerificationRouter {
+            address: verification_router,
         }),
         &[],
         signer,

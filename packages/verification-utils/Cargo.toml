@@ -1,0 +1,10 @@
+[package]
+name        = "valence-verification-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = { workspace = true }
+description = "Helpers and interfaces for ZK verification"
+
+[dependencies]
+cosmwasm-std    = { workspace = true }
+cosmwasm-schema = { workspace = true }

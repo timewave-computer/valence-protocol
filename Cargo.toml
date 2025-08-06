@@ -10,8 +10,8 @@ members = [
     "contracts/middleware/type-registries/osmosis/osmo-26-0-0",
     "contracts/middleware/broker",
     "contracts/middleware/asserter",
-    "contracts/middleware/verification-gateway",
     "contracts/middleware/dynamic-ratio-query-provider",
+    "contracts/middleware/verification/*",
     "packages/*",
     "program-manager",
     "e2e",
@@ -100,6 +100,7 @@ valence-clearing-queue = { path = "contracts/libraries/clearing-queue", features
 valence-maxbtc-issuer = { path = "contracts/libraries/max-btc-issuer", features = ["library"] }
 valence-duality-lper = { path = "contracts/libraries/duality-lper", features = ["library"] }
 valence-duality-withdrawer = { path = "contracts/libraries/duality-withdrawer", features = ["library"] }
+valence-mars-lending = { path = "contracts/libraries/mars-lending", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
@@ -107,7 +108,7 @@ valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmo
 ] }
 valence-middleware-broker = { path = "contracts/middleware/broker", features = ["library"] }
 valence-middleware-asserter = { path = "contracts/middleware/asserter", features = ["library"] }
-valence-mars-lending = { path = "contracts/libraries/mars-lending", features = ["library"] }
+valence-verification-router = { path = "contracts/middleware/verification/router", features = ["library"] }
 
 # our packages
 valence-account-utils          = { path = "packages/account-utils" }
@@ -124,14 +125,13 @@ valence-library-utils          = { path = "packages/library-utils" }
 valence-program-registry-utils = { path = "packages/program-registry-utils" }
 valence-program-manager        = { path = "program-manager" }
 valence-program-registry       = { path = "contracts/program-registry", features = ["library"] }
-valence-verification-gateway   = { path = "contracts/middleware/verification-gateway", features = ["library"] }
 valence-middleware-utils       = { path = "packages/middleware-utils" }
 valence-liquid-staking-utils   = { path = "packages/liquid-staking-utils" }
 valence-lending-utils          = { path = "packages/lending-utils" }
 valence-supervaults-utils      = { path = "packages/supervaults-utils" }
 valence-magma-utils            = { path = "packages/magma-utils" }
 valence-duality-utils          = { path = "packages/duality-utils" }
-
+valence-verification-utils     = { path = "packages/verification-utils" }
 
 # dev-dependencies
 cw-multi-test        = { version = "2.1.1", features = ["cosmwasm_1_4"] }
