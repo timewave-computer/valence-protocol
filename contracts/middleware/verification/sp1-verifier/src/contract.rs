@@ -19,7 +19,7 @@ pub fn instantiate(
     DOMAIN_VK.save(deps.storage, &msg.domain_vk)?;
 
     Ok(Response::new()
-        .add_attribute("action", "instantiate_verification_gateway")
+        .add_attribute("action", "instantiate_verifier")
         .add_attribute("domain_vk", msg.domain_vk.to_string()))
 }
 

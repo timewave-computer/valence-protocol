@@ -978,7 +978,7 @@ fn execute_zk_authorization(
         )
         .map_err(|_| ContractError::ZK(ZKErrorReason::InvalidVerificationRoute {}))?;
 
-    // Verify the proof with the verification gateway
+    // Verify the proof with the verification router
     let valid: bool = deps.querier.query_wasm_smart(
         verification_router.clone(),
         &valence_verification_router::msg::QueryMsg::Verify {
