@@ -953,7 +953,7 @@ impl CosmosCosmwasmConnector {
         hash: String,
         retry: u64,
         err: String,
-    ) -> BoxFuture<Result<GetTxResponse, CosmosCosmwasmError>> {
+    ) -> BoxFuture<'_, Result<GetTxResponse, CosmosCosmwasmError>> {
         Box::pin(async move {
             if retry == 0 {
                 return Err(CosmosCosmwasmError::Error(anyhow::anyhow!(
