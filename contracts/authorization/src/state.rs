@@ -8,7 +8,7 @@ use valence_authorization_utils::{
 pub const FIRST_OWNERSHIP: Item<bool> = Item::new("first_ownership");
 pub const SUB_OWNERS: Map<Addr, Empty> = Map::new("sub_owners");
 pub const AUTHORIZATIONS: Map<String, Authorization> = Map::new("authorizations");
-pub const VERIFIER_REGISTRY: Map<u64, Addr> = Map::new("verifier_registry");
+pub const VERIFICATION_ROUTER: Item<Addr> = Item::new("verification_router");
 pub const ZK_AUTHORIZATIONS: Map<String, ZkAuthorization> = Map::new("zk_authorizations");
 pub const PROCESSOR_ON_MAIN_DOMAIN: Item<Addr> = Item::new("processor_on_main_domain");
 pub const EXTERNAL_DOMAINS: Map<String, ExternalDomain> = Map::new("external_domains");

@@ -235,10 +235,14 @@ pub enum PermissionedMsg {
     ResumeProcessor {
         domain: Domain,
     },
-    // Set a verification gateway contract for ZK authorizations
-    SetVerifierContract {
-        tag: u64,
-        contract: String,
+    // Set a verification router contract for ZK authorizations
+    SetVerificationRouter {
+        address: String,
+    },
+    // Update route for a specific ZK authorization
+    UpdateZkAuthorizationRoute {
+        label: String,
+        new_route: String,
     },
 }
 
@@ -268,12 +272,9 @@ pub enum PermissionlessMsg {
     // Execute ZK authorization
     ExecuteZkAuthorization {
         label: String,
-        message: Binary,
+        inputs: Binary,
         proof: Binary,
-        // Public inputs of domain proof
-        domain_message: Binary,
-        // Domain proof
-        domain_proof: Binary,
+        payload: Binary,
     },
 }
 
@@ -373,7 +374,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
     #[returns(Addr)]
-    VerificationContract { tag: u64 },
+    VerificationRouter {},
     #[returns(Vec<ProcessorCallbackInfo>)]
     ProcessorCallbacks {
         start_after: Option<u64>,

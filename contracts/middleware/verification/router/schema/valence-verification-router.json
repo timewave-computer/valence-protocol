@@ -1,5 +1,5 @@
 {
-  "contract_name": "valence-verification-gateway",
+  "contract_name": "valence-verification-router",
   "contract_version": "0.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
@@ -7,24 +7,19 @@
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
-      "domain_vk",
+      "initial_routes",
       "owner"
     ],
     "properties": {
-      "domain_vk": {
-        "$ref": "#/definitions/Binary"
+      "initial_routes": {
+        "type": "object",
+        "additionalProperties": false
       },
       "owner": {
         "type": "string"
       }
     },
-    "additionalProperties": false,
-    "definitions": {
-      "Binary": {
-        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
-        "type": "string"
-      }
-    }
+    "additionalProperties": false
   },
   "execute": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -33,17 +28,21 @@
       {
         "type": "object",
         "required": [
-          "update_domain_vk"
+          "add_route"
         ],
         "properties": {
-          "update_domain_vk": {
+          "add_route": {
             "type": "object",
             "required": [
-              "domain_vk"
+              "address",
+              "name"
             ],
             "properties": {
-              "domain_vk": {
-                "$ref": "#/definitions/Binary"
+              "address": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -117,10 +116,6 @@
           }
         ]
       },
-      "Binary": {
-        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
-        "type": "string"
-      },
       "Expiration": {
         "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
         "oneOf": [
@@ -189,25 +184,17 @@
       {
         "type": "object",
         "required": [
-          "verify_proof"
+          "get_route"
         ],
         "properties": {
-          "verify_proof": {
+          "get_route": {
             "type": "object",
             "required": [
-              "inputs",
-              "proof",
-              "vk"
+              "name"
             ],
             "properties": {
-              "inputs": {
-                "$ref": "#/definitions/Binary"
-              },
-              "proof": {
-                "$ref": "#/definitions/Binary"
-              },
-              "vk": {
-                "$ref": "#/definitions/Binary"
+              "name": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -218,20 +205,61 @@
       {
         "type": "object",
         "required": [
-          "verify_domain_proof"
+          "get_routes"
         ],
         "properties": {
-          "verify_domain_proof": {
+          "get_routes": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "verify"
+        ],
+        "properties": {
+          "verify": {
             "type": "object",
             "required": [
-              "domain_inputs",
-              "domain_proof"
+              "inputs",
+              "payload",
+              "proof",
+              "route",
+              "vk"
             ],
             "properties": {
-              "domain_inputs": {
+              "inputs": {
                 "$ref": "#/definitions/Binary"
               },
-              "domain_proof": {
+              "payload": {
+                "$ref": "#/definitions/Binary"
+              },
+              "proof": {
+                "$ref": "#/definitions/Binary"
+              },
+              "route": {
+                "type": "string"
+              },
+              "vk": {
                 "$ref": "#/definitions/Binary"
               }
             },
@@ -265,6 +293,36 @@
   "migrate": null,
   "sudo": null,
   "responses": {
+    "get_route": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Addr",
+      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+      "type": "string"
+    },
+    "get_routes": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Array_of_Tuple_of_String_and_Addr",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/Addr"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
+      },
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        }
+      }
+    },
     "ownership": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Ownership_for_String",
@@ -360,12 +418,7 @@
         }
       }
     },
-    "verify_domain_proof": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Boolean",
-      "type": "boolean"
-    },
-    "verify_proof": {
+    "verify": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Boolean",
       "type": "boolean"

@@ -7,7 +7,7 @@ import {IProcessorMessageTypes} from "../processor/interfaces/IProcessorMessageT
 import {ProcessorMessageDecoder} from "../processor/libs/ProcessorMessageDecoder.sol";
 import {ICallback} from "../processor/interfaces/ICallback.sol";
 import {IProcessor} from "../processor/interfaces/IProcessor.sol";
-import {VerificationGateway} from "../verification/VerificationGateway.sol";
+import {VerificationRouter} from "../verification/VerificationRouter.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
@@ -145,10 +145,10 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     // ========================= ZK authorizations =========================
 
     /**
-     * @notice Mapping of registry tags to their associated verification gateways
-     * @dev This mapping is used to store the verification gateway for each registry tag
+     * @notice Address of the verification router contract
+     * @dev This contract is responsible for routing verification requests to the appropriate verifier
      */
-    mapping(uint64 => VerificationGateway) public verifierRegistry;
+    VerificationRouter public verificationRouter;
 
     /**
      * @notice Structure representing a ZK message that we'll get a proof for
@@ -169,13 +169,15 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @notice Structure representing the ZK authorization data
      * @dev This structure contains the allowed execution addresses, verifier tag, and metadata hash
      * @param allowedExecutionAddresses Array of addresses that are allowed to execute messages for this registry
-     * @param verifierTag The tag of the verifier that is used to verify the proof
+     * @param vk The verification key used for the proving
+     * @param route The route that is going to be used for verification
      * @param validateBlockNumberExecution Boolean indicating if we need to validate the last block execution for this registry
      * @param metadataHash The hash of the program metadata used to link the VK to the program
      */
     struct ZkAuthorizationData {
         address[] allowedExecutionAddresses;
-        uint64 verifierTag;
+        bytes vk;
+        string route;
         bool validateBlockNumberExecution;
         bytes32 metadataHash;
     }
@@ -229,13 +231,12 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     }
 
     /**
-     * @notice Adds a new verifier contract for a specific tag
+     * @notice Sets the verification router address
      * @dev Can only be called by the owner
-     * @param tag The tag of the verifier
-     * @param verifier Address of the verifier contract
+     * @param router Address of the verification router contract
      */
-    function setVerifierContract(uint64 tag, address verifier) external onlyOwner {
-        verifierRegistry[tag] = VerificationGateway(verifier);
+    function setVerificationRouter(address router) external onlyOwner {
+        verificationRouter = VerificationRouter(router);
     }
 
     // ========================= Standard Authorizations =========================
@@ -553,34 +554,42 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      * @notice Adds a new registry with its associated users and verification keys
      * @dev This function allows the owner to add multiple registries and their associated users and verification keys
      * @param registries Array of registry IDs to be added
-     * @param vks Array of verification keys associated with each registry
      * @param zkAuthorizationsData Array of ZK authorization data associated with each registry
      */
-    function addRegistries(
-        uint64[] memory registries,
-        bytes[] calldata vks,
-        ZkAuthorizationData[] calldata zkAuthorizationsData
-    ) external onlyOwner {
+    function addRegistries(uint64[] memory registries, ZkAuthorizationData[] calldata zkAuthorizationsData)
+        external
+        onlyOwner
+    {
         // Since we are allowing multiple registries to be added at once, we need to check that the arrays are the same length
-        // because for each registry we have a list of vks and a list of authorizationData
         // Allowing multiple to be added is useful for gas optimization
-        require(
-            registries.length == vks.length && registries.length == zkAuthorizationsData.length,
-            "Array lengths must match"
-        );
+        require(registries.length == zkAuthorizationsData.length, "Array lengths must match");
+
+        // Verify that there is a router set to avoid adding authorizations when no router is available
+        // This is important to ensure that we can verify the proofs later
+        if (address(verificationRouter) == address(0)) {
+            revert("Verification router not set");
+        }
 
         for (uint256 i = 0; i < registries.length; i++) {
-            // Get the verification gateway for this registry
-            VerificationGateway verificationGateway = verifierRegistry[zkAuthorizationsData[i].verifierTag];
-            // Check that the verification gateway is set
-            if (address(verificationGateway) == address(0)) {
-                revert("Verification gateway not set for this tag");
-            }
-
-            // Add the registry to the verification gateway
-            verificationGateway.addRegistry(registries[i], vks[i]);
+            // Check that at least someone is allowed to execute messages for this registry
+            require(zkAuthorizationsData[i].allowedExecutionAddresses.length > 0, "No allowed addresses for registry");
             zkAuthorizations[registries[i]] = zkAuthorizationsData[i];
         }
+    }
+
+    /**
+     * @notice Updates the route for a specific registry
+     * @dev This function allows the owner to update the route for a specific registry
+     * @param registryId The ID of the registry to update
+     * @param route The new route to be set for the registry
+     */
+    function updateRegistryRoute(uint64 registryId, string calldata route) external onlyOwner {
+        // Check that the registry exists
+        if (zkAuthorizations[registryId].allowedExecutionAddresses.length == 0) {
+            revert("Registry does not exist");
+        }
+        // Update the route for the registry
+        zkAuthorizations[registryId].route = route;
     }
 
     /**
@@ -590,16 +599,7 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
      */
     function removeRegistries(uint64[] memory registries) external onlyOwner {
         for (uint256 i = 0; i < registries.length; i++) {
-            // Get the verification gateway tag for this registry
-            uint64 tag = zkAuthorizations[registries[i]].verifierTag;
-            // Get the verification gateway for this registry
-            VerificationGateway verificationGateway = verifierRegistry[tag];
-            // Check that the verification gateway is set
-            if (address(verificationGateway) == address(0)) {
-                revert("Verification gateway not set for this tag");
-            }
-            // Remove the registry from the verification gateway
-            verificationGateway.removeRegistry(registries[i]);
+            // Remove the registry from the mapping
             delete zkAuthorizations[registries[i]];
             // Delete the last execution block for the registry
             delete zkAuthorizationLastExecutionBlock[registries[i]];
@@ -607,42 +607,31 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
     }
 
     /**
-     * @notice Get all authorized addresses for a specific registry ID
+     * @notice Get the ZK authorization data for a specific registry ID
      * @param registryId The registry ID to check
-     * @return An array of all authorized addresses for the given registry ID
-     * @dev This function returns all addresses that are authorized to send messages for the given registry ID
-     * @dev It's useful for checking which addresses have permission to send messages in one go
+     * @return The ZkAuthorizationData associated with the given registry ID
+     * @dev This function returns the ZK authorization data for the given registry ID
+     * @dev It includes the allowed execution addresses, verification key, route, and metadata hash
      */
-    function getZkAuthorizationsList(uint64 registryId) public view returns (address[] memory) {
-        ZkAuthorizationData memory zkAuthorizationData = zkAuthorizations[registryId];
-        return zkAuthorizationData.allowedExecutionAddresses;
+    function getZkAuthorizationData(uint64 registryId) public view returns (ZkAuthorizationData memory) {
+        return zkAuthorizations[registryId];
     }
 
     /**
      * @notice Executes a ZK message with proof verification
      * @dev This function verifies the proof and executes the message if authorized
-     * @dev The proof is verified using the verification gateway before executing the message
-     * @param _message Encoded ZK message to be executed
+     * @dev The proof is verified using the verification router before executing the message
+     * @param _inputs Encoded ZK message to be executed
      * @param _proof Proof associated with the ZK message
-     * @param _domainMessage Encoded domain message associated with the domain proof
-     * @param _domainProof domain proof to verify the coprocessor root
+     * @param payload Additional payload data to be passed to the verifier, such as domain proof
      */
-    function executeZKMessage(
-        bytes calldata _message,
-        bytes calldata _proof,
-        bytes calldata _domainMessage,
-        bytes calldata _domainProof
-    ) external nonReentrant {
-        // Verify that the first 32 bytes of both messages is the same (coprocessor root)
-        bytes32 first32BytesMessage = bytes32(_message[0:32]);
-        bytes32 first32BytesDomain = bytes32(_domainMessage[0:32]);
-        if (first32BytesMessage != first32BytesDomain) {
-            revert("Coprocessor root mismatch");
-        }
-
+    function executeZKMessage(bytes calldata _inputs, bytes calldata _proof, bytes calldata payload)
+        external
+        nonReentrant
+    {
         // Decode the message to check authorization and apply modifications
         // We need to skip the first 32 bytes because this will be the coprocessor root which we don't need to decode
-        ZKMessage memory decodedZKMessage = abi.decode(_message[32:], (ZKMessage));
+        ZKMessage memory decodedZKMessage = abi.decode(_inputs[32:], (ZKMessage));
 
         // Check that the message is valid for this authorization contract
         if (
@@ -678,14 +667,14 @@ contract Authorization is Ownable, ICallback, ReentrancyGuard {
             }
         }
 
-        // Get the verification gateway for this registry and verify that it's set
-        VerificationGateway verificationGateway = verifierRegistry[zkAuthorizationData.verifierTag];
-        if (address(verificationGateway) == address(0)) {
-            revert("Verification gateway not set for this tag");
+        // Get the verification router and verify that it's set
+        VerificationRouter _verificationRouter = verificationRouter;
+        if (address(_verificationRouter) == address(0)) {
+            revert("Verification router not set");
         }
 
-        // Verify the proof using the verification gateway
-        if (!verificationGateway.verify(decodedZKMessage.registry, _proof, _message, _domainProof, _domainMessage)) {
+        // Verify the proof using the verification router with the specific route provided in the authorization
+        if (!_verificationRouter.verify(zkAuthorizationData.route, zkAuthorizationData.vk, _proof, _inputs, payload)) {
             revert("Proof verification failed");
         }
 

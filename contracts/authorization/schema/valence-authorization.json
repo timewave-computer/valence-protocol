@@ -1595,23 +1595,42 @@
           {
             "type": "object",
             "required": [
-              "set_verifier_contract"
+              "set_verification_router"
             ],
             "properties": {
-              "set_verifier_contract": {
+              "set_verification_router": {
                 "type": "object",
                 "required": [
-                  "contract",
-                  "tag"
+                  "address"
                 ],
                 "properties": {
-                  "contract": {
+                  "address": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "update_zk_authorization_route"
+            ],
+            "properties": {
+              "update_zk_authorization_route": {
+                "type": "object",
+                "required": [
+                  "label",
+                  "new_route"
+                ],
+                "properties": {
+                  "label": {
                     "type": "string"
                   },
-                  "tag": {
-                    "type": "integer",
-                    "format": "uint64",
-                    "minimum": 0.0
+                  "new_route": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -1714,23 +1733,19 @@
               "execute_zk_authorization": {
                 "type": "object",
                 "required": [
-                  "domain_message",
-                  "domain_proof",
+                  "inputs",
                   "label",
-                  "message",
+                  "payload",
                   "proof"
                 ],
                 "properties": {
-                  "domain_message": {
-                    "$ref": "#/definitions/Binary"
-                  },
-                  "domain_proof": {
+                  "inputs": {
                     "$ref": "#/definitions/Binary"
                   },
                   "label": {
                     "type": "string"
                   },
-                  "message": {
+                  "payload": {
                     "$ref": "#/definitions/Binary"
                   },
                   "proof": {
@@ -2065,7 +2080,7 @@
           "mode",
           "registry",
           "validate_last_block_execution",
-          "verifier_tag",
+          "verification_route",
           "vk"
         ],
         "properties": {
@@ -2086,10 +2101,8 @@
           "validate_last_block_execution": {
             "type": "boolean"
           },
-          "verifier_tag": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
+          "verification_route": {
+            "type": "string"
           },
           "vk": {
             "$ref": "#/definitions/Binary"
@@ -2240,21 +2253,11 @@
       {
         "type": "object",
         "required": [
-          "verification_contract"
+          "verification_router"
         ],
         "properties": {
-          "verification_contract": {
+          "verification_router": {
             "type": "object",
-            "required": [
-              "tag"
-            ],
-            "properties": {
-              "tag": {
-                "type": "integer",
-                "format": "uint64",
-                "minimum": 0.0
-              }
-            },
             "additionalProperties": false
           }
         },
@@ -4303,7 +4306,7 @@
         }
       }
     },
-    "verification_contract": {
+    "verification_router": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Addr",
       "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
@@ -4411,7 +4414,7 @@
             "registry",
             "state",
             "validate_last_block_execution",
-            "verifier_tag",
+            "verification_route",
             "vk"
           ],
           "properties": {
@@ -4435,10 +4438,8 @@
             "validate_last_block_execution": {
               "type": "boolean"
             },
-            "verifier_tag": {
-              "type": "integer",
-              "format": "uint64",
-              "minimum": 0.0
+            "verification_route": {
+              "type": "string"
             },
             "vk": {
               "$ref": "#/definitions/Binary"
