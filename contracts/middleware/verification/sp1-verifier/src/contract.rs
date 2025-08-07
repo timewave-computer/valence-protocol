@@ -37,6 +37,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             proof,
             payload,
         } => to_json_binary(&verify(deps, &vk, proof, inputs, payload)?),
+        QueryMsg::DomainVk {} => {
+            // Return the stored domain verification key
+            let domain_vk = DOMAIN_VK.load(deps.storage)?;
+            to_json_binary(&domain_vk)
+        }
     }
 }
 

@@ -16,4 +16,7 @@ pub enum QueryMsg {
         proof: Binary,
         payload: Binary,
     },
+
+    #[returns(Binary)]
+    DomainVk {},
 }
