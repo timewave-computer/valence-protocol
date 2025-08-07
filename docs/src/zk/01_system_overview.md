@@ -2,7 +2,7 @@
 
 The Valence Zero-Knowledge (ZK) system facilitates the execution of complex or private computations off-chain, with their correctness verified on-chain through cryptographic proofs. This overview describes the primary components and the general flow of information and operations within this system. The foundational concepts of ZK proofs in Valence are introduced in [Introduction to Valence ZK](./_overview.md).
 
-At its core, the system integrates an off-chain ZK Coprocessor Service with on-chain smart contracts, primarily the `Authorization` and `VerificationGateway` contracts. A key technical challenge is encoding blockchain state into formats suitable for zero-knowledge proofs, enabling pure functions to operate on committed state transitions. For detailed information on state encoding mechanisms and cross-chain coordination, see [State Encoding and Encoders](./07_state_encoding_and_encoders.md).
+At its core, the system integrates an off-chain ZK Coprocessor Service with on-chain smart contracts, primarily the `Authorization` and `VerificationRouter` contracts. A key technical challenge is encoding blockchain state into formats suitable for zero-knowledge proofs, enabling pure functions to operate on committed state transitions. For detailed information on state encoding mechanisms and cross-chain coordination, see [State Encoding and Encoders](./07_state_encoding_and_encoders.md).
 
 ### Component Roles
 
@@ -14,7 +14,7 @@ A **Guest Program** is application-specific code developed by users. It consists
 
 The **`Authorization` Contract** (e.g., `Authorization.sol` for EVM chains) serves as the entry point for submitting ZK proofs for verification. It handles ZK-specific authorization logic, checking if proof submitters are authorized for given ZK programs (by `registry` ID) and managing replay protection.
 
-The **`VerificationGateway` Contract** performs actual cryptographic verification of ZK proofs. The `Authorization` contract delegates verification to a configured `VerificationGateway`, which stores Verification Keys (VKs) for registered guest programs and uses them with submitted proofs and public inputs to confirm proof validity.
+The **`VerificationRouter` Contract** performs actual cryptographic verification of ZK proofs. The `Authorization` contract stores the Verification Keys(VKs) and a route and delegates verification to a configured `VerificationRouter`, which stores a verifier address for each route and uses them to submit the proofs, public inputs and a payload to verify the proof.
 
 ### ZK Program Flows
 
@@ -27,7 +27,7 @@ Developers prepare and register their ZK applications, initializing the applicat
 ```mermaid
 graph TD
     Dev[Developer Machine<br/>- Develops Guest Program<br/>- Builds Controller + Circuit] -- Deploys via cargo-valence --> Coproc[ZK Coprocessor Service]
-    Dev -- Registers Verification Key --> OnChain[On-Chain Contracts<br/>Authorization + VerificationGateway]
+    Dev -- Registers Verification Key --> OnChain[On-Chain Contracts<br/>Authorization + VerificationRouter]
     
     Coproc -- Assigns --> CID[Controller ID]
     OnChain -- Associates --> RegID[Registry ID]
@@ -52,7 +52,7 @@ graph TD
     Strategist[Strategist<br/>- Requests proof generation<br/>- Retrieves proof<br/>- Submits ZKMessage] -- Requests proof generation --> Coproc[ZK Coprocessor Service]
     Coproc -- Executes Guest Program --> Proof[ZK Proof + Public Output]
     Strategist -- Retrieves proof --> Coproc
-    Strategist -- Submits ZKMessage + Proof --> OnChain[On-Chain Contracts<br/>Authorization + VerificationGateway]
+    Strategist -- Submits ZKMessage + Proof --> OnChain[On-Chain Contracts<br/>Authorization + VerificationRouter]
     OnChain -- Verifies proof --> Valid{Proof Valid?}
     Valid -- Yes --> Processor[Processor Contract]
     Processor -- Executes validated message --> State[Blockchain State Changes]
@@ -76,7 +76,7 @@ The process of executing an off-chain computation and verifying it on-chain gene
 
 **Development and Deployment**
 
-During development and deployment (off-chain), a developer creates a guest program, defining its Controller and ZK `circuit`. This guest program is compiled (Controller to Wasm, circuit to target representation) and deployed to the ZK Coprocessor service using `cargo-valence` CLI, which assigns a unique Controller ID. The Verification Key (VK) for the circuit is registered with the on-chain `VerificationGateway` and associated with a `registry` ID that the `Authorization` contract uses.
+During development and deployment (off-chain), a developer creates a guest program, defining its Controller and ZK `circuit`. This guest program is compiled (Controller to Wasm, circuit to target representation) and deployed to the ZK Coprocessor service using `cargo-valence` CLI, which assigns a unique Controller ID. The Verification Key (VK) for the circuit is registered in an on-chain `Authorization.sol` contract and associated with a `registry` ID that the `Authorization` contract uses.
 
 **Proof Request and Generation**
 
@@ -88,7 +88,7 @@ Following proof generation, the off-chain entity retrieves the ZK proof and circ
 
 **On-Chain Processing**
 
-This triggers on-chain processing. The `Authorization` contract performs initial checks, verifying sender authorization for the `registry` ID and ensuring replay protection using the `blockNumber`. If checks pass, it calls the `verify` function on the `VerificationGateway`, passing the ZK proof and relevant public inputs from the `ZKMessage`. The `VerificationGateway` uses the `registry` ID to fetch the correct VK and verify the proof. The first 32 bytes of public inputs are a "Coprocessor Root" hash, with application-specific circuit output following.
+This triggers on-chain processing. The `Authorization` contract performs initial checks, verifying sender authorization for the `registry` ID and ensuring replay protection using the `blockNumber`. If checks pass, it calls the `verify` function on the `VerificationRouter`, passing the ZK proof and public inputs. The `VerificationRouter` fetches the correct verifier from the route provided by the `Authorization` contract and delegates the proving to this verifier, passing the vk, proof, public inputs and a payload.
 
 **Execution of Proven Action**
 

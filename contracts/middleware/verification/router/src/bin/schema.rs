@@ -1,5 +1,5 @@
 use cosmwasm_schema::write_api;
-use valence_verification_gateway::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use valence_verification_router::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 fn main() {
     write_api! {

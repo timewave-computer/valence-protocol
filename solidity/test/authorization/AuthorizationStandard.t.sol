@@ -177,14 +177,12 @@ contract AuthorizationStandardTest is Test {
     /**
      * @notice Test set a verifier contract
      */
-    function testUpdateVerificationGateway() public {
+    function testUpdateVerificationRouter() public {
         vm.startPrank(owner);
 
-        address newVerificationGateway = address(0x9);
-        auth.setVerifierContract(1, newVerificationGateway);
-        assertEq(
-            address(auth.verifierRegistry(1)), newVerificationGateway, "Verification Gateway should have been added"
-        );
+        address newVerificationRouter = address(0x9);
+        auth.setVerificationRouter(newVerificationRouter);
+        assertEq(address(auth.verificationRouter()), newVerificationRouter, "Verification router should be updated");
 
         vm.stopPrank();
     }

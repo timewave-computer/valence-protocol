@@ -12,35 +12,30 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cosmwasm-std                 = { workspace = true }
-cw-storage-plus              = { workspace = true }
-cosmwasm-schema              = { workspace = true }
-thiserror                    = { workspace = true }
-cw2                          = { workspace = true }
-cw-ownable                   = { workspace = true }
-valence-authorization-utils  = { workspace = true }
-valence-processor-utils      = { workspace = true }
-valence-gmp-utils            = { workspace = true }
-valence-encoder-broker       = { workspace = true }
-valence-encoder-utils        = { workspace = true }
-valence-verification-gateway = { workspace = true }
-cw-utils                     = { workspace = true }
-serde_json                   = { workspace = true }
-neutron-sdk                  = { workspace = true }
-cosmos-sdk-proto             = { workspace = true }
+cosmwasm-std                = { workspace = true }
+cw-storage-plus             = { workspace = true }
+cosmwasm-schema             = { workspace = true }
+thiserror                   = { workspace = true }
+cw2                         = { workspace = true }
+cw-ownable                  = { workspace = true }
+valence-authorization-utils = { workspace = true }
+valence-processor-utils     = { workspace = true }
+valence-gmp-utils           = { workspace = true }
+valence-encoder-broker      = { workspace = true }
+valence-encoder-utils       = { workspace = true }
+valence-verification-router = { workspace = true }
+cw-utils                    = { workspace = true }
+serde_json                  = { workspace = true }
+neutron-sdk                 = { workspace = true }
+cosmos-sdk-proto            = { workspace = true }
 
 [dev-dependencies]
-neutron-test-tube            = { workspace = true }
-margined-neutron-std         = { workspace = true }
-serde                        = { workspace = true }
-hex                          = { workspace = true }
-valence-test-library         = { workspace = true }
-valence-processor            = { workspace = true }
-valence-library-utils        = { workspace = true }
-valence-verification-gateway = { workspace = true }
-serde_json                   = "1.0.140"
-base64                       = "0.22.1"
-bincode                      = "1.3.3"
-sp1-sdk                      = { version = "5.0.0", default-features = false }
-sp1-verifier                 = "5.0.0"
-valence-coprocessor          = { git = "https://github.com/timewave-computer/valence-coprocessor.git", tag = "v0.1.11", default-features = false }
+neutron-test-tube          = { workspace = true }
+margined-neutron-std       = { workspace = true }
+serde                      = { workspace = true }
+hex                        = { workspace = true }
+valence-test-library       = { workspace = true }
+valence-processor          = { workspace = true }
+valence-library-utils      = { workspace = true }
+valence-verification-utils = { workspace = true }
+serde_json                 = "1.0.140"
