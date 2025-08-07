@@ -10,6 +10,7 @@ import {MockCompoundV3Market} from "../mocks/MockCompoundV3Market.sol";
 import {MockBaseAccount} from "../mocks/MockBaseAccount.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {CometMainInterface} from "../../src/libraries/interfaces/compoundV3/CometMainInterface.sol";
+import {CometRewards} from "../../src/libraries/interfaces/compoundV3/RewardsInterface.sol";
 
 contract CompoundV3PositionManagerTest is Test {
     // Contract under test
@@ -20,6 +21,7 @@ contract CompoundV3PositionManagerTest is Test {
     MockBaseAccount public outputAccount;
     MockERC20 public baseToken;
     address public marketProxyAddress;
+    address public rewardsAddress;
 
     // Test addresses
     address public owner;
@@ -30,6 +32,7 @@ contract CompoundV3PositionManagerTest is Test {
         // Setup test addresses
         owner = makeAddr("owner");
         processor = makeAddr("processor");
+        rewardsAddress = makeAddr("rewards");
 
         // Deploy mock tokens
         baseToken = new MockERC20("Base Token", "BT", 18);
@@ -49,7 +52,8 @@ contract CompoundV3PositionManagerTest is Test {
             inputAccount: BaseAccount(payable(address(inputAccount))),
             outputAccount: BaseAccount(payable(address(outputAccount))),
             baseAsset: address(baseToken),
-            marketProxyAddress: marketProxyAddress
+            marketProxyAddress: marketProxyAddress,
+            rewards: rewardsAddress
         });
 
         compoundV3PositionManager = new CompoundV3PositionManager(owner, processor, abi.encode(config));
@@ -69,13 +73,15 @@ contract CompoundV3PositionManagerTest is Test {
             BaseAccount actualInputAccount,
             BaseAccount actualOutputAccount,
             address actualBaseAsset,
-            address actualMarketProxyAddress
+            address actualMarketProxyAddress,
+            address actualRewards
         ) = compoundV3PositionManager.config();
 
         assertEq(address(actualInputAccount), address(inputAccount));
         assertEq(address(actualOutputAccount), address(outputAccount));
         assertEq(actualBaseAsset, address(baseToken));
         assertEq(actualMarketProxyAddress, marketProxyAddress);
+        assertEq(actualRewards, rewardsAddress);
     }
 
     function test_GivenValidConfig_WhenUpdateConfigIsCalled_ThenConfigIsUpdated() public {
@@ -86,7 +92,8 @@ contract CompoundV3PositionManagerTest is Test {
             inputAccount: new BaseAccount(owner, new address[](0)),
             outputAccount: new BaseAccount(owner, new address[](0)),
             baseAsset: address(newBaseToken),
-            marketProxyAddress: address(new MockCompoundV3Market(address(newBaseToken)))
+            marketProxyAddress: address(new MockCompoundV3Market(address(newBaseToken))),
+            rewards: makeAddr("newRewardsAddress")
         });
 
         // when
@@ -98,12 +105,14 @@ contract CompoundV3PositionManagerTest is Test {
             BaseAccount actualInputAccount,
             BaseAccount actualOutputAccount,
             address actualBaseAsset,
-            address actualMarketProxyAddress
+            address actualMarketProxyAddress,
+            address actualRewards
         ) = compoundV3PositionManager.config();
         assertEq(address(actualInputAccount), address(newConfig.inputAccount));
         assertEq(address(actualOutputAccount), address(newConfig.outputAccount));
         assertEq(actualBaseAsset, newConfig.baseAsset);
         assertEq(actualMarketProxyAddress, newConfig.marketProxyAddress);
+        assertEq(actualRewards, newConfig.rewards);
     }
 
     function test_RevertUpdateConfig_WithInvalidConfig_WhenInputAccountIsZeroAddress() public {
@@ -113,7 +122,8 @@ contract CompoundV3PositionManagerTest is Test {
             inputAccount: BaseAccount(payable(address(0))),
             outputAccount: new BaseAccount(owner, new address[](0)),
             baseAsset: vm.randomAddress(),
-            marketProxyAddress: makeAddr("newMarketProxyAddress")
+            marketProxyAddress: makeAddr("newMarketProxyAddress"),
+            rewards: makeAddr("newRewardsAddress")
         });
 
         // expect
@@ -131,7 +141,8 @@ contract CompoundV3PositionManagerTest is Test {
             inputAccount: new BaseAccount(owner, new address[](0)),
             outputAccount: BaseAccount(payable(address(0))),
             baseAsset: vm.randomAddress(),
-            marketProxyAddress: makeAddr("newMarketProxyAddress")
+            marketProxyAddress: makeAddr("newMarketProxyAddress"),
+            rewards: makeAddr("newRewardsAddress")
         });
 
         // expect
@@ -149,7 +160,8 @@ contract CompoundV3PositionManagerTest is Test {
             inputAccount: new BaseAccount(owner, new address[](0)),
             outputAccount: new BaseAccount(owner, new address[](0)),
             baseAsset: vm.randomAddress(),
-            marketProxyAddress: marketProxyAddress
+            marketProxyAddress: marketProxyAddress,
+            rewards: rewardsAddress
         });
 
         // expect
@@ -167,11 +179,31 @@ contract CompoundV3PositionManagerTest is Test {
             inputAccount: new BaseAccount(owner, new address[](0)),
             outputAccount: new BaseAccount(owner, new address[](0)),
             baseAsset: address(baseToken),
-            marketProxyAddress: address(0)
+            marketProxyAddress: address(0),
+            rewards: rewardsAddress
         });
 
         // expect
         vm.expectRevert("Market proxy address can't be zero address");
+
+        // when
+        vm.prank(owner);
+        compoundV3PositionManager.updateConfig(abi.encode(newConfig));
+    }
+
+    function test_RevertUpdateConfig_WithInvalidConfig_WhenRewardsAddressIsZeroAddress() public {
+        // given
+        CompoundV3PositionManager.CompoundV3PositionManagerConfig memory newConfig = CompoundV3PositionManager
+            .CompoundV3PositionManagerConfig({
+            inputAccount: new BaseAccount(owner, new address[](0)),
+            outputAccount: new BaseAccount(owner, new address[](0)),
+            baseAsset: address(baseToken),
+            marketProxyAddress: marketProxyAddress,
+            rewards: address(0)
+        });
+
+        // expect
+        vm.expectRevert("Rewards address can't be zero address");
 
         // when
         vm.prank(owner);
@@ -187,7 +219,8 @@ contract CompoundV3PositionManagerTest is Test {
             inputAccount: new BaseAccount(owner, new address[](0)),
             outputAccount: new BaseAccount(owner, new address[](0)),
             baseAsset: address(newBaseToken),
-            marketProxyAddress: address(new MockCompoundV3Market(address(newBaseToken)))
+            marketProxyAddress: address(new MockCompoundV3Market(address(newBaseToken))),
+            rewards: rewardsAddress
         });
 
         // expect
@@ -463,5 +496,61 @@ contract CompoundV3PositionManagerTest is Test {
         // when
         vm.prank(unauthorized);
         compoundV3PositionManager.supplyCollateral(address(baseToken), amount);
+    }
+
+    // ============== Rewards Tests ==============
+
+    function test_whenGetRewardOwed_thenReturnDataFromCometRewards() public {
+        // given
+        address rewardToken = address(0x11);
+        uint256 rewardAmount = 200;
+        CometRewards.RewardOwed memory rewardOwed = CometRewards.RewardOwed({token: rewardToken, owed: rewardAmount});
+        vm.mockCall(
+            rewardsAddress,
+            abi.encodeWithSignature("getRewardOwed(address,address)", marketProxyAddress, address(inputAccount)),
+            abi.encode(rewardOwed)
+        );
+
+        // when
+        (address _rewardToken, uint256 _rewardAmount) = compoundV3PositionManager.getRewardOwed();
+
+        // then
+        assertEq(_rewardToken, rewardToken);
+        assertEq(_rewardAmount, rewardAmount);
+    }
+
+    function test_whenClaimRewards_thenClaimFromInputAccountToOutputAccount() public {
+        // expect
+        vm.expectCall(
+            address(inputAccount),
+            abi.encodeWithSignature(
+                "execute(address,uint256,bytes)",
+                rewardsAddress,
+                0,
+                abi.encodeWithSignature(
+                    "claimTo(address,address,address,bool)",
+                    marketProxyAddress,
+                    address(inputAccount),
+                    address(outputAccount),
+                    true
+                )
+            )
+        );
+
+        // when
+        vm.prank(processor);
+        compoundV3PositionManager.claimAllRewards();
+    }
+
+    function test_RevertClaimRewards_WhenCallerIsNotProcessor() public {
+        // given
+        address unauthorized = makeAddr("unauthorized");
+
+        // expect
+        vm.expectRevert("Only the processor can call this function");
+
+        // when
+        vm.prank(unauthorized);
+        compoundV3PositionManager.claimAllRewards();
     }
 }
