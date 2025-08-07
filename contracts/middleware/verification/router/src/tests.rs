@@ -3,7 +3,7 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
-use cosmwasm_std::{from_json, Addr};
+use cosmwasm_std::{from_json, Addr, Binary};
 use cw_ownable::Ownership;
 use std::collections::HashMap;
 
@@ -308,4 +308,32 @@ fn test_update_ownership() {
 
     assert_eq!(ownership.owner, Some(owner));
     assert_eq!(ownership.pending_owner, Some(new_owner));
+}
+
+#[test]
+fn test_verify_query_api() {
+    let mut deps = mock_dependencies();
+    let env = mock_env();
+    let info = message_info(&deps.api.addr_make("creator"), &[]);
+
+    // Instantiate contract with no routes
+    let instantiate_msg = InstantiateMsg {
+        owner: deps.api.addr_make("owner").to_string(),
+        initial_routes: HashMap::new(),
+    };
+    instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap();
+
+    // Try to verify, which should fail because route is not set
+    query(
+        deps.as_ref(),
+        mock_env(),
+        QueryMsg::Verify {
+            route: "route66".to_string(),
+            vk: Binary::default(),
+            inputs: Binary::default(),
+            proof: Binary::default(),
+            payload: Binary::default(),
+        },
+    )
+    .unwrap_err();
 }

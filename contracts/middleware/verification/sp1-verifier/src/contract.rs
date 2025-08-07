@@ -1,12 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+    to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult,
 };
 use sp1_verifier::{Groth16Verifier, GROTH16_VK_BYTES};
 use valence_verification_utils::verifier::{InstantiateMsg, QueryMsg};
 
-use crate::{error::ContractError, state::DOMAIN_VK};
+use crate::state::DOMAIN_VK;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -14,7 +14,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, StdError> {
     // Store the domain verification key
     DOMAIN_VK.save(deps.storage, &msg.domain_vk)?;
 
