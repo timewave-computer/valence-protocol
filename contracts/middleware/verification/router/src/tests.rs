@@ -57,7 +57,7 @@ fn test_instantiate_empty_routes() {
     instantiate(deps.as_mut(), env, info, msg).unwrap();
 
     // Query routes should return empty list
-    let routes = from_json::<Vec<Addr>>(
+    let routes = from_json::<Vec<(String, Addr)>>(
         query(
             deps.as_ref(),
             mock_env(),
@@ -212,7 +212,7 @@ fn test_get_routes_pagination() {
     instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap();
 
     // Test getting all routes
-    let all_routes = from_json::<Vec<Addr>>(
+    let all_routes = from_json::<Vec<(String, Addr)>>(
         query(
             deps.as_ref(),
             mock_env(),
@@ -227,7 +227,7 @@ fn test_get_routes_pagination() {
     assert_eq!(all_routes.len(), 5);
 
     // Test pagination with limit
-    let limited_routes = from_json::<Vec<Addr>>(
+    let limited_routes = from_json::<Vec<(String, Addr)>>(
         query(
             deps.as_ref(),
             mock_env(),
@@ -242,7 +242,7 @@ fn test_get_routes_pagination() {
     assert_eq!(limited_routes.len(), 2);
 
     // Test pagination with start_after
-    let paginated_routes = from_json::<Vec<Addr>>(
+    let paginated_routes = from_json::<Vec<(String, Addr)>>(
         query(
             deps.as_ref(),
             mock_env(),
