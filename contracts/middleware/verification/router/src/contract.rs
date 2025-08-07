@@ -94,7 +94,7 @@ fn get_route(deps: Deps, name: String) -> StdResult<Addr> {
     ROUTES.load(deps.storage, name)
 }
 
-fn get_routes(deps: Deps, start_after: Option<String>, limit: Option<u32>) -> Vec<Addr> {
+fn get_routes(deps: Deps, start_after: Option<String>, limit: Option<u32>) -> Vec<(String, Addr)> {
     let limit = limit.unwrap_or(MAX_PAGE_LIMIT).min(MAX_PAGE_LIMIT);
     let start = start_after.map(Bound::exclusive);
 
@@ -102,7 +102,6 @@ fn get_routes(deps: Deps, start_after: Option<String>, limit: Option<u32>) -> Ve
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit as usize)
         .filter_map(Result::ok)
-        .map(|(_, addr)| addr)
         .collect()
 }
 

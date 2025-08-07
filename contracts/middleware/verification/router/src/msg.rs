@@ -22,7 +22,7 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(Addr)]
     GetRoute { name: String },
-    #[returns(Vec<Addr>)]
+    #[returns(Vec<(String, Addr)>)]
     GetRoutes {
         start_after: Option<String>,
         limit: Option<u32>,

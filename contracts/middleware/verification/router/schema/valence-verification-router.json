@@ -301,10 +301,20 @@
     },
     "get_routes": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Array_of_Addr",
+      "title": "Array_of_Tuple_of_String_and_Addr",
       "type": "array",
       "items": {
-        "$ref": "#/definitions/Addr"
+        "type": "array",
+        "items": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/Addr"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
       },
       "definitions": {
         "Addr": {
