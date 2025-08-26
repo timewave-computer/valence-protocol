@@ -49,6 +49,7 @@ valence-magma-lper                   = { workspace = true }
 valence-magma-withdrawer             = { workspace = true }
 valence-duality-lper                 = { workspace = true }
 valence-duality-withdrawer           = { workspace = true }
+valence-vortex-lper                  = { workspace = true }
 
 tokio              = { workspace = true }
 aho-corasick       = "1.1"

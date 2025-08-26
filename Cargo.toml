@@ -100,6 +100,7 @@ valence-clearing-queue = { path = "contracts/libraries/clearing-queue", features
 valence-maxbtc-issuer = { path = "contracts/libraries/max-btc-issuer", features = ["library"] }
 valence-duality-lper = { path = "contracts/libraries/duality-lper", features = ["library"] }
 valence-duality-withdrawer = { path = "contracts/libraries/duality-withdrawer", features = ["library"] }
+valence-vortex-lper = { path = "contracts/libraries/vortex-lper", features = ["library"] }
 
 # middleware
 valence-middleware-osmosis = { path = "contracts/middleware/type-registries/osmosis/osmo-26-0-0", features = [
@@ -131,6 +132,7 @@ valence-lending-utils          = { path = "packages/lending-utils" }
 valence-supervaults-utils      = { path = "packages/supervaults-utils" }
 valence-magma-utils            = { path = "packages/magma-utils" }
 valence-duality-utils          = { path = "packages/duality-utils" }
+valence-vortex-utils           = { path = "packages/vortex-utils" }
 
 
 # dev-dependencies

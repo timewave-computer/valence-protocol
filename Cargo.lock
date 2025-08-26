@@ -11236,6 +11236,7 @@ dependencies = [
  "valence-program-registry-utils",
  "valence-reverse-splitter-library",
  "valence-splitter-library",
+ "valence-vortex-lper",
 ]
 
 [[package]]
@@ -11438,6 +11439,38 @@ dependencies = [
  "sp1-sdk",
  "sp1-verifier",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "valence-vortex-lper"
+version = "0.2.0"
+dependencies = [
+ "cosmos-sdk-proto 0.20.0",
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "cw-ownable",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+ "valence-account-utils",
+ "valence-library-base",
+ "valence-library-utils",
+ "valence-macros",
+ "valence-osmosis-utils",
+ "valence-vortex-utils",
+]
+
+[[package]]
+name = "valence-vortex-utils"
+version = "0.2.0"
+dependencies = [
+ "cosmwasm-schema 2.2.1",
+ "cosmwasm-std 2.2.1",
+ "schemars",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

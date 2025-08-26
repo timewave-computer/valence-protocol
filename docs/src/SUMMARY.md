@@ -58,6 +58,7 @@
     - [MaxBTC Issuer](./libraries/cosmwasm/maxbtc_issuer.md)
     - [Magma LPer](./libraries/cosmwasm/magma_lper.md)
     - [Magma Withdrawer](./libraries/cosmwasm/magma_withdrawer.md)
+    - [Vortex LPer](./libraries/cosmwasm/vortex_lper.md)
   - [EVM](./libraries/evm/_overview.md)
     - [Forwarder](./libraries/evm/forwarder.md)
     - [CCTP Transfer](./libraries/evm/cctp_transfer.md)
