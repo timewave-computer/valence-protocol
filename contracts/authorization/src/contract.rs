@@ -48,7 +48,7 @@ use crate::{
     state::{
         AUTHORIZATIONS, CURRENT_EXECUTIONS, EXECUTION_ID, EXTERNAL_DOMAINS, FIRST_OWNERSHIP,
         PROCESSOR_CALLBACKS, PROCESSOR_ON_MAIN_DOMAIN, REGISTRY_LAST_BLOCK_EXECUTION, SUB_OWNERS,
-        VERIFICATION_GATEWAY, ZK_AUTHORIZATIONS,
+        VERIFICATION_ROUTER, ZK_AUTHORIZATIONS,
     },
 };
 
@@ -157,9 +157,12 @@ pub fn execute(
                 } => insert_messages(deps, env, label, queue_position, priority, messages),
                 PermissionedMsg::PauseProcessor { domain } => pause_processor(deps, domain),
                 PermissionedMsg::ResumeProcessor { domain } => resume_processor(deps, domain),
-                PermissionedMsg::SetVerificationGateway {
-                    verification_gateway,
-                } => set_verification_gateway(deps, verification_gateway),
+                PermissionedMsg::SetVerificationRouter { address } => {
+                    set_verification_router(deps, address)
+                }
+                PermissionedMsg::UpdateZkAuthorizationRoute { label, new_route } => {
+                    update_zk_authorization_route(deps, label, new_route)
+                }
             }
         }
         ExecuteMsg::PermissionlessAction(permissionless_msg) => match permissionless_msg {
@@ -174,9 +177,10 @@ pub fn execute(
             }
             PermissionlessMsg::ExecuteZkAuthorization {
                 label,
-                message,
+                inputs,
                 proof,
-            } => execute_zk_authorization(deps, env, info, label, message, proof),
+                payload,
+            } => execute_zk_authorization(deps, env, info, label, inputs, proof, payload),
         },
         ExecuteMsg::InternalAuthorizationAction(internal_authorization_msg) => {
             match internal_authorization_msg {
@@ -896,18 +900,35 @@ fn send_msgs(
         .add_attribute("authorization_label", authorization.label))
 }
 
-fn set_verification_gateway(
-    deps: DepsMut,
-    verification_gateway: String,
-) -> Result<Response, ContractError> {
-    VERIFICATION_GATEWAY.save(
-        deps.storage,
-        &deps.api.addr_validate(verification_gateway.as_str())?,
-    )?;
+fn set_verification_router(deps: DepsMut, address: String) -> Result<Response, ContractError> {
+    VERIFICATION_ROUTER.save(deps.storage, &deps.api.addr_validate(address.as_str())?)?;
 
     Ok(Response::new()
-        .add_attribute("action", "set_verification_gateway")
-        .add_attribute("verification_gateway", verification_gateway))
+        .add_attribute("action", "set_verification_router")
+        .add_attribute("contract", address))
+}
+
+fn update_zk_authorization_route(
+    deps: DepsMut,
+    label: String,
+    new_route: String,
+) -> Result<Response, ContractError> {
+    // Load the ZK authorization
+    let mut zk_authorization = ZK_AUTHORIZATIONS
+        .load(deps.storage, label.clone())
+        .map_err(|_| {
+            ContractError::Authorization(AuthorizationErrorReason::DoesNotExist(label.clone()))
+        })?;
+
+    // Update the verification route
+    zk_authorization.verification_route = new_route.clone();
+
+    // Save the updated ZK authorization
+    ZK_AUTHORIZATIONS.save(deps.storage, label, &zk_authorization)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "update_route")
+        .add_attribute("new_route", new_route))
 }
 
 fn execute_zk_authorization(
@@ -915,8 +936,9 @@ fn execute_zk_authorization(
     env: Env,
     info: MessageInfo,
     label: String,
-    message: Binary,
+    inputs: Binary,
     proof: Binary,
+    payload: Binary,
 ) -> Result<Response, ContractError> {
     let zk_authorization = ZK_AUTHORIZATIONS
         .load(deps.storage, label.clone())
@@ -930,10 +952,10 @@ fn execute_zk_authorization(
         ));
     }
 
-    // Get the verification gateway address
-    let verification_gateway = VERIFICATION_GATEWAY
+    // Get the verification router
+    let verification_router = VERIFICATION_ROUTER
         .load(deps.storage)
-        .map_err(|_| ContractError::ZK(ZKErrorReason::VerificationGatewayNotSet {}))?;
+        .map_err(|_| ContractError::ZK(ZKErrorReason::VerificationRouterNotSet {}))?;
 
     // Validate that we have permission to execute the zk authorization
     validate_permission(
@@ -944,13 +966,26 @@ fn execute_zk_authorization(
         &info,
     )?;
 
-    // Verify the proof with the verification gateway
+    // Check that the route exists to get a more comprehensive error message
+    let _: Addr = deps
+        .querier
+        .query_wasm_smart(
+            verification_router.clone(),
+            &valence_verification_router::msg::QueryMsg::GetRoute {
+                name: zk_authorization.verification_route.clone(),
+            },
+        )
+        .map_err(|_| ContractError::ZK(ZKErrorReason::InvalidVerificationRoute {}))?;
+
+    // Verify the proof with the verification router
     let valid: bool = deps.querier.query_wasm_smart(
-        verification_gateway,
-        &valence_verification_gateway::msg::QueryMsg::VerifyProof {
+        verification_router.clone(),
+        &valence_verification_router::msg::QueryMsg::Verify {
+            route: zk_authorization.verification_route,
             vk: zk_authorization.vk,
+            inputs: inputs.clone(),
             proof,
-            inputs: message.clone(),
+            payload,
         },
     )?;
     if !valid {
@@ -959,7 +994,7 @@ fn execute_zk_authorization(
 
     // Now that proof is validated we are going to extract the ZkMessage from the message
     // This is done by discarding the first 32 bytes of the message which belong to the coprocessor root and I don't need
-    let message_slice = message.as_slice();
+    let message_slice = inputs.as_slice();
     let zk_message_bytes = message_slice[32..].to_vec();
     let zk_message: ZkMessage = from_json(zk_message_bytes)?;
 
@@ -1599,7 +1634,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ZkAuthorizations { start_after, limit } => {
             to_json_binary(&get_zk_authorizations(deps, start_after, limit))
         }
-        QueryMsg::VerificationGateway {} => to_json_binary(&get_verification_gateway(deps)?),
+        QueryMsg::VerificationRouter {} => to_json_binary(&get_verification_router(deps)?),
         QueryMsg::ProcessorCallbacks { start_after, limit } => {
             to_json_binary(&get_processor_callbacks(deps, start_after, limit))
         }
@@ -1681,8 +1716,8 @@ fn get_zk_authorizations(
         .collect()
 }
 
-fn get_verification_gateway(deps: Deps) -> StdResult<Addr> {
-    VERIFICATION_GATEWAY.load(deps.storage)
+fn get_verification_router(deps: Deps) -> StdResult<Addr> {
+    VERIFICATION_ROUTER.load(deps.storage)
 }
 
 fn get_processor_callbacks(

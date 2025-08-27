@@ -249,16 +249,18 @@ contract OneWayVault is
         string memory vaultTokenName,
         string memory vaultTokenSymbol,
         uint256 startingRate
-    ) public initializer {
+    ) external initializer {
         __ERC20_init(vaultTokenName, vaultTokenSymbol);
         __ERC4626_init(IERC20(underlying));
         __Ownable_init(_owner);
         __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
 
         config = abi.decode(_config, (OneWayVaultConfig));
         _validateConfig(config);
 
         ONE_SHARE = 10 ** decimals();
+        require(startingRate > 0, "Starting redemption rate cannot be zero");
         redemptionRate = startingRate; // Initialize at specified starting rate
         lastRateUpdateTimestamp = uint64(block.timestamp); // Set initial timestamp for rate updates
     }
@@ -277,7 +279,7 @@ contract OneWayVault is
      * @dev Validates all configuration parameters before updating
      * @param _config Encoded OneWayVaultConfig struct
      */
-    function updateConfig(bytes memory _config) public onlyOwner {
+    function updateConfig(bytes memory _config) external onlyOwner {
         OneWayVaultConfig memory decodedConfig = abi.decode(_config, (OneWayVaultConfig));
 
         _validateConfig(decodedConfig);
@@ -388,7 +390,7 @@ contract OneWayVault is
      * @param receiver Address to receive the vault shares
      * @return shares Amount of shares minted to receiver
      */
-    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+    function deposit(uint256 assets, address receiver) public override whenNotPaused nonReentrant returns (uint256) {
         if (_checkAndHandleStaleRate()) {
             return 0; // Exit early if vault was just paused
         }
@@ -399,15 +401,14 @@ contract OneWayVault is
         }
 
         uint256 depositFee = calculateDepositFee(assets);
-        uint256 assetsAfterFee;
-        assetsAfterFee = assets - depositFee;
+        uint256 assetsAfterFee = assets - depositFee;
 
         if (depositFee > 0) {
             feesAccruedInAsset += depositFee;
         }
 
         uint256 shares = previewDeposit(assetsAfterFee);
-        _deposit(_msgSender(), receiver, assets, shares);
+        _deposit(msg.sender, receiver, assets, shares);
 
         return shares;
     }
@@ -419,7 +420,7 @@ contract OneWayVault is
      * @param receiver Address to receive the shares
      * @return assets Total amount of assets deposited (including fees)
      */
-    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+    function mint(uint256 shares, address receiver) public override whenNotPaused nonReentrant returns (uint256) {
         if (_checkAndHandleStaleRate()) {
             return 0; // Exit early if vault was just paused
         }
@@ -434,7 +435,7 @@ contract OneWayVault is
             feesAccruedInAsset += fee;
         }
 
-        _deposit(_msgSender(), receiver, grossAssets, shares);
+        _deposit(msg.sender, receiver, grossAssets, shares);
 
         return grossAssets;
     }
@@ -515,6 +516,13 @@ contract OneWayVault is
         if (_vaultState.pausedByStaleRate && msg.sender != owner()) {
             revert("Only owner can unpause if paused by stale rate");
         }
+        if (
+            _vaultState.pausedByStaleRate
+                && uint64(block.timestamp) - lastRateUpdateTimestamp > config.maxRateUpdateDelay
+        ) {
+            revert("Cannot unpause while rate is stale");
+        }
+
         delete vaultState;
         emit PausedStateChanged(false);
     }
@@ -539,8 +547,7 @@ contract OneWayVault is
         // This formula ensures that after the fee is deducted, exactly baseAssets remain
         uint256 grossAssets = baseAssets.mulDiv(BASIS_POINTS, BASIS_POINTS - feeBps, Math.Rounding.Ceil);
 
-        uint256 fee;
-        fee = grossAssets - baseAssets;
+        uint256 fee = grossAssets - baseAssets;
 
         return (grossAssets, fee);
     }
@@ -586,12 +593,7 @@ contract OneWayVault is
      * @param receiver Address to receive the withdrawn assets on the destination domain (as string)
      * @param owner Address that owns the shares
      */
-    function withdraw(uint256 assets, string calldata receiver, address owner)
-        public
-        payable
-        nonReentrant
-        whenNotPaused
-    {
+    function withdraw(uint256 assets, string calldata receiver, address owner) external nonReentrant whenNotPaused {
         if (_checkAndHandleStaleRate()) {
             return; // Exit early if vault was just paused
         }
@@ -629,12 +631,7 @@ contract OneWayVault is
      * @param receiver Address to receive the redeemed assets on destination domain (as string)
      * @param owner Address that owns the shares
      */
-    function redeem(uint256 shares, string calldata receiver, address owner)
-        public
-        payable
-        nonReentrant
-        whenNotPaused
-    {
+    function redeem(uint256 shares, string calldata receiver, address owner) external nonReentrant whenNotPaused {
         if (_checkAndHandleStaleRate()) {
             return; // Exit early if vault was just paused
         }
@@ -678,10 +675,6 @@ contract OneWayVault is
     function _withdraw(uint256 sharesToBurn, uint256 postFeeShares, string calldata receiver, address owner) internal {
         // Burn shares first (CEI pattern - Checks, Effects, Interactions)
         if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-            if (allowed < sharesToBurn) {
-                revert("Insufficient allowance");
-            }
             _spendAllowance(owner, msg.sender, sharesToBurn);
         }
         _burn(owner, sharesToBurn);

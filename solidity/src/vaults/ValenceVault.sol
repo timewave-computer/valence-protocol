@@ -228,6 +228,7 @@ contract ValenceVault is
         __ERC4626_init(IERC20(underlying));
         __Ownable_init(_owner);
         __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
 
         config = abi.decode(_config, (VaultConfig));
         _validateConfig(config);
@@ -823,10 +824,6 @@ contract ValenceVault is
 
         // Burn shares first (CEI pattern)
         if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-            if (allowed < shares) {
-                revert InsufficientAllowance(shares, allowed);
-            }
             _spendAllowance(owner, msg.sender, shares);
         }
         _burn(owner, shares);

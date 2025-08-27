@@ -19,6 +19,10 @@ pub struct ZkAuthorizationInfo {
     pub registry: u64,
     // The Verifying Key to be used
     pub vk: Binary,
+    // The verifier route is what route will be used in the verification router to verify the ZK proof
+    pub verification_route: String,
+    // Hash of the metadata of the program. This is purely informational and it's used to link the VK to the program
+    pub metadata_hash: Binary,
     // Flag to indicate if we need to validate the last block execution of a specific ZK authorization
     pub validate_last_block_execution: bool,
 }
@@ -30,6 +34,8 @@ impl ZkAuthorizationInfo {
             mode: self.mode.into_mode_validated(api),
             registry: self.registry,
             vk: self.vk,
+            verification_route: self.verification_route,
+            metadata_hash: self.metadata_hash,
             validate_last_block_execution: self.validate_last_block_execution,
             state: AuthorizationState::Enabled,
         }
@@ -42,6 +48,8 @@ pub struct ZkAuthorization {
     pub mode: AuthorizationMode,
     pub registry: u64,
     pub vk: Binary,
+    pub verification_route: String,
+    pub metadata_hash: Binary,
     pub validate_last_block_execution: bool,
     pub state: AuthorizationState,
 }

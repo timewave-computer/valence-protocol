@@ -138,8 +138,11 @@ pub enum MessageErrorReason {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ZKErrorReason {
-    #[error("Verification gateway not set")]
-    VerificationGatewayNotSet {},
+    #[error("Verification router not set")]
+    VerificationRouterNotSet {},
+
+    #[error("Invalid verification route")]
+    InvalidVerificationRoute {},
 
     #[error("Invalid ZK Proof")]
     InvalidZKProof {},
@@ -155,4 +158,7 @@ pub enum ZKErrorReason {
 
     #[error("This message is not for this authorization contract!")]
     InvalidAuthorizationContract {},
+
+    #[error("Verifier contract already exists for this tag")]
+    VerifierContractAlreadyExists {},
 }

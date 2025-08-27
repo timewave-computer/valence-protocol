@@ -1,14 +1,18 @@
 # Vault Strategist
 
-**Note:** _The Strategist is still in the design phase and includes new or experimental features of Valence Protocol that may not be supported in the current production release._
+**Note:** _Vault Strategist is a type of Valence Coordinator. More information about the
+coordinator capabilities and design principles can be found in the [Valence Coordinator SDK repo](https://github.com/timewave-computer/valence-coordinator-sdk)._
 
 ## Overview
 
-Vault Strategist is a type of off-chain solver that performs operations needed in order to keep the [Valence Vaults](./crosschain_vaults.md) functioning and up to date.
+Vault Strategist is a type of off-chain solver (coordinator) that performs operations needed
+in order to keep the [Valence Vaults](./crosschain_vaults.md) functioning and up to date.
 
-Strategist is meant to be run as an independent process, only interacting with the domains relevant for its operations via (g)RPC requests submitted to respective nodes.
+Coordinator is meant to be run as an independent process, only interacting with the domains
+relevant for its operations via (g)RPC requests submitted to respective nodes.
 
-A complete on-chain flow of a cross-chain Valence Vault — accepting deposits on Ethereum and entering a position on Neutron — might look as follows:
+A complete on-chain flow of a cross-chain Valence Vault — accepting deposits on Ethereum
+and entering a position on Neutron — might look as follows:
 
 ```mermaid
 ---
@@ -62,7 +66,7 @@ flowchart BT
 
 ## Prerequisites
 
-There are some prerequisites for a strategist to be able to carry out its entire order of operations.
+There are some prerequisites for a coordinator to be able to carry out its entire order of operations.
 
 These prerequisites will fit into the following broad categories:
 
@@ -120,7 +124,7 @@ Noble will host the inbound and outbound interchain accounts created by Valence 
 
 ### Valence Domain Clients
 
-The Strategist interacts with target domains by submitting (g)RPC requests.
+The Vault coordinator interacts with target domains by submitting (g)RPC requests.
 
 These requests are constructed and submitted using [Valence Domain Clients](https://github.com/timewave-computer/valence-domain-clients), which support `async`/`await`, batched requests spanning an arbitrary number of domains, encoding schemes, and other domain-specific semantics in a standardized manner.
 

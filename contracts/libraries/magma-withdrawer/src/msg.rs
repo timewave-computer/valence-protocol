@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Deps, DepsMut, Uint128};
+use cosmwasm_std::{Addr, Deps, DepsMut};
 use cw_ownable::cw_ownable_query;
 
 use valence_library_utils::{
@@ -11,8 +11,8 @@ pub enum FunctionMsgs {
     /// Message to withdraw liquidity.
     WithdrawLiquidity {
         // default to 0 `token_min_amount` if not provided
-        token_min_amount_0: Option<Uint128>,
-        token_min_amount_1: Option<Uint128>,
+        token_min_amount_0: Option<String>,
+        token_min_amount_1: Option<String>,
     },
 }
 

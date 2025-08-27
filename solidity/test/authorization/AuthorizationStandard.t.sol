@@ -50,7 +50,7 @@ contract AuthorizationStandardTest is Test {
 
         // Deploy main contracts
         processor = new LiteProcessor(bytes32(0), address(0), 0, new address[](0));
-        auth = new Authorization(owner, address(processor), address(0), true);
+        auth = new Authorization(owner, address(processor), true);
 
         // Configure processor authorization
         processor.addAuthorizedAddress(address(auth));
@@ -175,14 +175,14 @@ contract AuthorizationStandardTest is Test {
     }
 
     /**
-     * @notice Test updating the verification gateway address
+     * @notice Test set a verifier contract
      */
-    function testUpdateVerificationGateway() public {
+    function testUpdateVerificationRouter() public {
         vm.startPrank(owner);
 
-        address newVerificationGateway = address(0x9);
-        auth.updateVerificationGateway(newVerificationGateway);
-        assertEq(address(auth.verificationGateway()), newVerificationGateway, "Verification Gateway should be updated");
+        address newVerificationRouter = address(0x9);
+        auth.setVerificationRouter(newVerificationRouter);
+        assertEq(address(auth.verificationRouter()), newVerificationRouter, "Verification router should be updated");
 
         vm.stopPrank();
     }

@@ -44,6 +44,26 @@ flowchart LR
     MP -- 5/Send withdrawn tokens --> OA
 ```
 
+```mermaid
+---
+title: Compound V3 Position Manager Claim Rewards
+---
+flowchart LR
+    P[Processor]
+    PM[Compound V3
+    Position Manager Library]
+    IA((Input Account))
+    OA((Output Account))
+    CR((Compound
+    V3 CometRewards))
+
+    P -- 1/claimAllRewards() --> PM
+    PM -- 2/Call claimTo --> IA
+    IA -- 3/claimTo(output
+     account) --> CR
+    CR -- 5/Send accrued reward tokens --> OA
+```
+
 ## Functions
 
 | Function               | Parameters    | Description                                                                                                                                                                                      |
@@ -52,6 +72,8 @@ flowchart LR
 | **withdraw**           | amount        | Withdraws previously supplied tokens from Compound V3 and sends them to the **output account**. Passing 0 will withdraw the entire balance.                                                      |
 | **supplyCollateral**   | asset, amount | Supplies the token specified in **asset**. Works the same way as **supply** but instead of supplying the token specified in the library config, it supplies the token passed as a parameter      |
 | **withdrawCollateral** | asset, amount | Withdraw the token specified in **asset**. Works the same way as **withdraw** but instead of withdrawing the token specified in the library config, it withdraws the token passed as a parameter |
+| **getRewardOwed** | | Returns the rewards accrued but not yet claimed for the position
+| **claimAllRewards** | | Claims the reward accrued by the position to position's output account
 
 ## Configuration
 
@@ -66,12 +88,14 @@ The library is configured on deployment using the `CompoundV3PositionManagerConf
      * @param outputAccount The Base Account that will receive withdrawals.
      * @param baseAsset Address of the base token of the CompoundV3 market
      * @param marketProxyAddress Address of the CompoundV3 market proxy
+     * @param rewards Address of the CompoundV3 CometRewards contract
      */
     struct CompoundV3PositionManagerConfig {
         BaseAccount inputAccount;
         BaseAccount outputAccount;
         address baseAsset;
         address marketProxyAddress;
+        address rewards;
     }
 ```
 
