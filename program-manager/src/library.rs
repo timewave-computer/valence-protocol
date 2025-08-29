@@ -102,6 +102,7 @@ pub enum LibraryConfig {
     ValenceDualityWithdrawer(valence_duality_withdrawer::msg::LibraryConfig),
     ValenceMagmaLper(valence_magma_lper::msg::LibraryConfig),
     ValenceMagmaWithdrawer(valence_magma_withdrawer::msg::LibraryConfig),
+    ValenceVortexLper(valence_vortex_lper::msg::LibraryConfig),
 }
 
 impl LibraryConfig {
