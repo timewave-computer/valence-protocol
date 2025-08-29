@@ -20,19 +20,19 @@ pub struct LibraryConfig {
 }
 
 pub struct LiquidityProviderConfig {
-    // Code of the vortex contract we are going to instantiate
+    /// Code of the vortex contract we are going to instantiate
     pub vortex_code: u64,
-    // Label for the contract instantiation
+    /// Label for the contract instantiation
     pub label: String,
-    // Id of the pool we are going to provide liquidity for
+    /// Id of the pool we are going to provide liquidity for
     pub pool_id: u64,
-    // Duration of the round in seconds
+    /// Duration of the round in seconds
     pub round_duration: u64,
-    // Duration of the auction in seconds
+    /// Duration of the auction in seconds
     pub auction_duration: u64,
-    // Denoms of both assets we are going to provide liquidity for
+    /// Denoms of both assets we are going to provide liquidity for
     pub asset_data: AssetData,
-    // Whether the principal token is first in the pool
+    /// Whether the principal token is first in the pool
     pub principal_first: bool,
 }
 ```

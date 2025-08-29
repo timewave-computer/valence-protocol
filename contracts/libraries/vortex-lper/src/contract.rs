@@ -11,7 +11,6 @@ use valence_library_utils::{
     msg::{ExecuteMsg, InstantiateMsg},
 };
 use valence_osmosis_utils::utils::cl_utils::query_cl_pool;
-use valence_vortex_utils::msg::CreatePositionMsg;
 
 use crate::{
     msg::{Config, FunctionMsgs, LibraryConfig, LibraryConfigUpdate, QueryMsg, ReplyPayload},
@@ -188,22 +187,14 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, LibraryEr
                     StdError::generic_err(format!("failed to parse reply message: {e:?}"))
                 })?;
 
-            let create_position_msg: CreatePositionMsg = reply_payload.create_position_msg;
-
             VORTEX_CONTRACT_ADDR.save(
                 deps.storage,
                 &instantiate_msg_response.contract_address.clone(),
             )?;
 
-            let create_position_msg = valence_vortex_utils::msg::CreatePositionMsg {
-                lower_tick: create_position_msg.lower_tick,
-                upper_tick: create_position_msg.upper_tick,
-                principal_token_min_amount: create_position_msg.principal_token_min_amount,
-                counterparty_token_min_amount: create_position_msg.counterparty_token_min_amount,
-            };
-
-            let execute_msg =
-                valence_vortex_utils::msg::ExecuteMsg::CreatePosition(create_position_msg);
+            let execute_msg = valence_vortex_utils::msg::ExecuteMsg::CreatePosition(
+                reply_payload.create_position_msg,
+            );
 
             let bal_asset_0 = deps
                 .querier
