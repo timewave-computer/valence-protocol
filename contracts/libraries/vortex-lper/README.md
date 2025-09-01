@@ -1,6 +1,6 @@
 # Vortex LPer library
 
-The **Valence Vortex LPer library** allows users to **deposit** into a Osmosis pool via Vortex contract from an **input account**. Also, the library allows **withdrawing from position** via vortex contract and receiving the withdrawn tokens into an **output account** and **output account_2** (principal and counterparty tokens).
+The **Valence Vortex LPer library** allows users to **deposit** into an Osmosis pool via Vortex contract from an **input account**. Also, the library allows **withdrawing from position** via vortex contract and receiving the withdrawn tokens into an **output account** and **output account_2** (principal and counterparty tokens).
 
 ## Configuration
 
