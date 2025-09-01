@@ -1,9 +1,9 @@
 [package]
-name        = "valence-magma-utils"
+name = "valence-vortex-utils"
 version     = { workspace = true }
 edition     = { workspace = true }
 authors     = { workspace = true }
-description = "Helpers for magma integrations"
+description = "Helpers for vortex integrations"
 
 [dependencies]
 cosmwasm-std    = { workspace = true }
