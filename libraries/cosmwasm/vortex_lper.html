@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>EVM - Valence Protocol Documentation</title>
+        <title>Vortex LPer - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -180,18 +180,91 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="evm-libraries"><a class="header" href="#evm-libraries">EVM Libraries</a></h1>
-<p>This section contains a detailed description of all the libraries that can be used in EVM Execution Environments.</p>
+                        <h1 id="vortex-lper-library"><a class="header" href="#vortex-lper-library">Vortex LPer library</a></h1>
+<p>The <strong>Valence Vortex LPer library</strong> allows users to <strong>deposit</strong> into an Osmosis pool via Vortex contract from an <strong>input account</strong>. Also, the library allows <strong>withdrawing from position</strong> via vortex contract and receiving the withdrawn tokens into an <strong>output account</strong> and <strong>output account_2</strong> (principal and counterparty tokens).</p>
+<h2 id="high-level-flow"><a class="header" href="#high-level-flow">High Level Flow</a></h2>
+<pre class="mermaid">---
+title: Vortex lper Library
+---
+graph LR
+  IA((Input
+      Account))
+  OA((Output
+      Accounts))
+  P[Processor]
+  S[Vortex LPer
+      Library]
+  P -- 1/Provide or Withdraw liquidity --&gt; S
+  S -- 2/Query balances --&gt; IA
+  S -- 3/Provide liquidity --&gt; IA
+  S -- 4/Withdraw liquidity --&gt; OA
+</pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>ProvideLiquidity</strong></td><td><code>tick_range: TickRange</code><br><code>principal_token_min_amount: Uint128</code><br><code>counterparty_token_min_amount: Uint128</code></td><td>tries to deposit the  entire principal and counterparty token amounts from the input account to the pool via Vortex.</td></tr>
+<tr><td><strong>Withdraw</strong></td><td>-</td><td>withdraws all the liquidity from the position Vortex entered including potential rewards.</td></tr>
+</tbody></table>
+</div>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The library is configured on instantiation via the <code>LibraryConfig</code> type.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct LibraryConfig {
+    /// Address of the input account 
+    pub input_addr: LibraryAccountType,
+    /// Address of the output account 
+    pub output_addr: LibraryAccountType,
+    /// Address of the second output account 
+    pub output_addr_2: LibraryAccountType,
+    /// Configuration for the liquidity provider
+    /// This includes the pool address and asset data
+    pub lp_config: LiquidityProviderConfig,
+}
+
+pub struct LiquidityProviderConfig {
+    /// Code of the vortex contract we are going to instantiate
+    pub vortex_code: u64,
+    /// Label for the contract instantiation
+    pub label: String,
+    /// Id of the pool we are going to provide liquidity for
+    pub pool_id: u64,
+    /// Duration of the round in seconds
+    pub round_duration: u64,
+    /// Duration of the auction in seconds
+    pub auction_duration: u64,
+    /// Denoms of both assets we are going to provide liquidity for
+    pub asset_data: AssetData,
+    /// Whether the principal token is first in the pool
+    pub principal_first: bool,
+}
+<span class="boring">}</span></code></pre></pre>
+<h2 id="implementation-details"><a class="header" href="#implementation-details">Implementation Details</a></h2>
+<h3 id="providing-liquidity-process"><a class="header" href="#providing-liquidity-process">Providing Liquidity Process</a></h3>
+<ol>
+<li><strong>Balance Check</strong>: Queries the input account balance for the specified pool assets.</li>
+<li><strong>ProvideLiquidity</strong>: Initiates the liquidity process by executing a <code>CreatePosition</code> submessage to the Vortex contract.
+<ul>
+<li>The initial call <strong>instantiates the Vortex contract</strong>.</li>
+<li>Once the submessage completes, the <strong>reply handler</strong> performs the actual position creation in the Osmosis pool by the Vortex contract instance.</li>
+</ul>
+</li>
+</ol>
+<h3 id="withdrawal-process"><a class="header" href="#withdrawal-process">Withdrawal Process</a></h3>
+<ol>
+<li><strong>Round End Check</strong>: Queries the state of the Vortex contract to check if round ended - which must happen prior to executing a withdrawal.</li>
+<li><strong>Position Check</strong>: Checks if the position exists.</li>
+<li><strong>Withdraw</strong>: Executes a <code>EndRound</code> message on Vortex to withdraw the whole position.</li>
+</ol>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../libraries/cosmwasm/vortex_lper.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../libraries/cosmwasm/magma_withdrawer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -201,11 +274,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../libraries/cosmwasm/vortex_lper.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../libraries/cosmwasm/magma_withdrawer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../libraries/evm/forwarder.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../libraries/evm/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
