@@ -18,6 +18,8 @@
   - [Sparse Merkle Trees](./zk/05_sparse_merkle_trees.md)
   - [Guest Environment](./zk/06_guest_environment.md)
   - [State Encoding and Encoders](./zk/07_state_encoding_and_encoders.md)
+  - [Domain Proofs](./zk/08_domain_proofs.md)
+  
 - [Authorization & Processors](./authorizations_processors/_overview.md)
   - [Assumptions](./authorizations_processors/assumptions.md)
   - [Authorization Contract](./authorizations_processors/authorization_contract.md)

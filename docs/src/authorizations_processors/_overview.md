@@ -1,13 +1,14 @@
 # Authorization & Processors
 
-The **Authorization** and **Processor** contracts are foundational pieces of the **Valence Protocol**, as they enable on-chain (and cross-chain) execution of **Valence Programs** and enforce access control to the program's **Subroutines** via **Authorizations**.
+The Authorization and Processor contracts are foundational pieces of the Valence Protocol, as they enable execution of Valence Programs and enforce access control to the program's Subroutines via Authorizations.
 
-This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with **Valence Programs** via **Authorizations**.
+This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with Valence Programs via Authorizations.
 
 ## Rationale
 
-- To have a general purpose set of smart contracts that provide users with a single point of entry to interact with the Valence Program, which can have libraries and accounts deployed on multiple chains.
-- To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.
-- To have a single address (Processor) that will execute the messages for all the contracts in a domain using execution queues.
-- To only tick a single contract (Processor) that will go through the queues to route and execute the messages.
+- To provide users with a single point of entry to interact with the Valence Program through controlled access to library functions.
+- To centralize user authorizations and permissions, making it easy to control application access.
+- To have a single address (Processor) that will execute the authorized messages. On CosmWasm this uses execution queues and permissionless ticks; on EVM the Lite Processor executes immediately (no queues).
 - To create, edit, or remove different application permissions with ease.
+
+Note: Programs can optionally include libraries and accounts deployed across multiple domains for certain multi-chain scenarios.

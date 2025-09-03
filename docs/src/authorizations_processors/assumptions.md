@@ -2,7 +2,7 @@
 
 - **Funds**: You cannot send funds with the messages.
 
-- **Bridging**: We are assuming that messages can be sent and confirmed bidirectionally between domains. The Authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.
+- **Bridging**: For programs that optionally span multiple domains, we assume that messages can be sent and confirmed bidirectionally between domains. The Authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.
 
 - **Instantiation**: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:
   - Predict `authorization` contract address.

@@ -60,8 +60,8 @@ The library is configured on deployment using the `ForwarderConfig` type.
      * @param minInterval Minimum interval between forwards
      */
     struct ForwarderConfig {
-        Account inputAccount;
-        Account outputAccount;
+        BaseAccount inputAccount;
+        BaseAccount outputAccount;
         ForwardingConfig[] forwardingConfigs;
         IntervalType intervalType;
         uint64 minInterval;

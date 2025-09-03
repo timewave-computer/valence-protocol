@@ -8,13 +8,13 @@ At its core, the system integrates an off-chain ZK Coprocessor Service with on-c
 
 The Valence ZK system comprises several key components, each with distinct responsibilities.
 
-The **ZK Coprocessor Service**, operating off-chain, is a persistent service that manages ZK "guest programs." It deploys new guest programs, executes them with specific inputs, manages proving using an underlying zkVM (like SP1), and makes generated proofs available. Developers interact with this service to deploy ZK applications and initiate proof generation.
+The ZK Coprocessor Service, operating off-chain, is a persistent service that manages ZK "guest programs." It deploys new guest programs, executes them with specific inputs, manages proving using an underlying zkVM (like SP1), and makes generated proofs available. Developers interact with this service to deploy ZK applications and initiate proof generation.
 
-A **Guest Program** is application-specific code developed by users. It consists of two parts: the **Controller** (Wasm-compiled Rust code running in the Coprocessor's sandbox) takes input data, processes it to generate a "witness" for the ZK circuit, and coordinates proof generation. The **ZK Circuit** (e.g., SP1 circuit) performs the core computation and assertions, taking the witness and producing a proof and public output (`Vec<u8>`) that forms the primary data for on-chain contracts.
+A Guest Program is application-specific code developed by users. It consists of two parts: the Controller (Wasm-compiled Rust code running in the Coprocessor's sandbox) takes input data, processes it to generate a "witness" for the ZK circuit, and coordinates proof generation. The ZK Circuit (e.g., SP1 circuit) performs the core computation and assertions, taking the witness and producing a proof and public output (`Vec<u8>`) that forms the primary data for on-chain contracts.
 
-The **`Authorization` Contract** (e.g., `Authorization.sol` for EVM chains) serves as the entry point for submitting ZK proofs for verification. It handles ZK-specific authorization logic, checking if proof submitters are authorized for given ZK programs (by `registry` ID) and managing replay protection.
+The Authorization contract serves as the entry point for submitting ZK proofs for verification. It handles ZK-specific authorization logic, checking if proof submitters are authorized for given ZK programs (by `registry` ID) and managing replay protection.
 
-The **`VerificationRouter` Contract** performs actual cryptographic verification of ZK proofs. The `Authorization` contract stores the Verification Keys(VKs) and a route and delegates verification to a configured `VerificationRouter`, which stores a verifier address for each route and uses them to submit the proofs, public inputs and a payload to verify the proof.
+The VerificationRouter contract performs actual cryptographic verification of ZK proofs. This contract uses an immutable append-only design where routes map to specific verifier contracts. The Authorization contract stores the Verification Keys (VKs) and verification routes, then delegates verification to the VerificationRouter, which routes the proof to the appropriate verifier. For SP1 proofs, the `SP1VerificationSwitch` performs dual verification of both the program proof and domain proof.
 
 ### ZK Program Flows
 
@@ -22,7 +22,7 @@ The following diagrams illustrate the key workflows in the Valence ZK system:
 
 #### Deployment Flow
 
-Developers prepare and register their ZK applications, initializing the application before execution. They build guest program components, deploy them to the coprocessor service, and register verification keys on-chain.
+Developers prepare and register their ZK applications, initializing the application before execution. They build guest program components, deploy them to the coprocessor service (e.g., via `cargo-valence`), and register verification keys on-chain.
 
 ```mermaid
 graph TD
@@ -95,3 +95,22 @@ This triggers on-chain processing. The `Authorization` contract performs initial
 Upon successful proof verification, the `Authorization` contract considers the `ZKMessage` contents (specifically the `processorMessage`) authentic and authorized. It dispatches this `processorMessage` to the appropriate Valence `Processor` contract for execution, leading to blockchain state changes based on the ZK-proven off-chain computation.
 
 This system allows Valence to securely integrate complex off-chain logic with its on-chain operations, opening up a wide range of advanced application possibilities. 
+
+### End‑to‑End Flow (Services + On‑Chain)
+
+Actors and services:
+- Coprocessor service: runs controllers, manages storage/FS, computes proofs
+- Domain prover service: produces recursive domain proofs and publishes latest state
+- Domain implementations (e.g., Ethereum): controller, circuit, optional light‑client
+- Prover backend: SP1 prover infrastructure
+- Clients: cargo‑valence CLI or valence‑domain‑clients library/binary
+- On‑chain: Authorization, VerificationRouter, and Processor
+
+Flow:
+1. Domain prover updates: The domain prover ingests historical updates and produces a recursive wrapper proof, publishing the latest State (and wrapper VK) for consumers (see [Domain Proofs](./08_domain_proofs.md)).
+2. Pinning: Clients fetch the current Coprocessor root and pin requests with `valence-coprocessor-root` to ensure consistent openings.
+3. Witness building: Guest programs request domain state proofs through the Coprocessor runtime (e.g., `get_state_proof("ethereum", args)`).
+4. Proving: The Coprocessor combines witnesses with historical openings and computes the zkVM proof. A store payload directs the controller to write the proof to the virtual filesystem.
+5. Retrieval: Clients poll the FS path and retrieve the proof + public inputs (first 32 bytes = Coprocessor root; remainder = circuit output).
+6. On‑chain verification: The actor submits proof + inputs to Authorization, which delegates to VerificationRouter (e.g., SP1VerificationSwitch) with the appropriate VK and route.
+7. Execution: On successful verification, Authorization forwards the processorMessage to Processor, which applies state changes.

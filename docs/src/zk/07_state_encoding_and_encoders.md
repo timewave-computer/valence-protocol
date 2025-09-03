@@ -175,3 +175,16 @@ Chain 3's verification process includes:
 4. Reconstruct the commitments and validate the Merkle root
 
 This architecture enables the Valence Coprocessor to securely and efficiently coordinate complex cross-chain programs. 
+### Domain Implementations (Examples)
+
+Domains are pluggable modules that supply controller logic and circuits for chain‑specific state proofs. Each implementation typically includes:
+- A controller (Wasm) that knows how to fetch/structure state inputs
+- A circuit (zkVM target) that verifies the state proof and binds it to the Coprocessor root
+- Optional services (e.g., light clients)
+
+Example: Ethereum (as one implementation)
+- Build storage layouts with a builder (e.g., mapping indices, combined slots, variable‑length values)
+- Create `StateProofArgs` for the target account/storage and optional payload
+- Produce a `StateProof` witness that the Coprocessor can open to the historical root and verify
+
+New domains can follow the same pattern: define controller APIs that emit domain‑specific `Witness::StateProof` entries, implement a circuit that verifies those proofs, and optionally provide a service component for light‑client or state synthesis. For how these proofs bind to the Coprocessor root via domain and historical openings, see [Domain Proofs](./08_domain_proofs.md).

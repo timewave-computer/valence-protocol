@@ -1,6 +1,6 @@
 # Encoding
 
-When messages are passed between the Authorization contract and a Processor contract on a domain that is not using a CosmWasm `ExecutionEnvironment`, we need to encode the messages in a way that the Processor contract and the Libraries it calls can understand them. To do this two new contracts were created: `Encoder Broker` and `Encoder`.
+When a Valence Program needs to communicate with a Processor contract on a non-CosmWasm execution environment, messages must be encoded appropriately for that environment. Two contracts handle this encoding: `Encoder Broker` and `Encoder`.
 
 ## Encoder Broker
 

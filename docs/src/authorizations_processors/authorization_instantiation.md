@@ -1,11 +1,23 @@
 # Instantiation
 
-When the contract is instantiated, it will be provided the following information:
+Instantiation parameters vary slightly between CosmWasm and EVM.
 
-- Processor contract on main domain.
+## CosmWasm
 
-- Owner of the contract.
+The Authorization contract is instantiated with:
 
-- List of subowners (if any). Users that can execute the same actions as the owner except adding/removing other subowners.
+- Processor contract address on the main domain
+- Owner address
+- Optional list of sub‑owners (second‑tier owners who can perform all actions except sub‑owner management)
 
-Once the Authorization contract is deployed, we can already start adding and executing authorizations on the domain that the Authorization contract was deployed on. To execute functions on other domains, the owner will have to add external domains to the Authorization contract with all the information required for the Authorization contract to route the messages to that domain.
+Once deployed, authorizations can be created and executed on the main domain. To execute on other domains, the owner adds external domains with connector details (Polytone for CosmWasm domains; Hyperlane + encoder info for EVM domains).
+
+## EVM
+
+`constructor(address owner, address processor, bool storeCallbacks)`
+
+- `owner`: the contract owner (Ownable)
+- `processor`: the Processor contract address
+- `storeCallbacks`: whether to persist processor callbacks on‑chain (otherwise only events are emitted)
+
+EVM does not use sub‑owners; instead, the owner can add or remove admin addresses that are permitted to perform privileged updates. Cross‑domain routing is handled via Hyperlane mailboxes (set during Processor deployment), not at Authorization instantiation time.

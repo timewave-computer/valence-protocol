@@ -1,34 +1,40 @@
 # Programs and Authorizations
 
-A **Valence Program** is an instance of the **Valence Protocol**. It is a particular arrangement and configuration of [Accounts](../accounts/_overview.md) and [libraries](./libraries_and_functions.md) across multiple [domains](./domains.md) (e.g., a POL (protocol-owned liquidity) lending relationship between two parties). Similarly to how a _library_ exposes executable _functions_, programs are associated with a set of executable **Subroutines**.
+A Valence program is an instance of the Valence protocol. It is a particular arrangement and configuration of [accounts](../accounts/_overview.md) and [libraries](./libraries_and_functions.md) across multiple [domains](./domains.md) (e.g., a POL lending relationship between two parties). Similarly to how a library exposes executable functions, programs are associated with a set of executable subroutines.
 
-A **Subroutine** is a vector of **Functions**. A **Subroutine** can call out to one or more **Function(s)** from a single library, or from different libraries. A **Subroutine** is limited to **one execution domain** (i.e., **Subroutines** cannot use functions from libraries instantiated on multiple domains).
+A subroutine is a vector of functions. A subroutine can call out to one or more functions from a single library, or from different libraries. A subroutine is limited to one execution domain (i.e., subroutines cannot use functions from libraries instantiated on multiple domains).
 
-A **Subroutine** can be:
+A subroutine can be:
 
-- **Non Atomic** (e.g., Execute function one. If that succeeds, execute function two. If that succeeds, execute function three. And so on.)
-- or **Atomic** (e.g., execute function one, function two, and function three. If any of them fail, then revert all steps.)
+- non‑atomic (e.g., execute function one; if that succeeds, execute function two; then three; and so on)
+- atomic (e.g., execute function one, two, and three; if any fail, revert all steps)
 
-**Valence Programs** are typically used to implement complex cross-chain workflows that perform financial operations in a trust-minimized way. Because multiple parties may be involved in a **Valence Program**, the parties to a **Valence Program** may wish for limitations on what various parties are authorized to do.
+Valence programs are typically used to implement complex cross‑chain workflows that perform financial operations in a trust‑minimized way. Because multiple parties may be involved in a program, the parties may wish for limitations on what various parties are authorized to do.
 
-To specify fine-grained controls over who can initiate the execution of a **Subroutine**, program creators use the **Authorizations** module.
+To specify fine‑grained controls over who can initiate the execution of a subroutine, program creators use the authorizations module.
 
-The **Authorizations** module is a powerful and flexible system that supports access control configuration schemes, such as:
+The authorizations module supports access control configuration schemes such as:
 
-- **Anyone** can initiate execution of a **Subroutine**
-- Only **permissioned actors** can initiate execution of a **Subroutine**
-- Execution can only be initiated **after a starting timestamp/block height**
-- Execution can only be initiated **up to a certain timestamp/block height**
-- Authorizations are **tokenized**, which means they can be transferred by the holder or used in more sophisticated DeFi scenarios
-- Authorizations can **expire**
-- Authorizations can be **enabled/disabled**
-- Authorizations can tightly **constrain parameters** (e.g., an authorization to execute a token transfer message can limit the execution to only supply the amount argument, not the denom or receiver in the transfer message)
+| Authorization        | Description |
+|----------------------|-------------|
+| Open access          | Anyone can initiate execution of a subroutine. |
+| Permissioned access  | Only permissioned actors can initiate execution of a subroutine. |
+| Start time           | Execution can only be initiated after a starting timestamp or block height. |
+| End time             | Execution can only be initiated up to a certain timestamp or block height. |
+| Authorization model  | CosmWasm: TokenFactory tokens (factory/{authorization_contract}/{label}). EVM: address‑based per label with contract/function constraints (no tokenization). |
+| Expiration           | Authorizations can expire. |
+| Enable/disable       | Authorizations can be enabled or disabled. |
+| Parameter constraints| Authorizations can constrain parameters (e.g., limit to amount only, not denom or receiver). |
 
-To support the on-chain execution of **Valence Programs**, the **Valence Protocol** provides two important contracts: the **Authorizations Contract** and the **Processor Contract**.
+To support on‑chain execution, the protocol provides two contracts: the Authorization contract and the Processor contract.
 
-The **Authorizations Contract** is the entry point for users. The user sends a set of messages to the Authorizations Contract and the label (id) of the authorization they want to execute. The Authorizations Contract then verifies that the sender is authorized and that the messages are valid, constructs a _MessageBatch_ based on the subroutine, and passes this batch to the **Processor Contract** for execution. The authority to execute any **Subroutine** is tokenized so that these tokens can be transferred on-chain.
+The Authorization contract is the entry point for users. The user sends a set of messages to the Authorization contract and the label (id) of the authorization they want to execute. The Authorization contract verifies the sender and the messages, constructs a message batch based on the subroutine, and passes this batch to the Processor for execution.
+-  CosmWasm: permissioned workflows are enforced via TokenFactory‑minted per‑label tokens (burn/refund semantics with call limits).  
+- EVM: permissioned workflows are enforced via per‑label address allowlists with function‑level constraints (contract address + selector/hash), no tokens are minted.
 
-The **Processor Contract** receives a _MessageBatch_ and executes the contained _Messages_ in sequence. It does this by maintaining execution queues where the queue items are **Subroutines.** The processor exposes a `Tick` message that allows anyone to trigger the processor, whereby the first batch of the queue is executed or moved to the back of the queue if it's not executable yet (e.g., retry period has not passed).
+The Processor receives a message batch and executes the contained messages in sequence.
+- CosmWasm: maintains High/Medium priority FIFO queues of subroutines and exposes a permissionless `tick` to process batches with retry/expiration handling.  
+- EVM: the currently implemented Lite Processor executes immediately on receipt (no queues/insert/evict/retry), while a full queued Processor is scaffolded but not implemented.
 
 ```mermaid
 graph LR;
