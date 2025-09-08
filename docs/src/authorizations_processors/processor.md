@@ -33,6 +33,7 @@ pub struct MessageBatch {
     pub msgs: Vec<ProcessorMessage>,
     pub subroutine: Subroutine,
     pub priority: Priority,
+    pub expiration_time: Option<u64>,
     pub retry: Option<CurrentRetry>,
 }
 ```
@@ -41,4 +42,5 @@ pub struct MessageBatch {
 - msgs: the messages the processor needs to execute for this batch (e.g. a CosmWasm ExecuteMsg or MigrateMsg).
 - subroutine: This is the config that the authorization table defines for the execution of these functions. With this field we can know if the functions need to be executed atomically or not atomically, for example, and the retry logic for each batch/function depending on the config type.
 - priority (for internal use): batches will be queued in different priority queues when they are received from the Authorization contract. We also keep this priority here because they might need to be re-queued after a failed execution and we need to know where to re-queue them.
+- expiration_time: optional absolute timestamp after which the batch is considered expired by the Processor. When set and already expired at processing time, the batch yields an Expired result (with the number of functions executed so far for NonAtomic).
 - retry (for internal use): we are keeping the current retry we are at (if the execution previously failed) to know when to abort if we exceed the max retry amounts.

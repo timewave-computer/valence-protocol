@@ -1,5 +1,9 @@
 # Owner Functions
 
+This page lists owner/admin actions. Items are grouped by execution environment when behavior differs.
+
+## CosmWasm
+
 - `create_authorizations(vec[Authorization])`: provides an authorization list which is the core information of the Authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:
 
   - Label: unique name of the authorization. This label will be used to identify the authorization and will be used as subdenom of the tokenfactory token in case it is permissioned. Due to tokenfactory module restrictions, the max length of this field is 44 characters.
@@ -69,3 +73,23 @@
 - `add_sub_owners(vec[addresses])`: add the current addresses as 2nd tier owners. These sub_owners can do everything except adding/removing admins.
 
 - `remove_sub_owners(vec[addresses])`: remove these addresses from the sub_owner list.
+
+- ZK‑specific owner actions:
+  - `create_zk_authorizations(vec[ZkAuthorization])`: add ZK registries with VK, allowed execution addresses, route, metadata hash, and optional last‑block validation.
+  - `modify_zk_authorization { label, validate_last_block_execution }`: enable/disable last‑block execution validation for a registry.
+  - `set_verification_router(address)`: set the on‑chain verification router address.
+  - `update_zk_authorization_route { label, new_route }`: update the verifier route for a registry.
+
+## EVM
+
+- Standard authorization admin:
+  - `addStandardAuthorizations(string[] labels, address[][] users, AuthorizationData[][] data)`
+  - `removeStandardAuthorizations(string[] labels)`
+- Processor/admin management:
+  - `updateProcessor(address)`
+  - `addAdminAddress(address)` / `removeAdminAddress(address)`
+- ZK authorization admin:
+  - `addRegistries(uint64[] registries, ZkAuthorizationData[] data)`
+  - `updateRegistryRoute(uint64 registryId, string route)`
+  - `removeRegistries(uint64[] registries)`
+  - `setVerificationRouter(address)`

@@ -9,7 +9,7 @@ This proof, which is relatively small and efficient to check, is then submitted 
 Key terms you will encounter in this documentation include:
 
 - **ZK Coprocessor:** An off-chain service responsible for running "guest programs" and generating ZK proofs of their execution.
-- **Guest Program:** A piece of software designed by developers for off-chain execution on the ZK Coprocessor. It comprises two main parts: the **ZK Circuit** (which defines the core ZK-provable computations) and the **Controller** (Wasm-compiled logic that prepares inputs for the circuit, handles its outputs, and interacts with the Coprocessor environment).
+- **Guest Program:** A piece of software designed by developers for off-chain execution on the ZK Coprocessor. It comprises two main parts: the ZK Circuit (which defines the core ZK-provable computations) and the Controller (Wasm-compiled logic that prepares inputs for the circuit, handles its outputs, and interacts with the Coprocessor environment).
 - **zkVM (Zero-Knowledge Virtual Machine):** An environment that can execute arbitrary programs and produce a ZK proof of that execution. The Valence ZK Coprocessor leverages such technology (e.g., SP1) to run guest programs.
 - **Encoders:** Systems that compress blockchain state into formats suitable for ZK proofs. The Unary Encoder handles single-chain state transitions, while the Merkleized Encoder manages cross-chain state dependencies.
 - **Proof:** A small piece of cryptographic data that demonstrates a computation was performed correctly according to a specific program, without revealing all the details of the computation.

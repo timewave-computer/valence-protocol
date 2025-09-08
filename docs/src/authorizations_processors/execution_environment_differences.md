@@ -1,20 +1,41 @@
 # Execution Environment Differences
 
-Depending on the type of `ExecutionEnvironment` being used, the behavior of the Processor may vary. In this section we will describe the main differences in how the Processor behaves in the different execution environments that we support.
+The Valence Protocol supports both CosmWasm and EVM execution environments, each with different processor implementations and behavioral characteristics. This section outlines the key differences between these environments.
 
-### Execution Success
+## Processor Architecture Differences
 
-During the execution of a `MessageBatch`, the Processor will execute each function of the subroutine of that batch. If the execution for a specific function fails, we will consider the execution failed in case of `Atomic` batches, and we will stop the execution of the next function in case of `NonAtomic` batches.
+The CosmWasm environment provides a Full Processor with queue-based execution using sophisticated FIFO priority queues (High/Medium priority). It requires permissionless `tick()` calls to process queued messages and includes comprehensive retry mechanisms with configurable intervals. Non-atomic functions can require library callback confirmations, and it uses Polytone for Cosmos ecosystem integration with full state tracking for concurrent executions and callbacks.
 
-Currently, in the `CosmWasm` execution environment, a function fails if the `CosmWasm` contract that we are targeting doesn't exist, if the `entry point` of that contract doesn't exist, or if the execution of the contract fails for any reason. On the contract, in the `EVM` execution environment, a function only fails if the contract explicitly fails or reverts.
+The EVM environment provides a Lite Processor with immediate execution that processes messages immediately without queuing. It is designed for EVM gas cost constraints and has limited message types, supporting only Pause, Resume, and SendMsgs operations (no InsertMsgs/EvictMsgs). Messages execute once with immediate success/failure and no retry logic. It includes cross-chain messaging capabilities with minimal state tracking focused on immediate execution.
 
-To mitigate the differences in behavior between these two execution environments, an `EVM` Processor check was included to check if the contract indeed exists and fail execution if the contract does not exist. Behavior was also added in the `EVM` libraries to revert if the execution of the contract enters the fallback function, which is not allowed in the system. Nevertheless, since Processors are not restricted to `Valence Libraries` but can call any contract, no guarantee can be made that the contract targeted will fail if an entry point does not exist, because the fallback function might not be defined or might not revert.
+## Execution Success Behavior
 
-In `CosmWasm`, execution of a contract will always fail if the entry point does not exist. However, for `EVM` execution, this is not necessarily the case. This is a difference that the owner of the program must take into account when designing and creating their program.
+In CosmWasm execution, a function fails if the target CosmWasm contract doesn't exist, if the entry point of that contract doesn't exist, if the contract execution fails for any reason, or if contract messages always fail when entry points don't exist (no fallback mechanism).
 
-**_In summary_**: if a function of the subroutine targets a contract that meets all of the following conditions:
-- It is not a `Valence Library`.
-- The entry point of that contract does not exist.
-- The fallback function is either not defined or doesn't explicitly revert.
+In EVM execution, a function fails if the contract explicitly fails or reverts, if contract existence checks fail (implemented in EVM Processor), or if Valence Libraries detect execution entering the fallback function (implemented safeguard).
 
-The execution of that function will be considered successful in the `EVM` execution environment but not in the `CosmWasm` execution environment equivalent.
+The key difference is that EVM contracts may silently succeed even with non-existent entry points if they have a non-reverting fallback function, while CosmWasm contracts always fail for non-existent entry points.
+
+## Message Processing Models
+
+For atomic subroutines, CosmWasm executes all messages in a single transaction via a self-call pattern, while EVM uses try-catch with external call to maintain atomicity.
+
+For non-atomic subroutines, CosmWasm provides sequential execution with per-function retry logic and callback confirmations, while EVM provides sequential execution until first failure with no retry or callback confirmations.
+
+## Cross-Chain Integration
+
+For Authorization contract routing, CosmWasm domains route messages via Polytone with proxy creation. Both environments support callback mechanisms for execution result reporting.
+
+Polytone provides IBC-based cross-chain communication with timeout handling and retry mechanisms for reliable cross-chain execution.
+
+## Practical Implications
+
+When designing cross-environment programs, developers should account for:
+
+1. Execution Guarantees: CosmWasm provides stronger execution failure guarantees
+2. Retry Capabilities: Only available in CosmWasm environment
+3. Queue Management: Only CosmWasm supports message prioritization and queue operations
+4. Gas Models: EVM optimization focuses on immediate execution vs. CosmWasm's more complex state management
+5. Library Integration: Valence Libraries include EVM-specific safeguards but cannot guarantee behavior for arbitrary contracts
+
+Key Consideration: Functions targeting non-Valence contracts in EVM environments may succeed when they should fail if the contract has a non-reverting fallback function, while equivalent CosmWasm executions would properly fail.

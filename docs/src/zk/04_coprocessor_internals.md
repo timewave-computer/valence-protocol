@@ -10,7 +10,7 @@ The Coprocessor service consists of several coordinated components that work tog
 
 The main components of the Coprocessor service include:
 
-The **API Layer** serves as the primary external interface, exposing REST endpoints (typically on port `37281` for the coprocessor service itself) for core operations. Developers can deploy guest programs by submitting `controller` and `circuit` bundles, they can request proofs for deployed programs, query the status of ongoing tasks, and retrieve data stored in the virtual filesystem such as generated proofs or execution logs.
+The API Layer serves as the primary external interface, exposing REST endpoints (typically on port `37281` for the coprocessor service itself) for core operations. Developers can deploy guest programs by submitting `controller` and `circuit` bundles, they can request proofs for deployed programs, query the status of ongoing tasks, and retrieve data stored in the virtual filesystem such as generated proofs or execution logs.
 
 **Request Management & Database** - This component validates incoming requests and queues them for processing. It maintains persistent storage for deployed guest program details including Controller IDs, circuit specifications, and controller bundles, while also tracking proof generation status and execution metadata.
 
@@ -18,7 +18,7 @@ The **Controller Executor / Sandbox** provides an isolated execution environment
 
 **Proving Engine Integration** - Orchestrates the actual ZK proof generation process using underlying zkVM systems like SP1 or Groth16. This component manages prover resources, handles the translation of circuits and witnesses into the required formats for specific proving backends, and processes the resulting proof data and public outputs.
 
-The **Virtual Filesystem Manager** allocates FAT-16 based virtual filesystems to each guest program, enabling controllers to store proofs and logs through `store` commands. This filesystem has certain limitations on filename length and character sets that developers must consider.
+The Virtual Filesystem Manager allocates FAT-16 based virtual filesystems to each guest program, enabling controllers to store proofs and logs through `store` commands. This filesystem has certain limitations on filename length and character sets that developers must consider.
 
 ### The Coprocessor Process
 
@@ -34,6 +34,44 @@ Guest programs can incorporate state from external blockchains through a structu
 
 External State Proof Services, such as the `eth-state-proof-service`, connect to external chains via RPC, query desired state at specific block heights, and construct Merkle proofs relative to known block hashes. These services play a crucial role in bridging external blockchain data into the ZK environment.
 
-The guest program integration follows a clear pattern. During **Proof Ingestion**, the controller receives external state proofs via JSON payloads and extracts state values along with relevant metadata like block hashes. In the **Witness Preparation** phase, the controller incorporates this external state into the witness for the ZK circuit. The **Circuit Logic** then performs computations using the external state data, with the option to verify external proofs directly within the circuit for stronger security guarantees.
+The guest program integration follows a clear pattern. During proof ingestion, the controller receives external state proofs via JSON payloads and extracts state values along with relevant metadata like block hashes. In the witness preparation phase, the controller incorporates this external state into the witness for the ZK circuit. The circuit logic then performs computations using the external state data, with the option to verify external proofs directly within the circuit for stronger security guarantees.
 
 **Trust Model Considerations** - The ZK proof fundamentally attests that given a set of provided inputs (which may include externally proven state at the latest block height), the circuit executed correctly to produce the specified outputs. The Coprocessor provides a state proof interface for each chain that exposes a light client prover wrapped in a recursive circuit. All light client circuits are initialized at a trusted height, where block hash and committee composition are taken as "weakly subjective" public inputs.
+### Service API (Access & Discovery)
+
+The Coprocessor serves an OpenAPI/Swagger UI and specification alongside its REST endpoints.
+
+You can programmatically discover available routes by fetching the spec. For example, to list available paths:
+
+```bash
+curl -s https://service.coprocessor.valence.zone/spec | jq -r '.paths | keys[]'
+# or against local:
+curl -s http://127.0.0.1:37281/spec | jq -r '.paths | keys[]'
+```
+
+Notes
+- Virtual filesystem is FAT‑16 emulated; file extensions must be ≤ 3 characters, paths are case‑insensitive.
+- The `payload` in proving requests is commonly `{ "cmd": "store", "path": "/var/share/proof.bin" }` to instruct the controller to store the generated proof.
+
+### Related Services
+
+Domain prover services publish recursive proofs and a stable wrapper VK for domains. For how domain and historical proofs are modeled (and how the domain prover feeds the Coprocessor and on‑chain verification), see [Domain Proofs](./08_domain_proofs.md). For domain implementation patterns, see [State Encoding and Encoders](./07_state_encoding_and_encoders.md#domain-implementations-examples).
+
+### Client Conventions
+
+When calling the Coprocessor, clients use a few standard conventions:
+
+Headers
+- `valence-coprocessor-circuit`: hex controller ID (context)
+- `valence-coprocessor-root`: historical root hex (pinning to a known SMT root)
+- `valence-coprocessor-signature`: optional signature over JSON body (if a signer is configured)
+
+Prove payload
+- Include a “store” payload to direct the controller to write the generated proof to the virtual filesystem, for example:
+  `{ "args": { … }, "payload": { "cmd": "store", "path": "/var/share/proofs/<id>.bin" } }`
+
+Virtual filesystem
+- FAT‑16 emulation with 3‑character file extensions and case‑insensitive paths. A common pattern is to store under `/var/share/proofs/…`.
+
+Public inputs layout
+- The public inputs buffer starts with a 32‑byte Coprocessor Root, followed by the circuit‑defined output bytes used on‑chain.
