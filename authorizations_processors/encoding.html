@@ -181,7 +181,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="encoding"><a class="header" href="#encoding">Encoding</a></h1>
-<p>When messages are passed between the Authorization contract and a Processor contract on a domain that is not using a CosmWasm <code>ExecutionEnvironment</code>, we need to encode the messages in a way that the Processor contract and the Libraries it calls can understand them. To do this two new contracts were created: <code>Encoder Broker</code> and <code>Encoder</code>.</p>
+<p>When a Valence Program needs to communicate with a Processor contract on a non-CosmWasm execution environment, messages must be encoded appropriately for that environment. Two contracts handle this encoding: <code>Encoder Broker</code> and <code>Encoder</code>.</p>
 <h2 id="encoder-broker"><a class="header" href="#encoder-broker">Encoder Broker</a></h2>
 <p>The <code>Encoder Broker</code> is a very simple contract that will route the messages to the correct <code>Encoder</code> contract. It maps from <code>Encoder Version</code> to <code>Encoder Contract Address</code>. The <code>Encoder Broker</code> will be instantiated once on the <code>Main Domain</code> with an owner that can add/remove these mappings. An example of Mapping can be <code>"evm_encoder_v1"</code> to <code>&lt;encoder_contract_address_on_neutron&gt;</code>. The <code>Encoder Broker</code> has two queries: <code>Encode</code> and <code>Decode</code>, which routes the message to encode/decode to the <code>Encoder Version</code> specified.</p>
 <h2 id="encoder"><a class="header" href="#encoder">Encoder</a></h2>

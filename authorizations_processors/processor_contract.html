@@ -181,15 +181,18 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="processor-contract"><a class="header" href="#processor-contract">Processor Contract</a></h1>
-<p>The Processor will be a contract on each domain within the program. The Processor handles execution of message batches it receives from the Authorization contract.
-Depending on the Processor type in use, its features will vary. There are currently two types of processors: Lite Processor and Processor. The former is a simplified version of the latter. The Lite Processor has limited functionality to optimize for gas-constrained domains.</p>
-<p>The Processor will be instantiated in advance with the correct address that can send messages to them, according to the <em>InstantiationFlow</em> described in the <a href="assumptions.html">Assumptions</a> section.</p>
-<p>In the table below we summarize the main characteristics of the processors supported:</p>
-<div class="table-wrapper"><table><thead><tr><th></th><th>Processor</th><th>Lite Processor</th></tr></thead><tbody>
-<tr><td><strong>Execution Environment</strong></td><td>CosmWasm</td><td>EVM</td></tr>
-<tr><td><strong>Stores batches in queues</strong></td><td>Yes, FIFO queue with priority</td><td>No, executed immediately by relayer</td></tr>
+<p>The Processor contract exists on each domain within a Valence Program and handles execution of message batches received from the Authorization contract. There are currently two main processor implementations with different capabilities and execution models.</p>
+<p>The Full Processor (CosmWasm) provides comprehensive message processing with sophisticated queue management. It uses a priority queue system with High and Medium priority FIFO queues where High priority is processed first. The processor uses tick-based execution with a permissionless <code>tick()</code> function that processes queued messages. It includes advanced retry logic with function-level and batch-level retry configurations, callback confirmation support where non-atomic functions can require callback confirmations, comprehensive state management with Active/Paused states, Polytone integration for Cosmos cross-chain operations, and support for both atomic and non-atomic execution models with different retry behaviors.</p>
+<p>For message processing, the Full Processor enqueues messages with priority and expiration handling. The <code>tick()</code> function processes the queue by handling High priority first, then Medium priority. Expired messages are removed and callbacks sent. Retry cooldown is enforced between retry attempts. For atomic execution, all messages execute in a single transaction, while non-atomic execution processes messages sequentially with per-function retry logic.</p>
+<h2 id="lite-processor"><a class="header" href="#lite-processor">Lite Processor</a></h2>
+<p>The Lite Processor (EVM) is optimized for gas-constrained environments with immediate execution. It processes messages immediately without a queuing system and includes cross-chain support capabilities. The Lite Processor supports both cross-chain messages and authorized addresses for dual access control. It has limited message types, supporting only Pause, Resume, and SendMsgs operations. Expiration handling validates message expiration before execution, and it includes an automatic callback system for contract senders.</p>
+<p>For execution flow, the Lite Processor receives messages via cross-chain handlers or direct calls. It validates sender and origin, checks expiration, immediately executes the subroutine (atomic or non-atomic), and sends callbacks if the sender is a contract.</p>
+<p>The table below summarizes the main characteristics of the processors supported:</p>
+<div class="table-wrapper"><table><thead><tr><th></th><th>Full Processor (CosmWasm)</th><th>Lite Processor (EVM)</th></tr></thead><tbody>
+<tr><td><strong>Execution Model</strong></td><td>Queue-based with tick</td><td>Immediate execution</td></tr>
+<tr><td><strong>Stores batches in queues</strong></td><td>Yes, FIFO queue with priority</td><td>No, executed immediately</td></tr>
 <tr><td><strong>Needs to be ticked</strong></td><td>Yes, permissionlessly</td><td>No</td></tr>
-<tr><td><strong>Messages can be retried</strong></td><td>Yes</td><td>No</td></tr>
+<tr><td><strong>Messages can be retried</strong></td><td>Yes, with complex retry logic</td><td>No</td></tr>
 <tr><td><strong>Can confirm non-atomic function with callback</strong></td><td>Yes</td><td>No</td></tr>
 <tr><td><strong>Supports Pause operation</strong></td><td>Yes</td><td>Yes</td></tr>
 <tr><td><strong>Supports Resume operation</strong></td><td>Yes</td><td>Yes</td></tr>
@@ -198,6 +201,8 @@ Depending on the Processor type in use, its features will vary. There are curren
 <tr><td><strong>Supports EvictMsgs operation</strong></td><td>Yes</td><td>No, no queues to remove from</td></tr>
 </tbody></table>
 </div>
+<p>Both processors are instantiated with the correct Authorization contract address and implement robust access control to ensure only authorized messages are processed. The choice between processors depends on the execution environment requirements, with CosmWasm supporting full queue-based processing and EVM optimizing for immediate execution with lower gas costs.</p>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

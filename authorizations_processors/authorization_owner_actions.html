@@ -181,6 +181,8 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="owner-functions"><a class="header" href="#owner-functions">Owner Functions</a></h1>
+<p>This page lists owner/admin actions. Items are grouped by execution environment when behavior differs.</p>
+<h2 id="cosmwasm"><a class="header" href="#cosmwasm">CosmWasm</a></h2>
 <ul>
 <li>
 <p><code>create_authorizations(vec[Authorization])</code>: provides an authorization list which is the core information of the Authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:</p>
@@ -291,6 +293,38 @@ All authorizations will have an initial state of <code>Enabled</code> .</p>
 </li>
 <li>
 <p><code>remove_sub_owners(vec[addresses])</code>: remove these addresses from the sub_owner list.</p>
+</li>
+<li>
+<p>ZK‑specific owner actions:</p>
+<ul>
+<li><code>create_zk_authorizations(vec[ZkAuthorization])</code>: add ZK registries with VK, allowed execution addresses, route, metadata hash, and optional last‑block validation.</li>
+<li><code>modify_zk_authorization { label, validate_last_block_execution }</code>: enable/disable last‑block execution validation for a registry.</li>
+<li><code>set_verification_router(address)</code>: set the on‑chain verification router address.</li>
+<li><code>update_zk_authorization_route { label, new_route }</code>: update the verifier route for a registry.</li>
+</ul>
+</li>
+</ul>
+<h2 id="evm"><a class="header" href="#evm">EVM</a></h2>
+<ul>
+<li>Standard authorization admin:
+<ul>
+<li><code>addStandardAuthorizations(string[] labels, address[][] users, AuthorizationData[][] data)</code></li>
+<li><code>removeStandardAuthorizations(string[] labels)</code></li>
+</ul>
+</li>
+<li>Processor/admin management:
+<ul>
+<li><code>updateProcessor(address)</code></li>
+<li><code>addAdminAddress(address)</code> / <code>removeAdminAddress(address)</code></li>
+</ul>
+</li>
+<li>ZK authorization admin:
+<ul>
+<li><code>addRegistries(uint64[] registries, ZkAuthorizationData[] data)</code></li>
+<li><code>updateRegistryRoute(uint64 registryId, string route)</code></li>
+<li><code>removeRegistries(uint64[] registries)</code></li>
+<li><code>setVerificationRouter(address)</code></li>
+</ul>
 </li>
 </ul>
 

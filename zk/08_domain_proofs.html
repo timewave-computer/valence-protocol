@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Programs and Authorizations - Valence Protocol Documentation</title>
+        <title>Domain Proofs - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -180,56 +180,29 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="programs-and-authorizations"><a class="header" href="#programs-and-authorizations">Programs and Authorizations</a></h1>
-<p>A Valence program is an instance of the Valence protocol. It is a particular arrangement and configuration of <a href="../accounts/_overview.html">accounts</a> and <a href="./libraries_and_functions.html">libraries</a> across multiple <a href="./domains.html">domains</a> (e.g., a POL lending relationship between two parties). Similarly to how a library exposes executable functions, programs are associated with a set of executable subroutines.</p>
-<p>A subroutine is a vector of functions. A subroutine can call out to one or more functions from a single library, or from different libraries. A subroutine is limited to one execution domain (i.e., subroutines cannot use functions from libraries instantiated on multiple domains).</p>
-<p>A subroutine can be:</p>
-<ul>
-<li>non‑atomic (e.g., execute function one; if that succeeds, execute function two; then three; and so on)</li>
-<li>atomic (e.g., execute function one, two, and three; if any fail, revert all steps)</li>
-</ul>
-<p>Valence programs are typically used to implement complex cross‑chain workflows that perform financial operations in a trust‑minimized way. Because multiple parties may be involved in a program, the parties may wish for limitations on what various parties are authorized to do.</p>
-<p>To specify fine‑grained controls over who can initiate the execution of a subroutine, program creators use the authorizations module.</p>
-<p>The authorizations module supports access control configuration schemes such as:</p>
-<div class="table-wrapper"><table><thead><tr><th>Authorization</th><th>Description</th></tr></thead><tbody>
-<tr><td>Open access</td><td>Anyone can initiate execution of a subroutine.</td></tr>
-<tr><td>Permissioned access</td><td>Only permissioned actors can initiate execution of a subroutine.</td></tr>
-<tr><td>Start time</td><td>Execution can only be initiated after a starting timestamp or block height.</td></tr>
-<tr><td>End time</td><td>Execution can only be initiated up to a certain timestamp or block height.</td></tr>
-<tr><td>Authorization model</td><td>CosmWasm: TokenFactory tokens (factory/{authorization_contract}/{label}). EVM: address‑based per label with contract/function constraints (no tokenization).</td></tr>
-<tr><td>Expiration</td><td>Authorizations can expire.</td></tr>
-<tr><td>Enable/disable</td><td>Authorizations can be enabled or disabled.</td></tr>
-<tr><td>Parameter constraints</td><td>Authorizations can constrain parameters (e.g., limit to amount only, not denom or receiver).</td></tr>
-</tbody></table>
-</div>
-<p>To support on‑chain execution, the protocol provides two contracts: the Authorization contract and the Processor contract.</p>
-<p>The Authorization contract is the entry point for users. The user sends a set of messages to the Authorization contract and the label (id) of the authorization they want to execute. The Authorization contract verifies the sender and the messages, constructs a message batch based on the subroutine, and passes this batch to the Processor for execution.</p>
-<ul>
-<li>CosmWasm: permissioned workflows are enforced via TokenFactory‑minted per‑label tokens (burn/refund semantics with call limits).</li>
-<li>EVM: permissioned workflows are enforced via per‑label address allowlists with function‑level constraints (contract address + selector/hash), no tokens are minted.</li>
-</ul>
-<p>The Processor receives a message batch and executes the contained messages in sequence.</p>
-<ul>
-<li>CosmWasm: maintains High/Medium priority FIFO queues of subroutines and exposes a permissionless <code>tick</code> to process batches with retry/expiration handling.</li>
-<li>EVM: the currently implemented Lite Processor executes immediately on receipt (no queues/insert/evict/retry), while a full queued Processor is scaffolded but not implemented.</li>
-</ul>
-<pre class="mermaid">graph LR;
-	User --&gt; |Subroutine| Auth(Authorizations)
-	Auth --&gt; |Message Batch| P(Processor)
-	P --&gt; |Function 1| S1[Library 1]
-	P --&gt; |Function 2| S2[Library 2]
-	P --&gt; |Function N| S3[Library N]
-</pre>
+                        <h1 id="domain-proofs"><a class="header" href="#domain-proofs">Domain Proofs</a></h1>
+<p>This document explains how domain proofs are modeled and validated in the Valence Coprocessor and how historical proofs are bound to a domain proof.</p>
+<p>Domain proofs bind chain‑specific state (for example, an Ethereum account/storage proof) to a single Coprocessor root. The Coprocessor root is the root of a global Historical tree. Each leaf of that tree is a domain root, and each domain root is the root of a per‑domain sparse Merkle tree that maps block number to state root. Guest programs provide domain‑specific state proofs; the Coprocessor augments them with openings up to the Coprocessor root and proves the combined statement. For API access and client conventions, see <a href="./04_coprocessor_internals.html">Coprocessor Internals</a> and for on‑chain consumption, see <a href="./03_onchain_integration.html">On‑Chain Integration</a>.</p>
+<h2 id="structure"><a class="header" href="#structure">Structure</a></h2>
+<p>Per‑domain, we maintain a sparse Merkle tree keyed by block number whose leaves are state roots. Using the block number as the key improves locality—consecutive blocks tend to share path prefixes—so proof paths are short on average. Globally, we maintain a sparse Merkle tree keyed by <code>Hash(domain identifier)</code> whose leaves are the current domain roots. The root of this Historical tree is the Coprocessor root. The Coprocessor places this 32‑byte root at the start of public inputs for every program proof; the remainder of the inputs is the program’s circuit output.</p>
+<h2 id="binding-state-to-the-coprocessor-root"><a class="header" href="#binding-state-to-the-coprocessor-root">Binding State to the Coprocessor Root</a></h2>
+<p>To bind a domain value to the Coprocessor root, the Coprocessor combines two openings. First, it computes a per‑domain opening from the block number to the state root in the domain tree. Second, it computes a historical opening from <code>Hash(domain id)</code> to the domain root in the Historical tree. These openings are combined into a single “state opening” that binds the state root to the Coprocessor root; the Coprocessor enforces that the opening corresponds to the correct domain identifier. Finally, the domain‑specific value proof (for example, an Ethereum MPT proof) is verified against the state root. The result is a proof that the value is included in the domain state committed by the Coprocessor root at the referenced block.</p>
+<h2 id="adding-new-blocks"><a class="header" href="#adding-new-blocks">Adding New Blocks</a></h2>
+<p>New blocks are added through the domain’s controller (for example, <code>POST /api/registry/domain/:domain</code>). The controller validates the domain‑specific inputs and yields the new <code>(block number, state root)</code> pair, and the Coprocessor persists the historical update and proofs. You can query the latest per‑domain information at <code>/api/registry/domain/:domain/latest</code>, the current Coprocessor root at <code>/api/historical</code>, a specific update at <code>/api/historical/:root</code>, or a block proof for a domain at <code>/api/historical/:domain/:number</code>.</p>
+<h2 id="recursive-proofs-and-publication"><a class="header" href="#recursive-proofs-and-publication">Recursive Proofs and Publication</a></h2>
+<p>The “state transition” for the Historical tree is modeled via recursive proofs produced by a domain prover service. The service ingests historical updates, computes an inner proof over intervals of updates, and wraps it in a stable “wrapper” proof with a published verifying key (VK). Consumers read the latest state and wrapper VK from the domain prover and can bind their verification logic to that VK and the expected controller ID. Per‑domain block validity is enforced when adding a block to the Coprocessor; the wrapper proof chains these updates. See <a href="./04_coprocessor_internals.html">Coprocessor Internals</a> for how the domain prover and Coprocessor interact.</p>
+<h2 id="onchain-consumption"><a class="header" href="#onchain-consumption">On‑Chain Consumption</a></h2>
+<p>On‑chain, program proofs always start with the 32‑byte Coprocessor root in public inputs; the circuit‑defined output follows. Authorization uses a VerificationRouter route to verify proofs against the correct VK and route (for example, a guest program VK or a domain prover wrapper VK). Upon success, Authorization dispatches the validated message to the Processor. There is currently no on‑chain registry of “valid Coprocessor roots”; the domain prover route and VK binding provide the trust anchor. A root registry could be added later if desired.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../components/libraries_and_functions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../components/middleware.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -239,11 +212,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../components/libraries_and_functions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../components/middleware.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

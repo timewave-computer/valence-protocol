@@ -181,6 +181,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="user-actions"><a class="header" href="#user-actions">User Actions</a></h1>
+<h2 id="cosmwasm"><a class="header" href="#cosmwasm">CosmWasm</a></h2>
 <ul>
 <li>
 <p><code>send_msgs(label, vec[ProcessorMessage])</code>: users can run an authorization with a specific label. If the authorization is <code>Permissioned (without limit)</code>, the Authorization contract will check if their account is allowed to execute by checking that the account holds the token in its wallet. If the authorization is <code>Permissioned (with limit)</code> the account must attach the authorization token to the contract execution. Along with the authorization label, the user will provide an array of encoded messages, together with the message type (e.g. <code>CosmwasmExecuteMsg</code>, <code>EvmCall</code>, etc.) and any other parameters for that specific ProcessorMessage (e.g. for a <code>CosmwasmMigrateMsg</code> we need to also pass a code_id). The contract will then check that the messages match those defined in the authorization, that the messages appear in correct order, and that any applied parameter restrictions are correct.</p>
@@ -190,6 +191,10 @@ Here is an example flowchart of how a user interacts with the Authorization cont
 </li>
 </ul>
 <p><img src="../img/user_flowchart.png" alt="User flowchart" /></p>
+<h2 id="evm"><a class="header" href="#evm">EVM</a></h2>
+<ul>
+<li><code>sendProcessorMessage(string label, bytes message)</code>: users submit an ABI‑encoded <code>ProcessorMessage</code> (as defined in <code>IProcessorMessageTypes</code>) with the target label. The contract verifies the sender against the label’s allowlist and validates the messages against the subroutine’s function set (contract address + function selector or call hash). For SendMsgs/InsertMsgs, the Authorization injects the current <code>executionId</code> before forwarding to the Processor. There is no tokenization on EVM; authorization is address/function constrained.</li>
+</ul>
 
                     </main>
 

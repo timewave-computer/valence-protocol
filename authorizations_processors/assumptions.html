@@ -186,7 +186,7 @@
 <p><strong>Funds</strong>: You cannot send funds with the messages.</p>
 </li>
 <li>
-<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. The Authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
+<p><strong>Bridging</strong>: For programs that optionally span multiple domains, we assume that messages can be sent and confirmed bidirectionally between domains. The Authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
 </li>
 <li>
 <p><strong>Instantiation</strong>: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:</p>

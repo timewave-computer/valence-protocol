@@ -211,6 +211,7 @@ Each “item” stored in the queue is a <code>MessageBatch</code> object that h
     pub msgs: Vec&lt;ProcessorMessage&gt;,
     pub subroutine: Subroutine,
     pub priority: Priority,
+    pub expiration_time: Option&lt;u64&gt;,
     pub retry: Option&lt;CurrentRetry&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
@@ -219,6 +220,7 @@ Each “item” stored in the queue is a <code>MessageBatch</code> object that h
 <li>msgs: the messages the processor needs to execute for this batch (e.g. a CosmWasm ExecuteMsg or MigrateMsg).</li>
 <li>subroutine: This is the config that the authorization table defines for the execution of these functions. With this field we can know if the functions need to be executed atomically or not atomically, for example, and the retry logic for each batch/function depending on the config type.</li>
 <li>priority (for internal use): batches will be queued in different priority queues when they are received from the Authorization contract. We also keep this priority here because they might need to be re-queued after a failed execution and we need to know where to re-queue them.</li>
+<li>expiration_time: optional absolute timestamp after which the batch is considered expired by the Processor. When set and already expired at processing time, the batch yields an Expired result (with the number of functions executed so far for NonAtomic).</li>
 <li>retry (for internal use): we are keeping the current retry we are at (if the execution previously failed) to know when to abort if we exceed the max retry amounts.</li>
 </ul>
 

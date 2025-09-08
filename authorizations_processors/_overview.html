@@ -181,22 +181,22 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="authorization--processors"><a class="header" href="#authorization--processors">Authorization &amp; Processors</a></h1>
-<p>The <strong>Authorization</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
-<p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with <strong>Valence Programs</strong> via <strong>Authorizations</strong>.</p>
+<p>The Authorization and Processor contracts are foundational pieces of the Valence Protocol, as they enable execution of Valence Programs and enforce access control to the program's Subroutines via Authorizations.</p>
+<p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with Valence Programs via Authorizations.</p>
 <h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
 <ul>
-<li>To have a general purpose set of smart contracts that provide users with a single point of entry to interact with the Valence Program, which can have libraries and accounts deployed on multiple chains.</li>
-<li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
-<li>To have a single address (Processor) that will execute the messages for all the contracts in a domain using execution queues.</li>
-<li>To only tick a single contract (Processor) that will go through the queues to route and execute the messages.</li>
+<li>To provide users with a single point of entry to interact with the Valence Program through controlled access to library functions.</li>
+<li>To centralize user authorizations and permissions, making it easy to control application access.</li>
+<li>To have a single address (Processor) that will execute the authorized messages. On CosmWasm this uses execution queues and permissionless ticks; on EVM the Lite Processor executes immediately (no queues).</li>
 <li>To create, edit, or remove different application permissions with ease.</li>
 </ul>
+<p>Note: Programs can optionally include libraries and accounts deployed across multiple domains for certain multi-chain scenarios.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../zk/08_domain_proofs.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
@@ -210,7 +210,7 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../zk/07_state_encoding_and_encoders.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../zk/08_domain_proofs.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 

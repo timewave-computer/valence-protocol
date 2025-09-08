@@ -335,6 +335,20 @@ Chain1 Chain2 Chain3
 <li>Reconstruct the commitments and validate the Merkle root</li>
 </ol>
 <p>This architecture enables the Valence Coprocessor to securely and efficiently coordinate complex cross-chain programs.</p>
+<h3 id="domain-implementations-examples"><a class="header" href="#domain-implementations-examples">Domain Implementations (Examples)</a></h3>
+<p>Domains are pluggable modules that supply controller logic and circuits for chain‑specific state proofs. Each implementation typically includes:</p>
+<ul>
+<li>A controller (Wasm) that knows how to fetch/structure state inputs</li>
+<li>A circuit (zkVM target) that verifies the state proof and binds it to the Coprocessor root</li>
+<li>Optional services (e.g., light clients)</li>
+</ul>
+<p>Example: Ethereum (as one implementation)</p>
+<ul>
+<li>Build storage layouts with a builder (e.g., mapping indices, combined slots, variable‑length values)</li>
+<li>Create <code>StateProofArgs</code> for the target account/storage and optional payload</li>
+<li>Produce a <code>StateProof</code> witness that the Coprocessor can open to the historical root and verify</li>
+</ul>
+<p>New domains can follow the same pattern: define controller APIs that emit domain‑specific <code>Witness::StateProof</code> entries, implement a circuit that verifies those proofs, and optionally provide a service component for light‑client or state synthesis. For how these proofs bind to the Coprocessor root via domain and historical openings, see <a href="./08_domain_proofs.html">Domain Proofs</a>.</p>
 
                     </main>
 
@@ -344,7 +358,7 @@ Chain1 Chain2 Chain3
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../authorizations_processors/_overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../zk/08_domain_proofs.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -358,7 +372,7 @@ Chain1 Chain2 Chain3
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../authorizations_processors/_overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../zk/08_domain_proofs.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

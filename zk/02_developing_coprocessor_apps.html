@@ -187,18 +187,18 @@
 <p>A Valence Coprocessor App (a Guest Program), when based on the template, is primarily structured around two main Rust crates, which compile into the two logical parts of the Guest Program: the Controller and the ZK Circuit.</p>
 <ol>
 <li>
-<p><strong>The <code>controller</code> Crate (compiles to the Controller):</strong> This component contains off-chain logic executed as Wasm within the Valence ZK Coprocessor's sandboxed environment. This <strong>Controller</strong> acts as an intermediary between user inputs and the ZK circuit. Key responsibilities include receiving input arguments (often JSON) for proof requests, processing inputs to generate a "witness" (private and public data the ZK circuit needs), and interacting with the Coprocessor service to initiate proof generation. The Controller handles proof computation results; it has an entrypoint function the Coprocessor calls upon successful proof generation, allowing the Controller to store the proof or log information. The Controller can utilize a virtual filesystem provided by the Coprocessor, which is FAT-16 based (implying constraints like 3-character file extensions and case-insensitive paths), for persistent data storage.</p>
+<p><strong>The <code>controller</code> Crate (compiles to the Controller):</strong> This component contains off-chain logic executed as Wasm within the Valence ZK Coprocessor's sandboxed environment. This Controller acts as an intermediary between user inputs and the ZK circuit. Key responsibilities include receiving input arguments (often JSON) for proof requests, processing inputs to generate a "witness" (private and public data the ZK circuit needs), and interacting with the Coprocessor service to initiate proof generation. The Controller handles proof computation results; it has an entrypoint function the Coprocessor calls upon successful proof generation, allowing the Controller to store the proof or log information. The Controller can utilize a virtual filesystem provided by the Coprocessor, which is FAT-16 based (implying constraints like 3-character file extensions and case-insensitive paths), for persistent data storage.</p>
 </li>
 <li>
-<p><strong>The <code>circuit</code> Crate (defines the ZK Circuit):</strong> This crate defines the <strong>ZK Circuit</strong> itself. The ZK Circuit is the heart of the ZK application, containing the actual computations and assertions whose correctness will be proven. It's typically written using a specialized language or Domain-Specific Language (DSL) that compiles down to a ZK proving system supported by the Coprocessor (for example, SP1). The ZK Circuit receives the witness data prepared by the Controller. It then performs its defined computations and assertions. If all these pass, it produces a public output (as a <code>Vec&lt;u8&gt;</code>), which represents the public statement that will be cryptographically verified on-chain. This output forms a crucial part of the "public inputs" of the ZK proof.</p>
+<p><strong>The <code>circuit</code> Crate (defines the ZK Circuit):</strong> This crate defines the ZK Circuit itself. The ZK Circuit is the heart of the ZK application, containing the actual computations and assertions whose correctness will be proven. It's typically written using a specialized language or Domain-Specific Language (DSL) that compiles down to a ZK proving system supported by the Coprocessor (for example, SP1). The ZK Circuit receives the witness data prepared by the Controller. It then performs its defined computations and assertions. If all these pass, it produces a public output (as a <code>Vec&lt;u8&gt;</code>), which represents the public statement that will be cryptographically verified on-chain. This output forms a crucial part of the "public inputs" of the ZK proof.</p>
 </li>
 </ol>
-<p>While these two crates form the core, the template might also include an optional <strong><code>./crates/domain</code></strong> crate. This is generally intended for more advanced scenarios, such as defining how to derive state proofs from JSON arguments or for validating block data that might be incorporated within the Coprocessor's operations, though its direct use can vary significantly depending on the specific application's needs.</p>
+<p>While these two crates form the core, the template might also include an optional <code>./crates/domain</code> crate. This is generally intended for more advanced scenarios, such as defining how to derive state proofs from JSON arguments or for validating block data that might be incorporated within the Coprocessor's operations, though its direct use can vary significantly depending on the specific application's needs.</p>
 <h3 id="general-development-workflow"><a class="header" href="#general-development-workflow">General Development Workflow</a></h3>
 <p>Developing a Coprocessor App typically follows a sequence of steps from setup to deployment and testing:</p>
 <ol>
 <li>
-<p><strong>Environment Setup:</strong> The initial step involves preparing your development environment. This requires installing Docker, a recent Rust toolchain, and the <a href="https://github.com/timewave-computer/valence-coprocessor/tree/v0.1.13?tab=readme-ov-file#cli-helper">Cargo Valence subcommand</a>. You would then clone the <code>valence-coprocessor-app</code> template repository to serve as the foundation for your new ZK application. For development, you can either use the public Valence ZK Coprocessor service at <code>prover.timewave.computer:37281</code> or optionally run a <a href="https://github.com/timewave-computer/valence-coprocessor/tree/v0.1.13?tab=readme-ov-file#local-execution">local Valence coprocessor instance</a>.</p>
+<p><strong>Environment Setup:</strong> The initial step involves preparing your development environment. This requires installing Docker, a recent Rust toolchain, and the Cargo Valence subcommand (the <code>cargo-valence</code> CLI included in this repository). You would then clone the <code>valence-coprocessor-app</code> template repository to serve as the foundation for your new ZK application. For development, you can either use the public Valence ZK Coprocessor service at <code>https://service.coprocessor.valence.zone</code> (default socket) or optionally run a <a href="https://github.com/timewave-computer/valence-coprocessor#local-execution">local instance</a>.</p>
 </li>
 <li>
 <p><strong>ZK Circuit Development (<code>./crates/circuit</code>):</strong> The next phase is to define the logic of your ZK circuit. This involves specifying the exact computations to be performed, the private inputs (the witness) that the circuit will consume, and the public inputs or outputs it will expose. The public output of your ZK circuit (a <code>Vec&lt;u8&gt;</code>) is of particular importance, as this is the data that will ultimately be verified on-chain. It's essential to remember that the first 32 bytes of the <em>full</em> public inputs (as seen by the on-chain verifier) are reserved by the Coprocessor for its own internal root hash; your application-specific public output data will follow these initial 32 bytes.</p>
@@ -207,16 +207,63 @@
 <p><strong>Controller Development (<code>./crates/controller</code>):</strong> Concurrently, you'll develop the Controller logic within the <code>controller</code> crate. This includes implementing the logic to parse incoming JSON arguments that are provided when a proof is requested for your application. You will also need to write the code that transforms these user-provided arguments into the precise witness format required by your ZK circuit. A key part of the Controller is its entrypoint function; this function is called by the Coprocessor service when a proof for your program has been successfully generated and is ready. This entrypoint typically receives the proof itself, the initial arguments that triggered the request, and any logs generated during the process. You must also implement how your Controller should handle this generated proof – a common pattern is to store it to a specific path (e.g., <code>/var/share/proof.bin</code>) within its virtual filesystem using a <code>store</code> command payload directed to the Coprocessor.</p>
 </li>
 <li>
-<p><strong>Application Build and Deployment:</strong> Once the ZK Circuit (from <code>circuit</code> crate) and Controller (from <code>controller</code> crate) are developed, you build and deploy your Guest Program to the Coprocessor using the <code>cargo-valence</code> CLI tool. This is typically done by running the command <code>cargo-valence --socket prover.timewave.computer:37281 deploy circuit --controller ./crates/controller --circuit &lt;circuit-crate-project-name&gt;</code> from your app template directory. If you're using a local coprocessor instance, you can omit the <code>--socket</code> parameter. This command compiles both crates (Controller to Wasm) and packages them into a single application bundle, which is then submitted to the Coprocessor service. Upon successful deployment, the Coprocessor service will return a unique Controller ID (e.g., <code>8965493acca61dfc26193978c4b9a785d24192a0a314143f1c497402859df783</code>). This Controller ID is crucial as it's used to reference your deployed ZK application in subsequent interactions.</p>
+<p><strong>Application Build and Deployment:</strong> Once the ZK Circuit (from <code>circuit</code> crate) and Controller (from <code>controller</code> crate) are developed, build and deploy your Guest Program using the <code>cargo-valence</code> CLI. Example:</p>
+<p><code>cargo-valence deploy circuit --controller ./crates/controller --circuit &lt;circuit-crate-project-name&gt;</code></p>
+<p>The CLI defaults to <code>https://service.coprocessor.valence.zone</code>; specify <code>--socket &lt;url&gt;</code> if targeting a different endpoint. This compiles both crates (Controller to Wasm) and submits them to the service. On success, the service returns a controller ID (e.g., <code>8965...df783</code>) used in subsequent requests.</p>
 </li>
 <li>
-<p><strong>Requesting Proof Generation:</strong> With your Guest Program deployed and its Controller ID known, you can instruct the Coprocessor to generate a proof. This is done using a command like <code>cargo-valence --socket prover.timewave.computer:37281 prove -j '{"value": 42}' -p /var/share/proof.bin &lt;CONTROLLER_ID&gt;</code>. You must replace <code>'{"value": 42}'</code> with the specific JSON input that your Controller is designed to expect. The <code>-p /var/share/proof.bin</code> argument is a suggestion to your Controller's entrypoint, indicating where it might store the resulting proof within its virtual filesystem after it has been generated and delivered back by the Coprocessor. The argument <code>-j '{"value": 42}'</code> will be forwarded to <code>./crates/controller/src/lib.rs:get_witnesses</code>, and the output of this function will be forwarded to the circuit for proving.</p>
+<p><strong>Requesting Proof Generation:</strong> With your Guest Program deployed and its Controller ID known, request proving with:</p>
+<p><code>cargo-valence prove -j '{"value": 42}' -p /var/share/proof.bin &lt;CONTROLLER_ID&gt;</code></p>
+<p>Replace the JSON with the expected controller input. The <code>-p</code> path tells the controller where to store the resulting proof within the virtual filesystem. The CLI encapsulates this as a payload <code>{ cmd: "store", path: "/var/share/proof.bin" }</code>, which the service passes to the controller entrypoint after proving.</p>
 </li>
 <li>
-<p><strong>Retrieving Proofs and Public Inputs:</strong> After the proof generation is complete and your Controller's entrypoint has handled and stored the proof, you can retrieve it from the program's virtual filesystem. This is typically done with a command like <code>cargo-valence --socket prover.timewave.computer:37281 storage -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.data' | base64 -d | jq</code>. To inspect the public inputs associated with the generated proof (which will include your ZK circuit's specific output along with the Coprocessor's root hash), you can use a command like <code>cargo-valence --socket prover.timewave.computer:37281 proof-inputs -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.inputs' | base64 -d | hexdump -C</code>. When examining the hexdump, your circuit's specific output data will appear after the initial 32-byte Coprocessor root hash.</p>
+<p><strong>Retrieving Proofs and Public Inputs:</strong> After proving completes and the proof is stored by your controller, retrieve it with:</p>
+<p><code>cargo-valence storage -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.data' | base64 -d | jq</code></p>
+<p>To view the public inputs:</p>
+<p><code>cargo-valence proof-inputs -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.inputs' | base64 -d | hexdump -C</code></p>
+<p>The first 32 bytes represent the Coprocessor root; your circuit output follows.</p>
 </li>
 </ol>
 <p>This workflow allows for an iterative development process, enabling you to test and refine your ZK guest programs effectively.</p>
+<p>Note: As an alternative to <code>cargo-valence</code>, you can use the <code>valence-coprocessor</code> binary from the domain clients toolkit to call the same REST API directly. Both approaches interact with the Coprocessor using the endpoints and payload conventions described in Coprocessor Internals → Service API.</p>
+<h3 id="client-library-usage"><a class="header" href="#client-library-usage">Client Library Usage</a></h3>
+<p>The <code>valence-domain-clients</code> crate provides a Coprocessor client and helpers that call the REST API, submit proving jobs, and poll the virtual filesystem for generated proofs.</p>
+<ul>
+<li>Default base URL: <code>https://service.coprocessor.valence.zone</code></li>
+<li>REST base path: <code>/api</code></li>
+<li>Typical flow:
+<ol>
+<li>Submit a prove request with a “store” payload specifying a virtual filesystem path.</li>
+<li>Poll the storage file endpoint until the proof appears.</li>
+<li>Decode the proof and extract public inputs for on‑chain submission.</li>
+</ol>
+</li>
+</ul>
+<p>Headers used by clients (see Coprocessor Internals → Service API for details):</p>
+<ul>
+<li><code>valence-coprocessor-circuit</code>: hex controller ID</li>
+<li><code>valence-coprocessor-root</code>: historical root hex to pin requests</li>
+<li><code>valence-coprocessor-signature</code>: optional signature over JSON body</li>
+</ul>
+<p>Example (async Rust):</p>
+<pre><pre class="playground"><code class="language-rust">use serde_json::json;
+use valence_domain_clients::clients::coprocessor::CoprocessorClient;
+
+#[tokio::main]
+async fn main() -&gt; anyhow::Result&lt;()&gt; {
+    let client = CoprocessorClient::default();
+    let circuit = "&lt;controller_id_hex&gt;";
+    let root = client.root().await?; // optional pin to current
+
+    // Submit prove (with store payload) and poll storage for the proof
+    let args = json!({ "value": 42 });
+    let proof = client.get_single_proof(circuit, &amp;args, &amp;root).await?;
+
+    // Decode base64 proof and inputs
+    let (_proof_bytes, inputs) = proof.decode()?;
+    println!("inputs length: {}", inputs.len());
+    Ok(())
+}</code></pre></pre>
 <h3 id="incorporating-verifiable-external-state"><a class="header" href="#incorporating-verifiable-external-state">Incorporating Verifiable External State</a></h3>
 <p>Guest programs on the Valence Coprocessor can be designed to utilize verifiable state from external blockchains, like Ethereum. This allows ZK applications to react to or incorporate off-chain data in a trust-minimized way. Services such as the state proof service facilitate this by generating state proofs (e.g., Merkle proofs for account balances or storage slots on Ethereum at specific block heights). Currently, this interaction for fetching external state is often achieved via ABI-encoded HTTP calls, though future implementations might support other protocols like WebSockets.</p>
 <p>When developing a guest program, you would design its Controller (within the <code>controller</code> crate) to accept such state proofs as part of its input. The ZK <code>circuit</code> can then use the proven external state in its computations. The resulting ZK proof from the Valence Coprocessor will thus attest to the correctness of operations performed on this externally verified data. More detailed architectural considerations for this pattern, including how the Coprocessor environment might support or interact with such external proofs, are discussed in <a href="./04_coprocessor_internals.html">ZK Coprocessor Internals</a>.</p>

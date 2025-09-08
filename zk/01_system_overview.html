@@ -185,14 +185,14 @@
 <p>At its core, the system integrates an off-chain ZK Coprocessor Service with on-chain smart contracts, primarily the <code>Authorization</code> and <code>VerificationRouter</code> contracts. A key technical challenge is encoding blockchain state into formats suitable for zero-knowledge proofs, enabling pure functions to operate on committed state transitions. For detailed information on state encoding mechanisms and cross-chain coordination, see <a href="./07_state_encoding_and_encoders.html">State Encoding and Encoders</a>.</p>
 <h3 id="component-roles"><a class="header" href="#component-roles">Component Roles</a></h3>
 <p>The Valence ZK system comprises several key components, each with distinct responsibilities.</p>
-<p>The <strong>ZK Coprocessor Service</strong>, operating off-chain, is a persistent service that manages ZK "guest programs." It deploys new guest programs, executes them with specific inputs, manages proving using an underlying zkVM (like SP1), and makes generated proofs available. Developers interact with this service to deploy ZK applications and initiate proof generation.</p>
-<p>A <strong>Guest Program</strong> is application-specific code developed by users. It consists of two parts: the <strong>Controller</strong> (Wasm-compiled Rust code running in the Coprocessor's sandbox) takes input data, processes it to generate a "witness" for the ZK circuit, and coordinates proof generation. The <strong>ZK Circuit</strong> (e.g., SP1 circuit) performs the core computation and assertions, taking the witness and producing a proof and public output (<code>Vec&lt;u8&gt;</code>) that forms the primary data for on-chain contracts.</p>
-<p>The <strong><code>Authorization</code> Contract</strong> (e.g., <code>Authorization.sol</code> for EVM chains) serves as the entry point for submitting ZK proofs for verification. It handles ZK-specific authorization logic, checking if proof submitters are authorized for given ZK programs (by <code>registry</code> ID) and managing replay protection.</p>
-<p>The <strong><code>VerificationRouter</code> Contract</strong> performs actual cryptographic verification of ZK proofs. The <code>Authorization</code> contract stores the Verification Keys(VKs) and a route and delegates verification to a configured <code>VerificationRouter</code>, which stores a verifier address for each route and uses them to submit the proofs, public inputs and a payload to verify the proof.</p>
+<p>The ZK Coprocessor Service, operating off-chain, is a persistent service that manages ZK "guest programs." It deploys new guest programs, executes them with specific inputs, manages proving using an underlying zkVM (like SP1), and makes generated proofs available. Developers interact with this service to deploy ZK applications and initiate proof generation.</p>
+<p>A Guest Program is application-specific code developed by users. It consists of two parts: the Controller (Wasm-compiled Rust code running in the Coprocessor's sandbox) takes input data, processes it to generate a "witness" for the ZK circuit, and coordinates proof generation. The ZK Circuit (e.g., SP1 circuit) performs the core computation and assertions, taking the witness and producing a proof and public output (<code>Vec&lt;u8&gt;</code>) that forms the primary data for on-chain contracts.</p>
+<p>The Authorization contract serves as the entry point for submitting ZK proofs for verification. It handles ZK-specific authorization logic, checking if proof submitters are authorized for given ZK programs (by <code>registry</code> ID) and managing replay protection.</p>
+<p>The VerificationRouter contract performs actual cryptographic verification of ZK proofs. This contract uses an immutable append-only design where routes map to specific verifier contracts. The Authorization contract stores the Verification Keys (VKs) and verification routes, then delegates verification to the VerificationRouter, which routes the proof to the appropriate verifier. For SP1 proofs, the <code>SP1VerificationSwitch</code> performs dual verification of both the program proof and domain proof.</p>
 <h3 id="zk-program-flows"><a class="header" href="#zk-program-flows">ZK Program Flows</a></h3>
 <p>The following diagrams illustrate the key workflows in the Valence ZK system:</p>
 <h4 id="deployment-flow"><a class="header" href="#deployment-flow">Deployment Flow</a></h4>
-<p>Developers prepare and register their ZK applications, initializing the application before execution. They build guest program components, deploy them to the coprocessor service, and register verification keys on-chain.</p>
+<p>Developers prepare and register their ZK applications, initializing the application before execution. They build guest program components, deploy them to the coprocessor service (e.g., via <code>cargo-valence</code>), and register verification keys on-chain.</p>
 <pre class="mermaid">graph TD
     Dev[Developer Machine&lt;br/&gt;- Develops Guest Program&lt;br/&gt;- Builds Controller + Circuit] -- Deploys via cargo-valence --&gt; Coproc[ZK Coprocessor Service]
     Dev -- Registers Verification Key --&gt; OnChain[On-Chain Contracts&lt;br/&gt;Authorization + VerificationRouter]
@@ -246,6 +246,26 @@
 <p><strong>Execution of Proven Action</strong></p>
 <p>Upon successful proof verification, the <code>Authorization</code> contract considers the <code>ZKMessage</code> contents (specifically the <code>processorMessage</code>) authentic and authorized. It dispatches this <code>processorMessage</code> to the appropriate Valence <code>Processor</code> contract for execution, leading to blockchain state changes based on the ZK-proven off-chain computation.</p>
 <p>This system allows Valence to securely integrate complex off-chain logic with its on-chain operations, opening up a wide range of advanced application possibilities.</p>
+<h3 id="endtoend-flow-services--onchain"><a class="header" href="#endtoend-flow-services--onchain">End‑to‑End Flow (Services + On‑Chain)</a></h3>
+<p>Actors and services:</p>
+<ul>
+<li>Coprocessor service: runs controllers, manages storage/FS, computes proofs</li>
+<li>Domain prover service: produces recursive domain proofs and publishes latest state</li>
+<li>Domain implementations (e.g., Ethereum): controller, circuit, optional light‑client</li>
+<li>Prover backend: SP1 prover infrastructure</li>
+<li>Clients: cargo‑valence CLI or valence‑domain‑clients library/binary</li>
+<li>On‑chain: Authorization, VerificationRouter, and Processor</li>
+</ul>
+<p>Flow:</p>
+<ol>
+<li>Domain prover updates: The domain prover ingests historical updates and produces a recursive wrapper proof, publishing the latest State (and wrapper VK) for consumers (see <a href="./08_domain_proofs.html">Domain Proofs</a>).</li>
+<li>Pinning: Clients fetch the current Coprocessor root and pin requests with <code>valence-coprocessor-root</code> to ensure consistent openings.</li>
+<li>Witness building: Guest programs request domain state proofs through the Coprocessor runtime (e.g., <code>get_state_proof("ethereum", args)</code>).</li>
+<li>Proving: The Coprocessor combines witnesses with historical openings and computes the zkVM proof. A store payload directs the controller to write the proof to the virtual filesystem.</li>
+<li>Retrieval: Clients poll the FS path and retrieve the proof + public inputs (first 32 bytes = Coprocessor root; remainder = circuit output).</li>
+<li>On‑chain verification: The actor submits proof + inputs to Authorization, which delegates to VerificationRouter (e.g., SP1VerificationSwitch) with the appropriate VK and route.</li>
+<li>Execution: On successful verification, Authorization forwards the processorMessage to Processor, which applies state changes.</li>
+</ol>
 
                     </main>
 

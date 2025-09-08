@@ -447,29 +447,38 @@ graph LR
 <p>This example highlights the crucial role that <strong>Valence Libraries</strong> play for integrating <strong>Valence Programs</strong> with pre-existing decentralized apps and services.</p>
 <p>However, one thing remains unclear in this example: how are <strong>Functions</strong> called? This is where <a href="components/./programs_and_authorizations.html">Programs and Authorizations</a> come into the picture.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="programs-and-authorizations"><a class="header" href="#programs-and-authorizations">Programs and Authorizations</a></h1>
-<p>A <strong>Valence Program</strong> is an instance of the <strong>Valence Protocol</strong>. It is a particular arrangement and configuration of <a href="components/../accounts/_overview.html">Accounts</a> and <a href="components/./libraries_and_functions.html">libraries</a> across multiple <a href="components/./domains.html">domains</a> (e.g., a POL (protocol-owned liquidity) lending relationship between two parties). Similarly to how a <em>library</em> exposes executable <em>functions</em>, programs are associated with a set of executable <strong>Subroutines</strong>.</p>
-<p>A <strong>Subroutine</strong> is a vector of <strong>Functions</strong>. A <strong>Subroutine</strong> can call out to one or more <strong>Function(s)</strong> from a single library, or from different libraries. A <strong>Subroutine</strong> is limited to <strong>one execution domain</strong> (i.e., <strong>Subroutines</strong> cannot use functions from libraries instantiated on multiple domains).</p>
-<p>A <strong>Subroutine</strong> can be:</p>
+<p>A Valence program is an instance of the Valence protocol. It is a particular arrangement and configuration of <a href="components/../accounts/_overview.html">accounts</a> and <a href="components/./libraries_and_functions.html">libraries</a> across multiple <a href="components/./domains.html">domains</a> (e.g., a POL lending relationship between two parties). Similarly to how a library exposes executable functions, programs are associated with a set of executable subroutines.</p>
+<p>A subroutine is a vector of functions. A subroutine can call out to one or more functions from a single library, or from different libraries. A subroutine is limited to one execution domain (i.e., subroutines cannot use functions from libraries instantiated on multiple domains).</p>
+<p>A subroutine can be:</p>
 <ul>
-<li><strong>Non Atomic</strong> (e.g., Execute function one. If that succeeds, execute function two. If that succeeds, execute function three. And so on.)</li>
-<li>or <strong>Atomic</strong> (e.g., execute function one, function two, and function three. If any of them fail, then revert all steps.)</li>
+<li>non‑atomic (e.g., execute function one; if that succeeds, execute function two; then three; and so on)</li>
+<li>atomic (e.g., execute function one, two, and three; if any fail, revert all steps)</li>
 </ul>
-<p><strong>Valence Programs</strong> are typically used to implement complex cross-chain workflows that perform financial operations in a trust-minimized way. Because multiple parties may be involved in a <strong>Valence Program</strong>, the parties to a <strong>Valence Program</strong> may wish for limitations on what various parties are authorized to do.</p>
-<p>To specify fine-grained controls over who can initiate the execution of a <strong>Subroutine</strong>, program creators use the <strong>Authorizations</strong> module.</p>
-<p>The <strong>Authorizations</strong> module is a powerful and flexible system that supports access control configuration schemes, such as:</p>
+<p>Valence programs are typically used to implement complex cross‑chain workflows that perform financial operations in a trust‑minimized way. Because multiple parties may be involved in a program, the parties may wish for limitations on what various parties are authorized to do.</p>
+<p>To specify fine‑grained controls over who can initiate the execution of a subroutine, program creators use the authorizations module.</p>
+<p>The authorizations module supports access control configuration schemes such as:</p>
+<div class="table-wrapper"><table><thead><tr><th>Authorization</th><th>Description</th></tr></thead><tbody>
+<tr><td>Open access</td><td>Anyone can initiate execution of a subroutine.</td></tr>
+<tr><td>Permissioned access</td><td>Only permissioned actors can initiate execution of a subroutine.</td></tr>
+<tr><td>Start time</td><td>Execution can only be initiated after a starting timestamp or block height.</td></tr>
+<tr><td>End time</td><td>Execution can only be initiated up to a certain timestamp or block height.</td></tr>
+<tr><td>Authorization model</td><td>CosmWasm: TokenFactory tokens (factory/{authorization_contract}/{label}). EVM: address‑based per label with contract/function constraints (no tokenization).</td></tr>
+<tr><td>Expiration</td><td>Authorizations can expire.</td></tr>
+<tr><td>Enable/disable</td><td>Authorizations can be enabled or disabled.</td></tr>
+<tr><td>Parameter constraints</td><td>Authorizations can constrain parameters (e.g., limit to amount only, not denom or receiver).</td></tr>
+</tbody></table>
+</div>
+<p>To support on‑chain execution, the protocol provides two contracts: the Authorization contract and the Processor contract.</p>
+<p>The Authorization contract is the entry point for users. The user sends a set of messages to the Authorization contract and the label (id) of the authorization they want to execute. The Authorization contract verifies the sender and the messages, constructs a message batch based on the subroutine, and passes this batch to the Processor for execution.</p>
 <ul>
-<li><strong>Anyone</strong> can initiate execution of a <strong>Subroutine</strong></li>
-<li>Only <strong>permissioned actors</strong> can initiate execution of a <strong>Subroutine</strong></li>
-<li>Execution can only be initiated <strong>after a starting timestamp/block height</strong></li>
-<li>Execution can only be initiated <strong>up to a certain timestamp/block height</strong></li>
-<li>Authorizations are <strong>tokenized</strong>, which means they can be transferred by the holder or used in more sophisticated DeFi scenarios</li>
-<li>Authorizations can <strong>expire</strong></li>
-<li>Authorizations can be <strong>enabled/disabled</strong></li>
-<li>Authorizations can tightly <strong>constrain parameters</strong> (e.g., an authorization to execute a token transfer message can limit the execution to only supply the amount argument, not the denom or receiver in the transfer message)</li>
+<li>CosmWasm: permissioned workflows are enforced via TokenFactory‑minted per‑label tokens (burn/refund semantics with call limits).</li>
+<li>EVM: permissioned workflows are enforced via per‑label address allowlists with function‑level constraints (contract address + selector/hash), no tokens are minted.</li>
 </ul>
-<p>To support the on-chain execution of <strong>Valence Programs</strong>, the <strong>Valence Protocol</strong> provides two important contracts: the <strong>Authorizations Contract</strong> and the <strong>Processor Contract</strong>.</p>
-<p>The <strong>Authorizations Contract</strong> is the entry point for users. The user sends a set of messages to the Authorizations Contract and the label (id) of the authorization they want to execute. The Authorizations Contract then verifies that the sender is authorized and that the messages are valid, constructs a <em>MessageBatch</em> based on the subroutine, and passes this batch to the <strong>Processor Contract</strong> for execution. The authority to execute any <strong>Subroutine</strong> is tokenized so that these tokens can be transferred on-chain.</p>
-<p>The <strong>Processor Contract</strong> receives a <em>MessageBatch</em> and executes the contained <em>Messages</em> in sequence. It does this by maintaining execution queues where the queue items are <strong>Subroutines.</strong> The processor exposes a <code>Tick</code> message that allows anyone to trigger the processor, whereby the first batch of the queue is executed or moved to the back of the queue if it's not executable yet (e.g., retry period has not passed).</p>
+<p>The Processor receives a message batch and executes the contained messages in sequence.</p>
+<ul>
+<li>CosmWasm: maintains High/Medium priority FIFO queues of subroutines and exposes a permissionless <code>tick</code> to process batches with retry/expiration handling.</li>
+<li>EVM: the currently implemented Lite Processor executes immediately on receipt (no queues/insert/evict/retry), while a full queued Processor is scaffolded but not implemented.</li>
+</ul>
 <pre class="mermaid">graph LR;
 	User --&gt; |Subroutine| Auth(Authorizations)
 	Auth --&gt; |Message Batch| P(Processor)
@@ -503,7 +512,7 @@ graph LR
 <p>Key terms you will encounter in this documentation include:</p>
 <ul>
 <li><strong>ZK Coprocessor:</strong> An off-chain service responsible for running "guest programs" and generating ZK proofs of their execution.</li>
-<li><strong>Guest Program:</strong> A piece of software designed by developers for off-chain execution on the ZK Coprocessor. It comprises two main parts: the <strong>ZK Circuit</strong> (which defines the core ZK-provable computations) and the <strong>Controller</strong> (Wasm-compiled logic that prepares inputs for the circuit, handles its outputs, and interacts with the Coprocessor environment).</li>
+<li><strong>Guest Program:</strong> A piece of software designed by developers for off-chain execution on the ZK Coprocessor. It comprises two main parts: the ZK Circuit (which defines the core ZK-provable computations) and the Controller (Wasm-compiled logic that prepares inputs for the circuit, handles its outputs, and interacts with the Coprocessor environment).</li>
 <li><strong>zkVM (Zero-Knowledge Virtual Machine):</strong> An environment that can execute arbitrary programs and produce a ZK proof of that execution. The Valence ZK Coprocessor leverages such technology (e.g., SP1) to run guest programs.</li>
 <li><strong>Encoders:</strong> Systems that compress blockchain state into formats suitable for ZK proofs. The Unary Encoder handles single-chain state transitions, while the Merkleized Encoder manages cross-chain state dependencies.</li>
 <li><strong>Proof:</strong> A small piece of cryptographic data that demonstrates a computation was performed correctly according to a specific program, without revealing all the details of the computation.</li>
@@ -516,14 +525,14 @@ graph LR
 <p>At its core, the system integrates an off-chain ZK Coprocessor Service with on-chain smart contracts, primarily the <code>Authorization</code> and <code>VerificationRouter</code> contracts. A key technical challenge is encoding blockchain state into formats suitable for zero-knowledge proofs, enabling pure functions to operate on committed state transitions. For detailed information on state encoding mechanisms and cross-chain coordination, see <a href="zk/./07_state_encoding_and_encoders.html">State Encoding and Encoders</a>.</p>
 <h3 id="component-roles"><a class="header" href="#component-roles">Component Roles</a></h3>
 <p>The Valence ZK system comprises several key components, each with distinct responsibilities.</p>
-<p>The <strong>ZK Coprocessor Service</strong>, operating off-chain, is a persistent service that manages ZK "guest programs." It deploys new guest programs, executes them with specific inputs, manages proving using an underlying zkVM (like SP1), and makes generated proofs available. Developers interact with this service to deploy ZK applications and initiate proof generation.</p>
-<p>A <strong>Guest Program</strong> is application-specific code developed by users. It consists of two parts: the <strong>Controller</strong> (Wasm-compiled Rust code running in the Coprocessor's sandbox) takes input data, processes it to generate a "witness" for the ZK circuit, and coordinates proof generation. The <strong>ZK Circuit</strong> (e.g., SP1 circuit) performs the core computation and assertions, taking the witness and producing a proof and public output (<code>Vec&lt;u8&gt;</code>) that forms the primary data for on-chain contracts.</p>
-<p>The <strong><code>Authorization</code> Contract</strong> (e.g., <code>Authorization.sol</code> for EVM chains) serves as the entry point for submitting ZK proofs for verification. It handles ZK-specific authorization logic, checking if proof submitters are authorized for given ZK programs (by <code>registry</code> ID) and managing replay protection.</p>
-<p>The <strong><code>VerificationRouter</code> Contract</strong> performs actual cryptographic verification of ZK proofs. The <code>Authorization</code> contract stores the Verification Keys(VKs) and a route and delegates verification to a configured <code>VerificationRouter</code>, which stores a verifier address for each route and uses them to submit the proofs, public inputs and a payload to verify the proof.</p>
+<p>The ZK Coprocessor Service, operating off-chain, is a persistent service that manages ZK "guest programs." It deploys new guest programs, executes them with specific inputs, manages proving using an underlying zkVM (like SP1), and makes generated proofs available. Developers interact with this service to deploy ZK applications and initiate proof generation.</p>
+<p>A Guest Program is application-specific code developed by users. It consists of two parts: the Controller (Wasm-compiled Rust code running in the Coprocessor's sandbox) takes input data, processes it to generate a "witness" for the ZK circuit, and coordinates proof generation. The ZK Circuit (e.g., SP1 circuit) performs the core computation and assertions, taking the witness and producing a proof and public output (<code>Vec&lt;u8&gt;</code>) that forms the primary data for on-chain contracts.</p>
+<p>The Authorization contract serves as the entry point for submitting ZK proofs for verification. It handles ZK-specific authorization logic, checking if proof submitters are authorized for given ZK programs (by <code>registry</code> ID) and managing replay protection.</p>
+<p>The VerificationRouter contract performs actual cryptographic verification of ZK proofs. This contract uses an immutable append-only design where routes map to specific verifier contracts. The Authorization contract stores the Verification Keys (VKs) and verification routes, then delegates verification to the VerificationRouter, which routes the proof to the appropriate verifier. For SP1 proofs, the <code>SP1VerificationSwitch</code> performs dual verification of both the program proof and domain proof.</p>
 <h3 id="zk-program-flows"><a class="header" href="#zk-program-flows">ZK Program Flows</a></h3>
 <p>The following diagrams illustrate the key workflows in the Valence ZK system:</p>
 <h4 id="deployment-flow"><a class="header" href="#deployment-flow">Deployment Flow</a></h4>
-<p>Developers prepare and register their ZK applications, initializing the application before execution. They build guest program components, deploy them to the coprocessor service, and register verification keys on-chain.</p>
+<p>Developers prepare and register their ZK applications, initializing the application before execution. They build guest program components, deploy them to the coprocessor service (e.g., via <code>cargo-valence</code>), and register verification keys on-chain.</p>
 <pre class="mermaid">graph TD
     Dev[Developer Machine&lt;br/&gt;- Develops Guest Program&lt;br/&gt;- Builds Controller + Circuit] -- Deploys via cargo-valence --&gt; Coproc[ZK Coprocessor Service]
     Dev -- Registers Verification Key --&gt; OnChain[On-Chain Contracts&lt;br/&gt;Authorization + VerificationRouter]
@@ -577,6 +586,26 @@ graph LR
 <p><strong>Execution of Proven Action</strong></p>
 <p>Upon successful proof verification, the <code>Authorization</code> contract considers the <code>ZKMessage</code> contents (specifically the <code>processorMessage</code>) authentic and authorized. It dispatches this <code>processorMessage</code> to the appropriate Valence <code>Processor</code> contract for execution, leading to blockchain state changes based on the ZK-proven off-chain computation.</p>
 <p>This system allows Valence to securely integrate complex off-chain logic with its on-chain operations, opening up a wide range of advanced application possibilities.</p>
+<h3 id="endtoend-flow-services--onchain"><a class="header" href="#endtoend-flow-services--onchain">End‑to‑End Flow (Services + On‑Chain)</a></h3>
+<p>Actors and services:</p>
+<ul>
+<li>Coprocessor service: runs controllers, manages storage/FS, computes proofs</li>
+<li>Domain prover service: produces recursive domain proofs and publishes latest state</li>
+<li>Domain implementations (e.g., Ethereum): controller, circuit, optional light‑client</li>
+<li>Prover backend: SP1 prover infrastructure</li>
+<li>Clients: cargo‑valence CLI or valence‑domain‑clients library/binary</li>
+<li>On‑chain: Authorization, VerificationRouter, and Processor</li>
+</ul>
+<p>Flow:</p>
+<ol>
+<li>Domain prover updates: The domain prover ingests historical updates and produces a recursive wrapper proof, publishing the latest State (and wrapper VK) for consumers (see <a href="zk/./08_domain_proofs.html">Domain Proofs</a>).</li>
+<li>Pinning: Clients fetch the current Coprocessor root and pin requests with <code>valence-coprocessor-root</code> to ensure consistent openings.</li>
+<li>Witness building: Guest programs request domain state proofs through the Coprocessor runtime (e.g., <code>get_state_proof("ethereum", args)</code>).</li>
+<li>Proving: The Coprocessor combines witnesses with historical openings and computes the zkVM proof. A store payload directs the controller to write the proof to the virtual filesystem.</li>
+<li>Retrieval: Clients poll the FS path and retrieve the proof + public inputs (first 32 bytes = Coprocessor root; remainder = circuit output).</li>
+<li>On‑chain verification: The actor submits proof + inputs to Authorization, which delegates to VerificationRouter (e.g., SP1VerificationSwitch) with the appropriate VK and route.</li>
+<li>Execution: On successful verification, Authorization forwards the processorMessage to Processor, which applies state changes.</li>
+</ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="developing-valence-coprocessor-apps"><a class="header" href="#developing-valence-coprocessor-apps">Developing Valence Coprocessor Apps</a></h1>
 <p>This guide is designed for developers looking to build Zero-Knowledge (ZK) applications, or "guest programs," for the Valence ZK Coprocessor. It focuses on using the <code>valence-coprocessor-app</code> template as a foundation. Before diving in, it is beneficial to have a grasp of the concepts presented in <a href="zk/./_overview.html">Introduction to Valence ZK</a> and <a href="zk/./01_system_overview.html">Valence ZK System Overview</a>.</p>
 <p>The <a href="https://github.com/timewave-computer/valence-coprocessor-app">valence-coprocessor-app template repository</a> serves as the primary starting point and practical reference for this guide.</p>
@@ -584,18 +613,18 @@ graph LR
 <p>A Valence Coprocessor App (a Guest Program), when based on the template, is primarily structured around two main Rust crates, which compile into the two logical parts of the Guest Program: the Controller and the ZK Circuit.</p>
 <ol>
 <li>
-<p><strong>The <code>controller</code> Crate (compiles to the Controller):</strong> This component contains off-chain logic executed as Wasm within the Valence ZK Coprocessor's sandboxed environment. This <strong>Controller</strong> acts as an intermediary between user inputs and the ZK circuit. Key responsibilities include receiving input arguments (often JSON) for proof requests, processing inputs to generate a "witness" (private and public data the ZK circuit needs), and interacting with the Coprocessor service to initiate proof generation. The Controller handles proof computation results; it has an entrypoint function the Coprocessor calls upon successful proof generation, allowing the Controller to store the proof or log information. The Controller can utilize a virtual filesystem provided by the Coprocessor, which is FAT-16 based (implying constraints like 3-character file extensions and case-insensitive paths), for persistent data storage.</p>
+<p><strong>The <code>controller</code> Crate (compiles to the Controller):</strong> This component contains off-chain logic executed as Wasm within the Valence ZK Coprocessor's sandboxed environment. This Controller acts as an intermediary between user inputs and the ZK circuit. Key responsibilities include receiving input arguments (often JSON) for proof requests, processing inputs to generate a "witness" (private and public data the ZK circuit needs), and interacting with the Coprocessor service to initiate proof generation. The Controller handles proof computation results; it has an entrypoint function the Coprocessor calls upon successful proof generation, allowing the Controller to store the proof or log information. The Controller can utilize a virtual filesystem provided by the Coprocessor, which is FAT-16 based (implying constraints like 3-character file extensions and case-insensitive paths), for persistent data storage.</p>
 </li>
 <li>
-<p><strong>The <code>circuit</code> Crate (defines the ZK Circuit):</strong> This crate defines the <strong>ZK Circuit</strong> itself. The ZK Circuit is the heart of the ZK application, containing the actual computations and assertions whose correctness will be proven. It's typically written using a specialized language or Domain-Specific Language (DSL) that compiles down to a ZK proving system supported by the Coprocessor (for example, SP1). The ZK Circuit receives the witness data prepared by the Controller. It then performs its defined computations and assertions. If all these pass, it produces a public output (as a <code>Vec&lt;u8&gt;</code>), which represents the public statement that will be cryptographically verified on-chain. This output forms a crucial part of the "public inputs" of the ZK proof.</p>
+<p><strong>The <code>circuit</code> Crate (defines the ZK Circuit):</strong> This crate defines the ZK Circuit itself. The ZK Circuit is the heart of the ZK application, containing the actual computations and assertions whose correctness will be proven. It's typically written using a specialized language or Domain-Specific Language (DSL) that compiles down to a ZK proving system supported by the Coprocessor (for example, SP1). The ZK Circuit receives the witness data prepared by the Controller. It then performs its defined computations and assertions. If all these pass, it produces a public output (as a <code>Vec&lt;u8&gt;</code>), which represents the public statement that will be cryptographically verified on-chain. This output forms a crucial part of the "public inputs" of the ZK proof.</p>
 </li>
 </ol>
-<p>While these two crates form the core, the template might also include an optional <strong><code>./crates/domain</code></strong> crate. This is generally intended for more advanced scenarios, such as defining how to derive state proofs from JSON arguments or for validating block data that might be incorporated within the Coprocessor's operations, though its direct use can vary significantly depending on the specific application's needs.</p>
+<p>While these two crates form the core, the template might also include an optional <code>./crates/domain</code> crate. This is generally intended for more advanced scenarios, such as defining how to derive state proofs from JSON arguments or for validating block data that might be incorporated within the Coprocessor's operations, though its direct use can vary significantly depending on the specific application's needs.</p>
 <h3 id="general-development-workflow"><a class="header" href="#general-development-workflow">General Development Workflow</a></h3>
 <p>Developing a Coprocessor App typically follows a sequence of steps from setup to deployment and testing:</p>
 <ol>
 <li>
-<p><strong>Environment Setup:</strong> The initial step involves preparing your development environment. This requires installing Docker, a recent Rust toolchain, and the <a href="https://github.com/timewave-computer/valence-coprocessor/tree/v0.1.13?tab=readme-ov-file#cli-helper">Cargo Valence subcommand</a>. You would then clone the <code>valence-coprocessor-app</code> template repository to serve as the foundation for your new ZK application. For development, you can either use the public Valence ZK Coprocessor service at <code>prover.timewave.computer:37281</code> or optionally run a <a href="https://github.com/timewave-computer/valence-coprocessor/tree/v0.1.13?tab=readme-ov-file#local-execution">local Valence coprocessor instance</a>.</p>
+<p><strong>Environment Setup:</strong> The initial step involves preparing your development environment. This requires installing Docker, a recent Rust toolchain, and the Cargo Valence subcommand (the <code>cargo-valence</code> CLI included in this repository). You would then clone the <code>valence-coprocessor-app</code> template repository to serve as the foundation for your new ZK application. For development, you can either use the public Valence ZK Coprocessor service at <code>https://service.coprocessor.valence.zone</code> (default socket) or optionally run a <a href="https://github.com/timewave-computer/valence-coprocessor#local-execution">local instance</a>.</p>
 </li>
 <li>
 <p><strong>ZK Circuit Development (<code>./crates/circuit</code>):</strong> The next phase is to define the logic of your ZK circuit. This involves specifying the exact computations to be performed, the private inputs (the witness) that the circuit will consume, and the public inputs or outputs it will expose. The public output of your ZK circuit (a <code>Vec&lt;u8&gt;</code>) is of particular importance, as this is the data that will ultimately be verified on-chain. It's essential to remember that the first 32 bytes of the <em>full</em> public inputs (as seen by the on-chain verifier) are reserved by the Coprocessor for its own internal root hash; your application-specific public output data will follow these initial 32 bytes.</p>
@@ -604,69 +633,126 @@ graph LR
 <p><strong>Controller Development (<code>./crates/controller</code>):</strong> Concurrently, you'll develop the Controller logic within the <code>controller</code> crate. This includes implementing the logic to parse incoming JSON arguments that are provided when a proof is requested for your application. You will also need to write the code that transforms these user-provided arguments into the precise witness format required by your ZK circuit. A key part of the Controller is its entrypoint function; this function is called by the Coprocessor service when a proof for your program has been successfully generated and is ready. This entrypoint typically receives the proof itself, the initial arguments that triggered the request, and any logs generated during the process. You must also implement how your Controller should handle this generated proof – a common pattern is to store it to a specific path (e.g., <code>/var/share/proof.bin</code>) within its virtual filesystem using a <code>store</code> command payload directed to the Coprocessor.</p>
 </li>
 <li>
-<p><strong>Application Build and Deployment:</strong> Once the ZK Circuit (from <code>circuit</code> crate) and Controller (from <code>controller</code> crate) are developed, you build and deploy your Guest Program to the Coprocessor using the <code>cargo-valence</code> CLI tool. This is typically done by running the command <code>cargo-valence --socket prover.timewave.computer:37281 deploy circuit --controller ./crates/controller --circuit &lt;circuit-crate-project-name&gt;</code> from your app template directory. If you're using a local coprocessor instance, you can omit the <code>--socket</code> parameter. This command compiles both crates (Controller to Wasm) and packages them into a single application bundle, which is then submitted to the Coprocessor service. Upon successful deployment, the Coprocessor service will return a unique Controller ID (e.g., <code>8965493acca61dfc26193978c4b9a785d24192a0a314143f1c497402859df783</code>). This Controller ID is crucial as it's used to reference your deployed ZK application in subsequent interactions.</p>
+<p><strong>Application Build and Deployment:</strong> Once the ZK Circuit (from <code>circuit</code> crate) and Controller (from <code>controller</code> crate) are developed, build and deploy your Guest Program using the <code>cargo-valence</code> CLI. Example:</p>
+<p><code>cargo-valence deploy circuit --controller ./crates/controller --circuit &lt;circuit-crate-project-name&gt;</code></p>
+<p>The CLI defaults to <code>https://service.coprocessor.valence.zone</code>; specify <code>--socket &lt;url&gt;</code> if targeting a different endpoint. This compiles both crates (Controller to Wasm) and submits them to the service. On success, the service returns a controller ID (e.g., <code>8965...df783</code>) used in subsequent requests.</p>
 </li>
 <li>
-<p><strong>Requesting Proof Generation:</strong> With your Guest Program deployed and its Controller ID known, you can instruct the Coprocessor to generate a proof. This is done using a command like <code>cargo-valence --socket prover.timewave.computer:37281 prove -j '{"value": 42}' -p /var/share/proof.bin &lt;CONTROLLER_ID&gt;</code>. You must replace <code>'{"value": 42}'</code> with the specific JSON input that your Controller is designed to expect. The <code>-p /var/share/proof.bin</code> argument is a suggestion to your Controller's entrypoint, indicating where it might store the resulting proof within its virtual filesystem after it has been generated and delivered back by the Coprocessor. The argument <code>-j '{"value": 42}'</code> will be forwarded to <code>./crates/controller/src/lib.rs:get_witnesses</code>, and the output of this function will be forwarded to the circuit for proving.</p>
+<p><strong>Requesting Proof Generation:</strong> With your Guest Program deployed and its Controller ID known, request proving with:</p>
+<p><code>cargo-valence prove -j '{"value": 42}' -p /var/share/proof.bin &lt;CONTROLLER_ID&gt;</code></p>
+<p>Replace the JSON with the expected controller input. The <code>-p</code> path tells the controller where to store the resulting proof within the virtual filesystem. The CLI encapsulates this as a payload <code>{ cmd: "store", path: "/var/share/proof.bin" }</code>, which the service passes to the controller entrypoint after proving.</p>
 </li>
 <li>
-<p><strong>Retrieving Proofs and Public Inputs:</strong> After the proof generation is complete and your Controller's entrypoint has handled and stored the proof, you can retrieve it from the program's virtual filesystem. This is typically done with a command like <code>cargo-valence --socket prover.timewave.computer:37281 storage -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.data' | base64 -d | jq</code>. To inspect the public inputs associated with the generated proof (which will include your ZK circuit's specific output along with the Coprocessor's root hash), you can use a command like <code>cargo-valence --socket prover.timewave.computer:37281 proof-inputs -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.inputs' | base64 -d | hexdump -C</code>. When examining the hexdump, your circuit's specific output data will appear after the initial 32-byte Coprocessor root hash.</p>
+<p><strong>Retrieving Proofs and Public Inputs:</strong> After proving completes and the proof is stored by your controller, retrieve it with:</p>
+<p><code>cargo-valence storage -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.data' | base64 -d | jq</code></p>
+<p>To view the public inputs:</p>
+<p><code>cargo-valence proof-inputs -p /var/share/proof.bin &lt;CONTROLLER_ID&gt; | jq -r '.inputs' | base64 -d | hexdump -C</code></p>
+<p>The first 32 bytes represent the Coprocessor root; your circuit output follows.</p>
 </li>
 </ol>
 <p>This workflow allows for an iterative development process, enabling you to test and refine your ZK guest programs effectively.</p>
+<p>Note: As an alternative to <code>cargo-valence</code>, you can use the <code>valence-coprocessor</code> binary from the domain clients toolkit to call the same REST API directly. Both approaches interact with the Coprocessor using the endpoints and payload conventions described in Coprocessor Internals → Service API.</p>
+<h3 id="client-library-usage"><a class="header" href="#client-library-usage">Client Library Usage</a></h3>
+<p>The <code>valence-domain-clients</code> crate provides a Coprocessor client and helpers that call the REST API, submit proving jobs, and poll the virtual filesystem for generated proofs.</p>
+<ul>
+<li>Default base URL: <code>https://service.coprocessor.valence.zone</code></li>
+<li>REST base path: <code>/api</code></li>
+<li>Typical flow:
+<ol>
+<li>Submit a prove request with a “store” payload specifying a virtual filesystem path.</li>
+<li>Poll the storage file endpoint until the proof appears.</li>
+<li>Decode the proof and extract public inputs for on‑chain submission.</li>
+</ol>
+</li>
+</ul>
+<p>Headers used by clients (see Coprocessor Internals → Service API for details):</p>
+<ul>
+<li><code>valence-coprocessor-circuit</code>: hex controller ID</li>
+<li><code>valence-coprocessor-root</code>: historical root hex to pin requests</li>
+<li><code>valence-coprocessor-signature</code>: optional signature over JSON body</li>
+</ul>
+<p>Example (async Rust):</p>
+<pre><pre class="playground"><code class="language-rust">use serde_json::json;
+use valence_domain_clients::clients::coprocessor::CoprocessorClient;
+
+#[tokio::main]
+async fn main() -&gt; anyhow::Result&lt;()&gt; {
+    let client = CoprocessorClient::default();
+    let circuit = "&lt;controller_id_hex&gt;";
+    let root = client.root().await?; // optional pin to current
+
+    // Submit prove (with store payload) and poll storage for the proof
+    let args = json!({ "value": 42 });
+    let proof = client.get_single_proof(circuit, &amp;args, &amp;root).await?;
+
+    // Decode base64 proof and inputs
+    let (_proof_bytes, inputs) = proof.decode()?;
+    println!("inputs length: {}", inputs.len());
+    Ok(())
+}</code></pre></pre>
 <h3 id="incorporating-verifiable-external-state"><a class="header" href="#incorporating-verifiable-external-state">Incorporating Verifiable External State</a></h3>
 <p>Guest programs on the Valence Coprocessor can be designed to utilize verifiable state from external blockchains, like Ethereum. This allows ZK applications to react to or incorporate off-chain data in a trust-minimized way. Services such as the state proof service facilitate this by generating state proofs (e.g., Merkle proofs for account balances or storage slots on Ethereum at specific block heights). Currently, this interaction for fetching external state is often achieved via ABI-encoded HTTP calls, though future implementations might support other protocols like WebSockets.</p>
 <p>When developing a guest program, you would design its Controller (within the <code>controller</code> crate) to accept such state proofs as part of its input. The ZK <code>circuit</code> can then use the proven external state in its computations. The resulting ZK proof from the Valence Coprocessor will thus attest to the correctness of operations performed on this externally verified data. More detailed architectural considerations for this pattern, including how the Coprocessor environment might support or interact with such external proofs, are discussed in <a href="zk/./04_coprocessor_internals.html">ZK Coprocessor Internals</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="integrating-zk-proofs-with-on-chain-contracts"><a class="header" href="#integrating-zk-proofs-with-on-chain-contracts">Integrating ZK Proofs with On-Chain Contracts</a></h1>
 <p>This document details the process of integrating Zero-Knowledge (ZK) proofs, generated by a Valence Coprocessor guest program, with the Valence Protocol's on-chain smart contracts. It assumes an understanding of the ZK system as outlined in <a href="zk/./01_system_overview.html">Valence ZK System Overview</a> and how guest programs are developed as described in <a href="zk/./02_developing_coprocessor_apps.html">Developing Valence Coprocessor Apps</a>.</p>
-<p>The core of on-chain integration revolves around submitting the ZK proof and its associated public data to the <code>Authorization.sol</code> contract (for EVM chains), which then collaborates with a <code>VerificationRouter.sol</code> and an <code>SP1VerificationSwitch.sol</code> to cryptographically verify the proof's authenticity and correctness.</p>
+<p>The core of on-chain integration revolves around submitting the ZK proof and its associated public data to the <code>Authorization</code> contract (CosmWasm or EVM), which then collaborates with a <code>VerificationRouter</code> to cryptographically verify the proof's authenticity and correctness. For SP1 proofs, the system uses an <code>SP1VerificationSwitch</code> that performs dual verification: validating both the program proof (using the provided VK) and the domain proof (using the Coprocessor root commitments).</p>
 <h3 id="preparing-data-for-on-chain-submission"><a class="header" href="#preparing-data-for-on-chain-submission">Preparing Data for On-Chain Submission</a></h3>
 <p>After your guest program successfully executes on the ZK Coprocessor and a proof is generated, two key pieces of data are essential for on-chain interaction:</p>
 <ol>
-<li><strong>The ZK Proof:</strong> This is the raw cryptographic proof data (e.g., SP1 proof bytes) generated by the Coprocessor, attesting to the correct execution of your guest program's ZK circuit.</li>
-<li><strong>The Circuit's Public Output:</strong> Your ZK circuit is designed to produce a public output (<code>Vec&lt;u8&gt;</code>). This output is critical because it represents the data that, once proven correct by the ZK proof, will be used to form the <code>processorMessage</code> for execution by the on-chain Valence <code>Processor</code> contract. It's important to remember that when the full "public inputs" are presented to the on-chain verifier, the first 32 bytes are a prefix that contains the Coprocessor Root hash. The remaining bytes are relevant for constructing on-chain messages.</li>
+<li>The ZK Proof: This is the raw cryptographic proof data (e.g., SP1 proof bytes) generated by the Coprocessor, attesting to the correct execution of your guest program's ZK circuit.</li>
+<li>The Circuit's Public Output: Your ZK circuit is designed to produce a public output (<code>Vec&lt;u8&gt;</code>). This output is critical because it represents the data that, once proven correct by the ZK proof, will be used to form the <code>processorMessage</code> for execution by the on-chain Valence Processor contract. When the full "public inputs" are presented to the on-chain verifier, the first 32 bytes contain the Coprocessor Root (historical commitments). The remaining bytes are the circuit output your app defines. For how domain and historical openings bind values to this root, see <a href="zk/./08_domain_proofs.html">Domain Proofs</a>.</li>
 </ol>
 <p>An off-chain system, such as a script, bot, or backend service, is responsible for retrieving these pieces of data from the Coprocessor (typically after the guest program stores them in its virtual filesystem) and then initiating the on-chain transaction.</p>
 <h3 id="the-zkmessage-structure"><a class="header" href="#the-zkmessage-structure">The <code>ZKMessage</code> Structure</a></h3>
 <p>To submit a ZK-proven action to the Valence Protocol, the off-chain system must construct a <code>ZKMessage</code>. This structure is specifically designed for the <code>executeZKMessage</code> function within the <code>Authorization.sol</code> contract. The <code>ZKMessage</code> encapsulates all necessary information for the on-chain contracts to process the request:</p>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>registry</code></td><td>uint64</td><td>Unique identifier for the deployed ZK guest program. Used by the Authorization contract to validate the ZkMessage provided.</td></tr>
-<tr><td><code>blockNumber</code></td><td>uint64</td><td>Current or recent block number for replay protection. Ensures proofs aren't submitted multiple times, or after that they're no longer relevant.</td></tr>
-<tr><td><code>authorizationContract</code></td><td>address</td><td>Address of the target Authorization contract. Acts as a safeguard to ensure message is processed by the correct instance.</td></tr>
-<tr><td><code>processorMessage</code></td><td>bytes</td><td>Core payload dispatched to Processor contract if ZK proof is valid. Derived from circuit's public output and encoded for ProcessorMessageTypes.</td></tr>
+<tr><td><code>registry</code></td><td>uint64</td><td>Unique identifier for the deployed ZK guest program. Maps to ZK authorization registry in the Authorization contract.</td></tr>
+<tr><td><code>blockNumber</code></td><td>uint64</td><td>Current or recent block number for replay protection. Prevents reuse of old proofs if <code>validateBlockNumberExecution</code> is enabled for the registry.</td></tr>
+<tr><td><code>authorizationContract</code></td><td>address</td><td>Address of the target Authorization contract. Can be address(0) to allow any authorization contract, or specific address for binding.</td></tr>
+<tr><td><code>processorMessage</code></td><td>bytes</td><td>Core payload dispatched to Processor contract if ZK proof is valid. Contains the actual message to be executed, derived from the circuit's public output.</td></tr>
 </tbody></table>
 </div>
 <h3 id="on-chain-verification-sequence"><a class="header" href="#on-chain-verification-sequence">On-Chain Verification Sequence</a></h3>
 <p>Once the <code>ZKMessage</code> is constructed and the ZK proof is obtained, the off-chain system submits these to the <code>executeZKMessage</code> function of the <code>Authorization.sol</code> contract. The on-chain processing then unfolds as follows:</p>
 <ol>
 <li>
-<p><strong>Initial Checks by <code>Authorization.sol</code>:</strong> The <code>Authorization</code> contract first performs several preliminary checks. It verifies if the <code>msg.sender</code> (the account submitting the transaction) is authorized to provide proofs for the given <code>registry</code> ID. It also typically checks the <code>blockNumber</code> from the <code>ZKMessage</code> against its record of the last executed block for that <code>registry</code> to prevent replay attacks.</p>
+<p>Initial Checks: The Authorization contract first performs several preliminary checks. It verifies if the <code>msg.sender</code> (the account submitting the transaction) is authorized to provide proofs for the given <code>registry</code> ID. It also typically checks the <code>blockNumber</code> from the <code>ZKMessage</code> against its record of the last executed block for that <code>registry</code> to prevent replay attacks.</p>
 </li>
 <li>
-<p><strong>Delegation to <code>VerificationRouter.sol</code>:</strong> If the initial checks pass, <code>Authorization.sol</code> delegates the task of cryptographic proof verification to the <code>VerificationRouter.sol</code> contract whose address it has been configured with using a <code>route</code>. It calls a <code>verify</code> function on the router, passing along the ZK proof, the VK, the public inputs for the proof and a payload.</p>
+<p>Delegation to VerificationRouter: If the initial checks pass, the Authorization contract delegates the task of cryptographic proof verification to the VerificationRouter contract whose address it has been configured with using a <code>route</code>. It calls a <code>verify</code> function on the router, passing along the ZK proof, the verifying key (VK), the public inputs for the proof and a payload.</p>
 </li>
 <li>
-<p><strong>Proof Verification by <code>VerificationRouter.sol</code>:</strong> The <code>VerificationRouter</code> retrieves the verifier associated by the route and delegates the verification to that verifier. The verifier then uses this VK, the submitted ZK proof, and the public inputs to perform the cryptographic verification. The public inputs are a critical piece of data: they include the Coprocessor Root hash (the first 32 bytes) followed by your circuit's specific output (which is embedded within the hashed <code>ZKMessage</code>). This Coprocessor Root hash acts as a commitment to the integrity of all Coprocessor state. It implicitly contains all the embedded state proofs of the domain relevant to that ZK proof, managed via its Sparse Merkle Tree (SMT). Every new block appended to a chain relevant to the proof's domain is included in this SMT with a ZK domain proof, and the verifications of these inclusions are cryptographically embedded into this Coprocessor Root. If the proof is valid for the VK and these comprehensive public inputs, the router returns a success status to the <code>Authorization.sol</code> contract.</p>
+<p>Proof Verification: The VerificationRouter retrieves the verifier associated by the route and delegates the verification to that verifier. For SP1 proofs, the <code>SP1VerificationSwitch</code> performs dual verification:</p>
+<ul>
+<li>Program Proof: Uses the provided VK to verify the circuit's computation with your specific public inputs</li>
+<li>Domain Proof: Uses the stored <code>domainVK</code> to verify the first 32 bytes (coprocessor root hash) which acts as a commitment to all Coprocessor state integrity</li>
+</ul>
+<p>The Coprocessor Root hash implicitly contains all embedded state proofs of domains relevant to the ZK proof, managed via a Sparse Merkle Tree (SMT). Every new block appended to chains relevant to the proof's domain is included in this SMT with a ZK domain proof, and the verifications of these inclusions are cryptographically embedded into this root. Both proofs must pass for successful verification. If valid, the router returns a success status to the Authorization contract.</p>
 </li>
 <li>
-<p><strong>Dispatch to <code>Processor.sol</code>:</strong> If the <code>VerificationRouter</code> confirms the proof's validity, <code>Authorization.sol</code> considers the <code>processorMessage</code> within the <code>ZKMessage</code> to be authentic and authorized for execution. It then typically updates its state for replay protection (e.g., storing the <code>blockNumber</code> as the last executed for that <code>registry</code>) and dispatches the <code>processorMessage</code> to the appropriate Valence <code>Processor.sol</code> contract.</p>
+<p>Dispatch to Processor: If the VerificationRouter confirms the proof's validity, the Authorization contract considers the <code>processorMessage</code> within the <code>ZKMessage</code> to be authentic and authorized for execution. It then typically updates its state for replay protection (e.g., storing the <code>blockNumber</code> as the last executed for that <code>registry</code>) and dispatches the <code>processorMessage</code> to the appropriate Valence Processor contract.</p>
 </li>
 <li>
-<p><strong>Execution by <code>Processor.sol</code>:</strong> The <code>Processor.sol</code> contract receives the <code>processorMessage</code> and executes the sequence of on-chain actions (e.g., calls to various Valence Libraries or other smart contracts) as defined within that message. This is where the result of your ZK-proven off-chain computation translates into tangible on-chain state changes.</p>
+<p>Execution by Processor: The Processor contract receives the <code>processorMessage</code> and executes the sequence of on-chain actions (e.g., calls to various Valence Libraries or other smart contracts) as defined within that message. This is where the result of your ZK-proven off-chain computation translates into tangible on-chain state changes.</p>
 </li>
 </ol>
 <p>This integration pathway ensures that off-chain computations, once proven correct by the ZK Coprocessor, can be securely and reliably acted upon by the Valence on-chain contracts.</p>
+<h3 id="verifying-keys"><a class="header" href="#verifying-keys">Verifying Keys</a></h3>
+<ul>
+<li>Guest program VKs can be fetched from the Coprocessor via <code>GET /api/circuit/vk</code> (base64) for a given controller context.</li>
+<li>For recursive domain proofs, a domain prover service publishes a stable wrapper VK (e.g., via <code>/api/consts</code>). On‑chain verifiers can bind to this VK and the expected controller ID.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="zk-coprocessor-internals"><a class="header" href="#zk-coprocessor-internals">ZK Coprocessor Internals</a></h1>
 <p>This document provides an in-depth look into the internal architecture and operational mechanics of the Valence ZK Coprocessor service. It is intended for those who wish to understand more about the Coprocessor's design beyond the scope of typical application development. Familiarity with <a href="zk/./01_system_overview.html">Valence ZK System Overview</a> is assumed.</p>
 <p>The Valence ZK Coprocessor is designed as a persistent off-chain service that registers and executes Zero-Knowledge (ZK) guest applications.</p>
 <h3 id="service-architecture"><a class="header" href="#service-architecture">Service Architecture</a></h3>
 <p>The Coprocessor service consists of several coordinated components that work together to provide a complete ZK execution environment. It's important to note a key architectural separation: the <code>coprocessor</code> itself (which handles API requests, controller execution, and virtual filesystem management) is distinct from the <code>prover</code>. While they work in tandem, they can be deployed and scaled independently. For instance, Valence runs a dedicated, high-performance prover instance at <code>prover.timewave.computer:37282</code>. Coprocessor instances, including those run locally for development, can connect to this remote prover (typically requiring a <code>VALENCE_PROVER_SECRET</code> for access). This separation also allows developers to run a local coprocessor instance completely isolated from a real prover, using mocked ZK proofs. This is invaluable for rapid iteration and debugging of controller logic without incurring the overhead of actual proof generation.</p>
 <p>The main components of the Coprocessor service include:</p>
-<p>The <strong>API Layer</strong> serves as the primary external interface, exposing REST endpoints (typically on port <code>37281</code> for the coprocessor service itself) for core operations. Developers can deploy guest programs by submitting <code>controller</code> and <code>circuit</code> bundles, they can request proofs for deployed programs, query the status of ongoing tasks, and retrieve data stored in the virtual filesystem such as generated proofs or execution logs.</p>
+<p>The API Layer serves as the primary external interface, exposing REST endpoints (typically on port <code>37281</code> for the coprocessor service itself) for core operations. Developers can deploy guest programs by submitting <code>controller</code> and <code>circuit</code> bundles, they can request proofs for deployed programs, query the status of ongoing tasks, and retrieve data stored in the virtual filesystem such as generated proofs or execution logs.</p>
 <p><strong>Request Management &amp; Database</strong> - This component validates incoming requests and queues them for processing. It maintains persistent storage for deployed guest program details including Controller IDs, circuit specifications, and controller bundles, while also tracking proof generation status and execution metadata.</p>
 <p>The <strong>Controller Executor / Sandbox</strong> provides an isolated execution environment for <code>controller</code> crate logic. This sandbox runs a WebAssembly runtime for controller code and provides a crucial interface that allows controllers to signal when witness preparation is complete and proof generation should commence. Controllers can also perform filesystem operations through this interface.</p>
 <p><strong>Proving Engine Integration</strong> - Orchestrates the actual ZK proof generation process using underlying zkVM systems like SP1 or Groth16. This component manages prover resources, handles the translation of circuits and witnesses into the required formats for specific proving backends, and processes the resulting proof data and public outputs.</p>
-<p>The <strong>Virtual Filesystem Manager</strong> allocates FAT-16 based virtual filesystems to each guest program, enabling controllers to store proofs and logs through <code>store</code> commands. This filesystem has certain limitations on filename length and character sets that developers must consider.</p>
+<p>The Virtual Filesystem Manager allocates FAT-16 based virtual filesystems to each guest program, enabling controllers to store proofs and logs through <code>store</code> commands. This filesystem has certain limitations on filename length and character sets that developers must consider.</p>
 <h3 id="the-coprocessor-process"><a class="header" href="#the-coprocessor-process">The Coprocessor Process</a></h3>
 <p><strong>Coprocessor Root Hash</strong> is a notable internal detail where the Coprocessor prepends a 32-byte hash to application-specific public outputs from the ZK circuit. This combined data forms the complete "public inputs" that are cryptographically bound to the proof, ensuring that proofs are tied to the specific Coprocessor instance that produced them. On-chain verifiers must account for this structure when validating proofs.</p>
 <p><strong>Task Lifecycle</strong> involves proof generation requests progressing through several distinct stages: initial queuing, controller execution for witness generation, circuit proving, and finally proof delivery back to the controller entrypoint. The API provides mechanisms to track task status throughout this lifecycle.</p>
@@ -674,8 +760,43 @@ graph LR
 <h3 id="handling-verifiable-state-proofs"><a class="header" href="#handling-verifiable-state-proofs">Handling Verifiable State Proofs</a></h3>
 <p>Guest programs can incorporate state from external blockchains through a structured integration pattern that enhances their capabilities significantly.</p>
 <p>External State Proof Services, such as the <code>eth-state-proof-service</code>, connect to external chains via RPC, query desired state at specific block heights, and construct Merkle proofs relative to known block hashes. These services play a crucial role in bridging external blockchain data into the ZK environment.</p>
-<p>The guest program integration follows a clear pattern. During <strong>Proof Ingestion</strong>, the controller receives external state proofs via JSON payloads and extracts state values along with relevant metadata like block hashes. In the <strong>Witness Preparation</strong> phase, the controller incorporates this external state into the witness for the ZK circuit. The <strong>Circuit Logic</strong> then performs computations using the external state data, with the option to verify external proofs directly within the circuit for stronger security guarantees.</p>
+<p>The guest program integration follows a clear pattern. During proof ingestion, the controller receives external state proofs via JSON payloads and extracts state values along with relevant metadata like block hashes. In the witness preparation phase, the controller incorporates this external state into the witness for the ZK circuit. The circuit logic then performs computations using the external state data, with the option to verify external proofs directly within the circuit for stronger security guarantees.</p>
 <p><strong>Trust Model Considerations</strong> - The ZK proof fundamentally attests that given a set of provided inputs (which may include externally proven state at the latest block height), the circuit executed correctly to produce the specified outputs. The Coprocessor provides a state proof interface for each chain that exposes a light client prover wrapped in a recursive circuit. All light client circuits are initialized at a trusted height, where block hash and committee composition are taken as "weakly subjective" public inputs.</p>
+<h3 id="service-api-access--discovery"><a class="header" href="#service-api-access--discovery">Service API (Access &amp; Discovery)</a></h3>
+<p>The Coprocessor serves an OpenAPI/Swagger UI and specification alongside its REST endpoints.</p>
+<p>You can programmatically discover available routes by fetching the spec. For example, to list available paths:</p>
+<pre><code class="language-bash">curl -s https://service.coprocessor.valence.zone/spec | jq -r '.paths | keys[]'
+# or against local:
+curl -s http://127.0.0.1:37281/spec | jq -r '.paths | keys[]'
+</code></pre>
+<p>Notes</p>
+<ul>
+<li>Virtual filesystem is FAT‑16 emulated; file extensions must be ≤ 3 characters, paths are case‑insensitive.</li>
+<li>The <code>payload</code> in proving requests is commonly <code>{ "cmd": "store", "path": "/var/share/proof.bin" }</code> to instruct the controller to store the generated proof.</li>
+</ul>
+<h3 id="related-services"><a class="header" href="#related-services">Related Services</a></h3>
+<p>Domain prover services publish recursive proofs and a stable wrapper VK for domains. For how domain and historical proofs are modeled (and how the domain prover feeds the Coprocessor and on‑chain verification), see <a href="zk/./08_domain_proofs.html">Domain Proofs</a>. For domain implementation patterns, see <a href="zk/./07_state_encoding_and_encoders.html#domain-implementations-examples">State Encoding and Encoders</a>.</p>
+<h3 id="client-conventions"><a class="header" href="#client-conventions">Client Conventions</a></h3>
+<p>When calling the Coprocessor, clients use a few standard conventions:</p>
+<p>Headers</p>
+<ul>
+<li><code>valence-coprocessor-circuit</code>: hex controller ID (context)</li>
+<li><code>valence-coprocessor-root</code>: historical root hex (pinning to a known SMT root)</li>
+<li><code>valence-coprocessor-signature</code>: optional signature over JSON body (if a signer is configured)</li>
+</ul>
+<p>Prove payload</p>
+<ul>
+<li>Include a “store” payload to direct the controller to write the generated proof to the virtual filesystem, for example:
+<code>{ "args": { … }, "payload": { "cmd": "store", "path": "/var/share/proofs/&lt;id&gt;.bin" } }</code></li>
+</ul>
+<p>Virtual filesystem</p>
+<ul>
+<li>FAT‑16 emulation with 3‑character file extensions and case‑insensitive paths. A common pattern is to store under <code>/var/share/proofs/…</code>.</li>
+</ul>
+<p>Public inputs layout</p>
+<ul>
+<li>The public inputs buffer starts with a 32‑byte Coprocessor Root, followed by the circuit‑defined output bytes used on‑chain.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="sparse-merkle-trees-in-valence"><a class="header" href="#sparse-merkle-trees-in-valence">Sparse Merkle Trees in Valence</a></h1>
 <p>A sparse Merkle tree (SMT) is a specialized Merkle tree with leaf indices defined by an injective function from predefined arguments. The verification key of a ZK circuit, being injective to the circuit's definition, serves as an index for available programs.</p>
 <p>Since ZK proofs are uniquely tied to their verification keys, we can use these keys to index and organize proofs from different programs. This makes each verification key a unique identifier for its corresponding proof within the collection.</p>
@@ -960,24 +1081,51 @@ Chain1 Chain2 Chain3
 <li>Reconstruct the commitments and validate the Merkle root</li>
 </ol>
 <p>This architecture enables the Valence Coprocessor to securely and efficiently coordinate complex cross-chain programs.</p>
+<h3 id="domain-implementations-examples"><a class="header" href="#domain-implementations-examples">Domain Implementations (Examples)</a></h3>
+<p>Domains are pluggable modules that supply controller logic and circuits for chain‑specific state proofs. Each implementation typically includes:</p>
+<ul>
+<li>A controller (Wasm) that knows how to fetch/structure state inputs</li>
+<li>A circuit (zkVM target) that verifies the state proof and binds it to the Coprocessor root</li>
+<li>Optional services (e.g., light clients)</li>
+</ul>
+<p>Example: Ethereum (as one implementation)</p>
+<ul>
+<li>Build storage layouts with a builder (e.g., mapping indices, combined slots, variable‑length values)</li>
+<li>Create <code>StateProofArgs</code> for the target account/storage and optional payload</li>
+<li>Produce a <code>StateProof</code> witness that the Coprocessor can open to the historical root and verify</li>
+</ul>
+<p>New domains can follow the same pattern: define controller APIs that emit domain‑specific <code>Witness::StateProof</code> entries, implement a circuit that verifies those proofs, and optionally provide a service component for light‑client or state synthesis. For how these proofs bind to the Coprocessor root via domain and historical openings, see <a href="zk/./08_domain_proofs.html">Domain Proofs</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="domain-proofs"><a class="header" href="#domain-proofs">Domain Proofs</a></h1>
+<p>This document explains how domain proofs are modeled and validated in the Valence Coprocessor and how historical proofs are bound to a domain proof.</p>
+<p>Domain proofs bind chain‑specific state (for example, an Ethereum account/storage proof) to a single Coprocessor root. The Coprocessor root is the root of a global Historical tree. Each leaf of that tree is a domain root, and each domain root is the root of a per‑domain sparse Merkle tree that maps block number to state root. Guest programs provide domain‑specific state proofs; the Coprocessor augments them with openings up to the Coprocessor root and proves the combined statement. For API access and client conventions, see <a href="zk/./04_coprocessor_internals.html">Coprocessor Internals</a> and for on‑chain consumption, see <a href="zk/./03_onchain_integration.html">On‑Chain Integration</a>.</p>
+<h2 id="structure"><a class="header" href="#structure">Structure</a></h2>
+<p>Per‑domain, we maintain a sparse Merkle tree keyed by block number whose leaves are state roots. Using the block number as the key improves locality—consecutive blocks tend to share path prefixes—so proof paths are short on average. Globally, we maintain a sparse Merkle tree keyed by <code>Hash(domain identifier)</code> whose leaves are the current domain roots. The root of this Historical tree is the Coprocessor root. The Coprocessor places this 32‑byte root at the start of public inputs for every program proof; the remainder of the inputs is the program’s circuit output.</p>
+<h2 id="binding-state-to-the-coprocessor-root"><a class="header" href="#binding-state-to-the-coprocessor-root">Binding State to the Coprocessor Root</a></h2>
+<p>To bind a domain value to the Coprocessor root, the Coprocessor combines two openings. First, it computes a per‑domain opening from the block number to the state root in the domain tree. Second, it computes a historical opening from <code>Hash(domain id)</code> to the domain root in the Historical tree. These openings are combined into a single “state opening” that binds the state root to the Coprocessor root; the Coprocessor enforces that the opening corresponds to the correct domain identifier. Finally, the domain‑specific value proof (for example, an Ethereum MPT proof) is verified against the state root. The result is a proof that the value is included in the domain state committed by the Coprocessor root at the referenced block.</p>
+<h2 id="adding-new-blocks"><a class="header" href="#adding-new-blocks">Adding New Blocks</a></h2>
+<p>New blocks are added through the domain’s controller (for example, <code>POST /api/registry/domain/:domain</code>). The controller validates the domain‑specific inputs and yields the new <code>(block number, state root)</code> pair, and the Coprocessor persists the historical update and proofs. You can query the latest per‑domain information at <code>/api/registry/domain/:domain/latest</code>, the current Coprocessor root at <code>/api/historical</code>, a specific update at <code>/api/historical/:root</code>, or a block proof for a domain at <code>/api/historical/:domain/:number</code>.</p>
+<h2 id="recursive-proofs-and-publication"><a class="header" href="#recursive-proofs-and-publication">Recursive Proofs and Publication</a></h2>
+<p>The “state transition” for the Historical tree is modeled via recursive proofs produced by a domain prover service. The service ingests historical updates, computes an inner proof over intervals of updates, and wraps it in a stable “wrapper” proof with a published verifying key (VK). Consumers read the latest state and wrapper VK from the domain prover and can bind their verification logic to that VK and the expected controller ID. Per‑domain block validity is enforced when adding a block to the Coprocessor; the wrapper proof chains these updates. See <a href="zk/./04_coprocessor_internals.html">Coprocessor Internals</a> for how the domain prover and Coprocessor interact.</p>
+<h2 id="onchain-consumption"><a class="header" href="#onchain-consumption">On‑Chain Consumption</a></h2>
+<p>On‑chain, program proofs always start with the 32‑byte Coprocessor root in public inputs; the circuit‑defined output follows. Authorization uses a VerificationRouter route to verify proofs against the correct VK and route (for example, a guest program VK or a domain prover wrapper VK). Upon success, Authorization dispatches the validated message to the Processor. There is currently no on‑chain registry of “valid Coprocessor roots”; the domain prover route and VK binding provide the trust anchor. A root registry could be added later if desired.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="authorization--processors"><a class="header" href="#authorization--processors">Authorization &amp; Processors</a></h1>
-<p>The <strong>Authorization</strong> and <strong>Processor</strong> contracts are foundational pieces of the <strong>Valence Protocol</strong>, as they enable on-chain (and cross-chain) execution of <strong>Valence Programs</strong> and enforce access control to the program's <strong>Subroutines</strong> via <strong>Authorizations</strong>.</p>
-<p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with <strong>Valence Programs</strong> via <strong>Authorizations</strong>.</p>
+<p>The Authorization and Processor contracts are foundational pieces of the Valence Protocol, as they enable execution of Valence Programs and enforce access control to the program's Subroutines via Authorizations.</p>
+<p>This section explains the rationale for these contracts and shares insights into their technical implementation, as well as how end-users can interact with Valence Programs via Authorizations.</p>
 <h2 id="rationale"><a class="header" href="#rationale">Rationale</a></h2>
 <ul>
-<li>To have a general purpose set of smart contracts that provide users with a single point of entry to interact with the Valence Program, which can have libraries and accounts deployed on multiple chains.</li>
-<li>To have all the user authorizations for multiple domains in a single place, making it very easy to control the application.</li>
-<li>To have a single address (Processor) that will execute the messages for all the contracts in a domain using execution queues.</li>
-<li>To only tick a single contract (Processor) that will go through the queues to route and execute the messages.</li>
+<li>To provide users with a single point of entry to interact with the Valence Program through controlled access to library functions.</li>
+<li>To centralize user authorizations and permissions, making it easy to control application access.</li>
+<li>To have a single address (Processor) that will execute the authorized messages. On CosmWasm this uses execution queues and permissionless ticks; on EVM the Lite Processor executes immediately (no queues).</li>
 <li>To create, edit, or remove different application permissions with ease.</li>
 </ul>
+<p>Note: Programs can optionally include libraries and accounts deployed across multiple domains for certain multi-chain scenarios.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h1>
 <ul>
 <li>
 <p><strong>Funds</strong>: You cannot send funds with the messages.</p>
 </li>
 <li>
-<p><strong>Bridging</strong>: We are assuming that messages can be sent and confirmed bidirectionally between domains. The Authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
+<p><strong>Bridging</strong>: For programs that optionally span multiple domains, we assume that messages can be sent and confirmed bidirectionally between domains. The Authorization contract on the main domain communicates with the processor in a different domain in one direction and the callback confirming the correct or failed execution in the other direction.</p>
 </li>
 <li>
 <p><strong>Instantiation</strong>: All these contracts can be instantiated beforehand and off-chain having predictable addresses. Here is an example instantiation flow using Polytone:</p>
@@ -1001,23 +1149,43 @@ Chain1 Chain2 Chain3
 </li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="authorization-contract"><a class="header" href="#authorization-contract">Authorization Contract</a></h1>
-<p>The Authorization contract will be a single contract deployed on the main domain and that will define the authorizations of the top-level application, which can include libraries in different domains (chains). For each domain, there will be one Processor in charge of executing the functions on the libraries. The Authorization contract will connect to all of the Processor contracts using a connector (e.g. Polytone Note, Hyperlane Mailbox…) and will route the message batches to be executed to the right domain. At the same time, for each external domain, we will have a proxy contract (e.g. Polytone Proxy, Hyperlane Mailbox...) in the main domain which will receive the callbacks sent from the processor on the external domain with the <code>ExecutionResult</code> of the <code>MessageBatch</code>.</p>
-<p>The contract will be instantiated once at the very beginning and will be used during the entire top-level application lifetime. Users will never interact with the individual Smart Contracts of each program, but with the Authorization contract directly.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="instantiation-1"><a class="header" href="#instantiation-1">Instantiation</a></h1>
-<p>When the contract is instantiated, it will be provided the following information:</p>
+<p>The Authorization contract serves as the authority and message routing hub for Valence Programs. It supports two distinct authorization mechanisms: standard authorizations for traditional access control and ZK authorizations for zero-knowledge proof–based execution.</p>
+<p>A Valence Program has one Authorization contract and one Processor contract per domain. The Authorization contract defines authorizations that control access to library functions within the program. The contract validates user permissions and routes authorized messages to the associated Processor contract for execution.</p>
+<h2 id="standard-authorizations"><a class="header" href="#standard-authorizations">Standard Authorizations</a></h2>
+<p>Standard authorizations use a label-based system with different authorization modes.</p>
 <ul>
-<li>
-<p>Processor contract on main domain.</p>
-</li>
-<li>
-<p>Owner of the contract.</p>
-</li>
-<li>
-<p>List of subowners (if any). Users that can execute the same actions as the owner except adding/removing other subowners.</p>
-</li>
+<li>CosmWasm: Permissionless authorizations allow anyone to execute (default Medium priority). Permissioned authorizations are enforced with per‑label TokenFactory tokens. With call limit, one token is consumed (burned on success, refunded on failure) per execution; without call limit, holding one token suffices. Tokens use <code>factory/{authorization_contract}/{label}</code> and enable on-chain transferability.</li>
+<li>EVM: Permissioned access is enforced per label with address allowlists and function‑level constraints. For each label, the contract stores an array of AuthorizationData entries containing the target contract address and either the function selector or a call hash. No tokens are minted; authorization is purely address/function based.</li>
 </ul>
-<p>Once the Authorization contract is deployed, we can already start adding and executing authorizations on the domain that the Authorization contract was deployed on. To execute functions on other domains, the owner will have to add external domains to the Authorization contract with all the information required for the Authorization contract to route the messages to that domain.</p>
+<p>For standard message execution, the contract validates sender permissions and authorization state, ensures the message(s) align with the label’s subroutine configuration, routes the message to the Processor, and processes callbacks. On CosmWasm, token mint/burn/refund applies for call‑limited flows.</p>
+<h2 id="zk-authorizations"><a class="header" href="#zk-authorizations">ZK Authorizations</a></h2>
+<p>ZK authorizations enable proof‑based execution via a registry‑keyed configuration. Each registry stores allowed execution addresses, a verification key, a verification route (for a VerificationRouter), optional last‑block validation for replay prevention, and a metadata hash linking the VK to the program.</p>
+<ul>
+<li>EVM: Users call <code>executeZKMessage(bytes inputs, bytes proof, bytes payload)</code>. The Authorization verifies sender allowance, optional replay protection, then routes to the <code>VerificationRouter.verify(route, vk, proof, inputs, payload)</code>. On success, it injects the current <code>executionId</code> into SendMsgs/InsertMsgs and forwards to the Processor.</li>
+<li>CosmWasm: Users call <code>ExecuteZkAuthorization { label, inputs, proof, payload }</code>. The Authorization verifies sender allowance and optional last‑block execution checks, uses the configured verification route, and forwards the decoded Processor message.</li>
+</ul>
+<p>Note: CosmWasm cross‑domain routing uses Polytone (CosmWasm↔CosmWasm). EVM cross‑domain routing uses Hyperlane mailboxes. Both environments support callbacks to the Authorization for execution results.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="instantiation-1"><a class="header" href="#instantiation-1">Instantiation</a></h1>
+<p>Instantiation parameters vary slightly between CosmWasm and EVM.</p>
+<h2 id="cosmwasm"><a class="header" href="#cosmwasm">CosmWasm</a></h2>
+<p>The Authorization contract is instantiated with:</p>
+<ul>
+<li>Processor contract address on the main domain</li>
+<li>Owner address</li>
+<li>Optional list of sub‑owners (second‑tier owners who can perform all actions except sub‑owner management)</li>
+</ul>
+<p>Once deployed, authorizations can be created and executed on the main domain. To execute on other domains, the owner adds external domains with connector details (Polytone for CosmWasm domains; Hyperlane + encoder info for EVM domains).</p>
+<h2 id="evm"><a class="header" href="#evm">EVM</a></h2>
+<p><code>constructor(address owner, address processor, bool storeCallbacks)</code></p>
+<ul>
+<li><code>owner</code>: the contract owner (Ownable)</li>
+<li><code>processor</code>: the Processor contract address</li>
+<li><code>storeCallbacks</code>: whether to persist processor callbacks on‑chain (otherwise only events are emitted)</li>
+</ul>
+<p>EVM does not use sub‑owners; instead, the owner can add or remove admin addresses that are permitted to perform privileged updates. Cross‑domain routing is handled via Hyperlane mailboxes (set during Processor deployment), not at Authorization instantiation time.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="owner-functions"><a class="header" href="#owner-functions">Owner Functions</a></h1>
+<p>This page lists owner/admin actions. Items are grouped by execution environment when behavior differs.</p>
+<h2 id="cosmwasm-1"><a class="header" href="#cosmwasm-1">CosmWasm</a></h2>
 <ul>
 <li>
 <p><code>create_authorizations(vec[Authorization])</code>: provides an authorization list which is the core information of the Authorization contract, it will include all the possible set of functions that can be executed. It will contain the following information:</p>
@@ -1129,8 +1297,41 @@ All authorizations will have an initial state of <code>Enabled</code> .</p>
 <li>
 <p><code>remove_sub_owners(vec[addresses])</code>: remove these addresses from the sub_owner list.</p>
 </li>
+<li>
+<p>ZK‑specific owner actions:</p>
+<ul>
+<li><code>create_zk_authorizations(vec[ZkAuthorization])</code>: add ZK registries with VK, allowed execution addresses, route, metadata hash, and optional last‑block validation.</li>
+<li><code>modify_zk_authorization { label, validate_last_block_execution }</code>: enable/disable last‑block execution validation for a registry.</li>
+<li><code>set_verification_router(address)</code>: set the on‑chain verification router address.</li>
+<li><code>update_zk_authorization_route { label, new_route }</code>: update the verifier route for a registry.</li>
+</ul>
+</li>
+</ul>
+<h2 id="evm-1"><a class="header" href="#evm-1">EVM</a></h2>
+<ul>
+<li>Standard authorization admin:
+<ul>
+<li><code>addStandardAuthorizations(string[] labels, address[][] users, AuthorizationData[][] data)</code></li>
+<li><code>removeStandardAuthorizations(string[] labels)</code></li>
+</ul>
+</li>
+<li>Processor/admin management:
+<ul>
+<li><code>updateProcessor(address)</code></li>
+<li><code>addAdminAddress(address)</code> / <code>removeAdminAddress(address)</code></li>
+</ul>
+</li>
+<li>ZK authorization admin:
+<ul>
+<li><code>addRegistries(uint64[] registries, ZkAuthorizationData[] data)</code></li>
+<li><code>updateRegistryRoute(uint64 registryId, string route)</code></li>
+<li><code>removeRegistries(uint64[] registries)</code></li>
+<li><code>setVerificationRouter(address)</code></li>
+</ul>
+</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="user-actions"><a class="header" href="#user-actions">User Actions</a></h1>
+<h2 id="cosmwasm-2"><a class="header" href="#cosmwasm-2">CosmWasm</a></h2>
 <ul>
 <li>
 <p><code>send_msgs(label, vec[ProcessorMessage])</code>: users can run an authorization with a specific label. If the authorization is <code>Permissioned (without limit)</code>, the Authorization contract will check if their account is allowed to execute by checking that the account holds the token in its wallet. If the authorization is <code>Permissioned (with limit)</code> the account must attach the authorization token to the contract execution. Along with the authorization label, the user will provide an array of encoded messages, together with the message type (e.g. <code>CosmwasmExecuteMsg</code>, <code>EvmCall</code>, etc.) and any other parameters for that specific ProcessorMessage (e.g. for a <code>CosmwasmMigrateMsg</code> we need to also pass a code_id). The contract will then check that the messages match those defined in the authorization, that the messages appear in correct order, and that any applied parameter restrictions are correct.</p>
@@ -1140,16 +1341,23 @@ Here is an example flowchart of how a user interacts with the Authorization cont
 </li>
 </ul>
 <p><img src="authorizations_processors/../img/user_flowchart.png" alt="User flowchart" /></p>
+<h2 id="evm-2"><a class="header" href="#evm-2">EVM</a></h2>
+<ul>
+<li><code>sendProcessorMessage(string label, bytes message)</code>: users submit an ABI‑encoded <code>ProcessorMessage</code> (as defined in <code>IProcessorMessageTypes</code>) with the target label. The contract verifies the sender against the label’s allowlist and validates the messages against the subroutine’s function set (contract address + function selector or call hash). For SendMsgs/InsertMsgs, the Authorization injects the current <code>executionId</code> before forwarding to the Processor. There is no tokenization on EVM; authorization is address/function constrained.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="processor-contract"><a class="header" href="#processor-contract">Processor Contract</a></h1>
-<p>The Processor will be a contract on each domain within the program. The Processor handles execution of message batches it receives from the Authorization contract.
-Depending on the Processor type in use, its features will vary. There are currently two types of processors: Lite Processor and Processor. The former is a simplified version of the latter. The Lite Processor has limited functionality to optimize for gas-constrained domains.</p>
-<p>The Processor will be instantiated in advance with the correct address that can send messages to them, according to the <em>InstantiationFlow</em> described in the <a href="authorizations_processors/assumptions.html">Assumptions</a> section.</p>
-<p>In the table below we summarize the main characteristics of the processors supported:</p>
-<div class="table-wrapper"><table><thead><tr><th></th><th>Processor</th><th>Lite Processor</th></tr></thead><tbody>
-<tr><td><strong>Execution Environment</strong></td><td>CosmWasm</td><td>EVM</td></tr>
-<tr><td><strong>Stores batches in queues</strong></td><td>Yes, FIFO queue with priority</td><td>No, executed immediately by relayer</td></tr>
+<p>The Processor contract exists on each domain within a Valence Program and handles execution of message batches received from the Authorization contract. There are currently two main processor implementations with different capabilities and execution models.</p>
+<p>The Full Processor (CosmWasm) provides comprehensive message processing with sophisticated queue management. It uses a priority queue system with High and Medium priority FIFO queues where High priority is processed first. The processor uses tick-based execution with a permissionless <code>tick()</code> function that processes queued messages. It includes advanced retry logic with function-level and batch-level retry configurations, callback confirmation support where non-atomic functions can require callback confirmations, comprehensive state management with Active/Paused states, Polytone integration for Cosmos cross-chain operations, and support for both atomic and non-atomic execution models with different retry behaviors.</p>
+<p>For message processing, the Full Processor enqueues messages with priority and expiration handling. The <code>tick()</code> function processes the queue by handling High priority first, then Medium priority. Expired messages are removed and callbacks sent. Retry cooldown is enforced between retry attempts. For atomic execution, all messages execute in a single transaction, while non-atomic execution processes messages sequentially with per-function retry logic.</p>
+<h2 id="lite-processor"><a class="header" href="#lite-processor">Lite Processor</a></h2>
+<p>The Lite Processor (EVM) is optimized for gas-constrained environments with immediate execution. It processes messages immediately without a queuing system and includes cross-chain support capabilities. The Lite Processor supports both cross-chain messages and authorized addresses for dual access control. It has limited message types, supporting only Pause, Resume, and SendMsgs operations. Expiration handling validates message expiration before execution, and it includes an automatic callback system for contract senders.</p>
+<p>For execution flow, the Lite Processor receives messages via cross-chain handlers or direct calls. It validates sender and origin, checks expiration, immediately executes the subroutine (atomic or non-atomic), and sends callbacks if the sender is a contract.</p>
+<p>The table below summarizes the main characteristics of the processors supported:</p>
+<div class="table-wrapper"><table><thead><tr><th></th><th>Full Processor (CosmWasm)</th><th>Lite Processor (EVM)</th></tr></thead><tbody>
+<tr><td><strong>Execution Model</strong></td><td>Queue-based with tick</td><td>Immediate execution</td></tr>
+<tr><td><strong>Stores batches in queues</strong></td><td>Yes, FIFO queue with priority</td><td>No, executed immediately</td></tr>
 <tr><td><strong>Needs to be ticked</strong></td><td>Yes, permissionlessly</td><td>No</td></tr>
-<tr><td><strong>Messages can be retried</strong></td><td>Yes</td><td>No</td></tr>
+<tr><td><strong>Messages can be retried</strong></td><td>Yes, with complex retry logic</td><td>No</td></tr>
 <tr><td><strong>Can confirm non-atomic function with callback</strong></td><td>Yes</td><td>No</td></tr>
 <tr><td><strong>Supports Pause operation</strong></td><td>Yes</td><td>Yes</td></tr>
 <tr><td><strong>Supports Resume operation</strong></td><td>Yes</td><td>Yes</td></tr>
@@ -1157,7 +1365,9 @@ Depending on the Processor type in use, its features will vary. There are curren
 <tr><td><strong>Supports InsertMsgs operation</strong></td><td>Yes</td><td>No, no queues to insert in</td></tr>
 <tr><td><strong>Supports EvictMsgs operation</strong></td><td>Yes</td><td>No, no queues to remove from</td></tr>
 </tbody></table>
-</div><div style="break-before: page; page-break-before: always;"></div><h1 id="processor"><a class="header" href="#processor">Processor</a></h1>
+</div>
+<p>Both processors are instantiated with the correct Authorization contract address and implement robust access control to ensure only authorized messages are processed. The choice between processors depends on the execution environment requirements, with CosmWasm supporting full queue-based processing and EVM optimizing for immediate execution with lower gas costs.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="processor"><a class="header" href="#processor">Processor</a></h1>
 <p>This version of the processor is currently available for <code>CosmWasm</code> Execution Environment only. It contains all the features and full functionality of the processor as described below.</p>
 <p>It handles two execution queues: <code>High</code> and <code>Med</code>, which allow giving different priorities to message batches. The Authorization contract will send the message batches to the Processor specifying the priority of the queue where they should be enqueued.</p>
 <p>The Processor can be <code>ticked</code> permissionlessly, which will trigger the execution of the message batches in the queues in a <code>FIFO</code> manner. It will handle the <code>Retry</code> logic for each batch (if the batch is atomic) or function (if the batch is non-atomic). In the particular case that the current batch at the top of the queue is not retriable yet, the processor will rotate it to the back of the queue. After a <code>MessageBatch</code> has been executed successfully or it reached the maximum amount of retries, it will be removed from the execution queue and the Processor will send a callback with the execution information to the Authorization contract.</p>
@@ -1188,6 +1398,7 @@ Each “item” stored in the queue is a <code>MessageBatch</code> object that h
     pub msgs: Vec&lt;ProcessorMessage&gt;,
     pub subroutine: Subroutine,
     pub priority: Priority,
+    pub expiration_time: Option&lt;u64&gt;,
     pub retry: Option&lt;CurrentRetry&gt;,
 }
 <span class="boring">}</span></code></pre></pre>
@@ -1196,9 +1407,10 @@ Each “item” stored in the queue is a <code>MessageBatch</code> object that h
 <li>msgs: the messages the processor needs to execute for this batch (e.g. a CosmWasm ExecuteMsg or MigrateMsg).</li>
 <li>subroutine: This is the config that the authorization table defines for the execution of these functions. With this field we can know if the functions need to be executed atomically or not atomically, for example, and the retry logic for each batch/function depending on the config type.</li>
 <li>priority (for internal use): batches will be queued in different priority queues when they are received from the Authorization contract. We also keep this priority here because they might need to be re-queued after a failed execution and we need to know where to re-queue them.</li>
+<li>expiration_time: optional absolute timestamp after which the batch is considered expired by the Processor. When set and already expired at processing time, the batch yields an Expired result (with the number of functions executed so far for NonAtomic).</li>
 <li>retry (for internal use): we are keeping the current retry we are at (if the execution previously failed) to know when to abort if we exceed the max retry amounts.</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="lite-processor"><a class="header" href="#lite-processor">Lite Processor</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="lite-processor-1"><a class="header" href="#lite-processor-1">Lite Processor</a></h1>
 <p>This is a simplified version of the <a href="authorizations_processors/processor.html">Processor</a> contract, with more limited functionality that is optimized for specific domains where gas costs are critical. This version of the processor is currently available for <code>EVM</code> execution environments only.</p>
 <p>The main difference between the Lite Processor and the Processor is that the former does not store message batches, but instead executes messages directly when received. The Lite Processor does not handle retries, function callbacks, or queues. More details can be found below.</p>
 <h3 id="execution-1"><a class="header" href="#execution-1">Execution</a></h3>
@@ -1209,19 +1421,30 @@ There might be a case that the <code>MessageBatch</code> received is already exp
 <p>In addition to the limitations above, the Lite Processor does not support retries or function callbacks. This means that the <code>MessageBatch</code> received will be executed only once and the <code>NonAtomic</code> batches can not be confirmed asynchronously because batch execution will be attempted once, non-atomically, the moment it is received.</p>
 <p>In addition to executing batches that come from the Authorization contract, the Lite Processor defines a set of authorized addresses that can send batches to it for execution. Since the Processor can execute batches from any address, we only send a callback if the address that sent the batch is a smart contract. Thus the authorized addresses are in charge of the handling/ignoring of these callbacks.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="execution-environment-differences"><a class="header" href="#execution-environment-differences">Execution Environment Differences</a></h1>
-<p>Depending on the type of <code>ExecutionEnvironment</code> being used, the behavior of the Processor may vary. In this section we will describe the main differences in how the Processor behaves in the different execution environments that we support.</p>
-<h3 id="execution-success"><a class="header" href="#execution-success">Execution Success</a></h3>
-<p>During the execution of a <code>MessageBatch</code>, the Processor will execute each function of the subroutine of that batch. If the execution for a specific function fails, we will consider the execution failed in case of <code>Atomic</code> batches, and we will stop the execution of the next function in case of <code>NonAtomic</code> batches.</p>
-<p>Currently, in the <code>CosmWasm</code> execution environment, a function fails if the <code>CosmWasm</code> contract that we are targeting doesn't exist, if the <code>entry point</code> of that contract doesn't exist, or if the execution of the contract fails for any reason. On the contract, in the <code>EVM</code> execution environment, a function only fails if the contract explicitly fails or reverts.</p>
-<p>To mitigate the differences in behavior between these two execution environments, an <code>EVM</code> Processor check was included to check if the contract indeed exists and fail execution if the contract does not exist. Behavior was also added in the <code>EVM</code> libraries to revert if the execution of the contract enters the fallback function, which is not allowed in the system. Nevertheless, since Processors are not restricted to <code>Valence Libraries</code> but can call any contract, no guarantee can be made that the contract targeted will fail if an entry point does not exist, because the fallback function might not be defined or might not revert.</p>
-<p>In <code>CosmWasm</code>, execution of a contract will always fail if the entry point does not exist. However, for <code>EVM</code> execution, this is not necessarily the case. This is a difference that the owner of the program must take into account when designing and creating their program.</p>
-<p><strong><em>In summary</em></strong>: if a function of the subroutine targets a contract that meets all of the following conditions:</p>
-<ul>
-<li>It is not a <code>Valence Library</code>.</li>
-<li>The entry point of that contract does not exist.</li>
-<li>The fallback function is either not defined or doesn't explicitly revert.</li>
-</ul>
-<p>The execution of that function will be considered successful in the <code>EVM</code> execution environment but not in the <code>CosmWasm</code> execution environment equivalent.</p>
+<p>The Valence Protocol supports both CosmWasm and EVM execution environments, each with different processor implementations and behavioral characteristics. This section outlines the key differences between these environments.</p>
+<h2 id="processor-architecture-differences"><a class="header" href="#processor-architecture-differences">Processor Architecture Differences</a></h2>
+<p>The CosmWasm environment provides a Full Processor with queue-based execution using sophisticated FIFO priority queues (High/Medium priority). It requires permissionless <code>tick()</code> calls to process queued messages and includes comprehensive retry mechanisms with configurable intervals. Non-atomic functions can require library callback confirmations, and it uses Polytone for Cosmos ecosystem integration with full state tracking for concurrent executions and callbacks.</p>
+<p>The EVM environment provides a Lite Processor with immediate execution that processes messages immediately without queuing. It is designed for EVM gas cost constraints and has limited message types, supporting only Pause, Resume, and SendMsgs operations (no InsertMsgs/EvictMsgs). Messages execute once with immediate success/failure and no retry logic. It includes cross-chain messaging capabilities with minimal state tracking focused on immediate execution.</p>
+<h2 id="execution-success-behavior"><a class="header" href="#execution-success-behavior">Execution Success Behavior</a></h2>
+<p>In CosmWasm execution, a function fails if the target CosmWasm contract doesn't exist, if the entry point of that contract doesn't exist, if the contract execution fails for any reason, or if contract messages always fail when entry points don't exist (no fallback mechanism).</p>
+<p>In EVM execution, a function fails if the contract explicitly fails or reverts, if contract existence checks fail (implemented in EVM Processor), or if Valence Libraries detect execution entering the fallback function (implemented safeguard).</p>
+<p>The key difference is that EVM contracts may silently succeed even with non-existent entry points if they have a non-reverting fallback function, while CosmWasm contracts always fail for non-existent entry points.</p>
+<h2 id="message-processing-models"><a class="header" href="#message-processing-models">Message Processing Models</a></h2>
+<p>For atomic subroutines, CosmWasm executes all messages in a single transaction via a self-call pattern, while EVM uses try-catch with external call to maintain atomicity.</p>
+<p>For non-atomic subroutines, CosmWasm provides sequential execution with per-function retry logic and callback confirmations, while EVM provides sequential execution until first failure with no retry or callback confirmations.</p>
+<h2 id="cross-chain-integration"><a class="header" href="#cross-chain-integration">Cross-Chain Integration</a></h2>
+<p>For Authorization contract routing, CosmWasm domains route messages via Polytone with proxy creation. Both environments support callback mechanisms for execution result reporting.</p>
+<p>Polytone provides IBC-based cross-chain communication with timeout handling and retry mechanisms for reliable cross-chain execution.</p>
+<h2 id="practical-implications"><a class="header" href="#practical-implications">Practical Implications</a></h2>
+<p>When designing cross-environment programs, developers should account for:</p>
+<ol>
+<li>Execution Guarantees: CosmWasm provides stronger execution failure guarantees</li>
+<li>Retry Capabilities: Only available in CosmWasm environment</li>
+<li>Queue Management: Only CosmWasm supports message prioritization and queue operations</li>
+<li>Gas Models: EVM optimization focuses on immediate execution vs. CosmWasm's more complex state management</li>
+<li>Library Integration: Valence Libraries include EVM-specific safeguards but cannot guarantee behavior for arbitrary contracts</li>
+</ol>
+<p>Key Consideration: Functions targeting non-Valence contracts in EVM environments may succeed when they should fail if the contract has a non-reverting fallback function, while equivalent CosmWasm executions would properly fail.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="callbacks"><a class="header" href="#callbacks">Callbacks</a></h1>
 <p>There are different types of callbacks in our application. Each of them have a specific function and are used in different parts of the application.</p>
 <h2 id="function-callbacks"><a class="header" href="#function-callbacks">Function Callbacks</a></h2>
@@ -1285,7 +1508,7 @@ pub enum ExecutionResult {
 <h2 id="bridge-callbacks"><a class="header" href="#bridge-callbacks">Bridge Callbacks</a></h2>
 <p>When messages need to be sent through bridges because we are executing batches on external domains, we need to know if, for example, a timeout happened and keep track of it. For this reason we have callbacks per bridge that we support and specific logic that will be executed if they are received. For <code>Polytone</code> timeouts, we will check if the <code>ttl</code> field has not expired and allow permissionless retries if it's still valid. In case the <code>ttl</code> has expired, we will set the ExecutionResult to timeout and not retriable, then send the authorization token back to the user if the user sent it to execute the authorization.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="connectors"><a class="header" href="#connectors">Connectors</a></h1>
-<p>Connectors are a way for the Authorization contract in the main domain to interact with external domains. When adding an <code>ExternalDomain</code> to the Authorization contract, depending on the <code>ExecutionEnvironment</code> we must specify the Connector information to be used. These connectors are responsible for receiving the message batches from the Authorization contract and trigger the necessary actions for the relayers to pick them up and deliver them to the Processor contract in the <code>ExternalDomain</code>. The connector on the <code>ExternalDomain</code> will also receive callbacks with the <code>ExecutionResult</code> from the Processor contract and send them back to the Authorization contract.</p>
+<p>Connectors enable the Authorization contract to optionally communicate with external domains for advanced multi-chain programs. When adding an <code>ExternalDomain</code> to the Authorization contract, depending on the <code>ExecutionEnvironment</code> we must specify the Connector information to be used. These connectors are responsible for receiving the message batches from the Authorization contract and trigger the necessary actions for the relayers to pick them up and deliver them to the Processor contract in the <code>ExternalDomain</code>. The connector on the <code>ExternalDomain</code> will also receive callbacks with the <code>ExecutionResult</code> from the Processor contract and send them back to the Authorization contract.</p>
 <p>We currently support the following connectors:</p>
 <h3 id="polytone"><a class="header" href="#polytone">Polytone</a></h3>
 <p>To connect <code>ExternalDomains</code> that use <code>CosmWasm</code> as <code>ExecutionEnvironment</code> we use <a href="https://github.com/DA0-DA0/polytone">Polytone</a>. Polytone is a set of smart contracts that are instantiated on both domains that implement logic to pass messages to each other using IBC. Polytone consists of the following contracts:</p>
@@ -1369,7 +1592,7 @@ pub enum ExecutionResult {
   end
 </pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="encoding"><a class="header" href="#encoding">Encoding</a></h1>
-<p>When messages are passed between the Authorization contract and a Processor contract on a domain that is not using a CosmWasm <code>ExecutionEnvironment</code>, we need to encode the messages in a way that the Processor contract and the Libraries it calls can understand them. To do this two new contracts were created: <code>Encoder Broker</code> and <code>Encoder</code>.</p>
+<p>When a Valence Program needs to communicate with a Processor contract on a non-CosmWasm execution environment, messages must be encoded appropriately for that environment. Two contracts handle this encoding: <code>Encoder Broker</code> and <code>Encoder</code>.</p>
 <h2 id="encoder-broker"><a class="header" href="#encoder-broker">Encoder Broker</a></h2>
 <p>The <code>Encoder Broker</code> is a very simple contract that will route the messages to the correct <code>Encoder</code> contract. It maps from <code>Encoder Version</code> to <code>Encoder Contract Address</code>. The <code>Encoder Broker</code> will be instantiated once on the <code>Main Domain</code> with an owner that can add/remove these mappings. An example of Mapping can be <code>"evm_encoder_v1"</code> to <code>&lt;encoder_contract_address_on_neutron&gt;</code>. The <code>Encoder Broker</code> has two queries: <code>Encode</code> and <code>Decode</code>, which routes the message to encode/decode to the <code>Encoder Version</code> specified.</p>
 <h2 id="encoder"><a class="header" href="#encoder">Encoder</a></h2>
@@ -3620,8 +3843,8 @@ graph LR
      * @param minInterval Minimum interval between forwards
      */
     struct ForwarderConfig {
-        Account inputAccount;
-        Account outputAccount;
+        BaseAccount inputAccount;
+        BaseAccount outputAccount;
         ForwardingConfig[] forwardingConfigs;
         IntervalType intervalType;
         uint64 minInterval;

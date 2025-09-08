@@ -181,19 +181,23 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="instantiation"><a class="header" href="#instantiation">Instantiation</a></h1>
-<p>When the contract is instantiated, it will be provided the following information:</p>
+<p>Instantiation parameters vary slightly between CosmWasm and EVM.</p>
+<h2 id="cosmwasm"><a class="header" href="#cosmwasm">CosmWasm</a></h2>
+<p>The Authorization contract is instantiated with:</p>
 <ul>
-<li>
-<p>Processor contract on main domain.</p>
-</li>
-<li>
-<p>Owner of the contract.</p>
-</li>
-<li>
-<p>List of subowners (if any). Users that can execute the same actions as the owner except adding/removing other subowners.</p>
-</li>
+<li>Processor contract address on the main domain</li>
+<li>Owner address</li>
+<li>Optional list of sub‑owners (second‑tier owners who can perform all actions except sub‑owner management)</li>
 </ul>
-<p>Once the Authorization contract is deployed, we can already start adding and executing authorizations on the domain that the Authorization contract was deployed on. To execute functions on other domains, the owner will have to add external domains to the Authorization contract with all the information required for the Authorization contract to route the messages to that domain.</p>
+<p>Once deployed, authorizations can be created and executed on the main domain. To execute on other domains, the owner adds external domains with connector details (Polytone for CosmWasm domains; Hyperlane + encoder info for EVM domains).</p>
+<h2 id="evm"><a class="header" href="#evm">EVM</a></h2>
+<p><code>constructor(address owner, address processor, bool storeCallbacks)</code></p>
+<ul>
+<li><code>owner</code>: the contract owner (Ownable)</li>
+<li><code>processor</code>: the Processor contract address</li>
+<li><code>storeCallbacks</code>: whether to persist processor callbacks on‑chain (otherwise only events are emitted)</li>
+</ul>
+<p>EVM does not use sub‑owners; instead, the owner can add or remove admin addresses that are permitted to perform privileged updates. Cross‑domain routing is handled via Hyperlane mailboxes (set during Processor deployment), not at Authorization instantiation time.</p>
 
                     </main>
 
