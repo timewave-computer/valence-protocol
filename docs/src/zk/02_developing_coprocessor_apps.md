@@ -94,3 +94,59 @@ async fn main() -> anyhow::Result<()> {
 Guest programs on the Valence Coprocessor can be designed to utilize verifiable state from external blockchains, like Ethereum. This allows ZK applications to react to or incorporate off-chain data in a trust-minimized way. Services such as the state proof service facilitate this by generating state proofs (e.g., Merkle proofs for account balances or storage slots on Ethereum at specific block heights). Currently, this interaction for fetching external state is often achieved via ABI-encoded HTTP calls, though future implementations might support other protocols like WebSockets.
 
 When developing a guest program, you would design its Controller (within the `controller` crate) to accept such state proofs as part of its input. The ZK `circuit` can then use the proven external state in its computations. The resulting ZK proof from the Valence Coprocessor will thus attest to the correctness of operations performed on this externally verified data. More detailed architectural considerations for this pattern, including how the Coprocessor environment might support or interact with such external proofs, are discussed in [ZK Coprocessor Internals](./04_coprocessor_internals.md). 
+
+### Apps ownership
+
+The apps will be owned by a private key, only if their deployment is signed by the client. The Valence Domain client employs an environment variable `VALENCE_SIGNER` for specifying its secret key during signature processes. When a signature becomes available for a deployed app, the controller bytecode, storage, and dedicated prover list will only be modifiable upon signing a request using the provided secret key.
+
+The initial phase involves installing the valence-coprocessor binary:
+
+```sh
+cargo install valence-domain-clients \
+  --no-default-features \
+  --features coprocessor-bin \
+  --bin valence-coprocessor
+```
+
+You can verify the installation by running:
+
+```sh
+valence-coprocessor --version
+```
+
+To create the signer key, utilize the [foundry](https://getfoundry.sh/cast/reference/wallet/) tool:
+
+```sh
+cast wallet new --account valence
+```
+
+The private key can be retrieved as follows:
+
+```sh
+cast wallet private-key --account valence
+```
+
+An easy way to store it in the appropriate environment variable:
+
+```sh
+export VALENCE_SIGNER='{"SecretEccNistP256":"'$(cast wallet private-key --account valence)'"}'
+```
+
+This readies the environment for utilizing an EccNistP256 signer. Every invocation of the `valence-coprocessor` binary will leverage such environment variable and sign the requests accordingly.
+
+To view the allocated GPU workers associated with the key:
+
+```sh
+$ valence-coprocessor provers get
+Using valence signer `EccNistP256(...)`...
+Fetching provers...
+{"owned":[],"public":["wss://prover.coprocessor.valence.zone"]}
+```
+
+The user may assign a specific prover to their app:
+
+```sh
+valence-coprocessor provers add 'wss://prover.coprocessor.valence.zone'
+```
+
+The co-processor will cycle through the available dedicated GPU provers of the app to generate proofs.
