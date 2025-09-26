@@ -15,6 +15,11 @@ contract ValenceXCVTest is Test {
         uint256 assets,
         uint256 shares
     );
+    event OperatorSet(
+        address indexed controller,
+        address indexed operator,
+        bool approved
+    );
 
     // contracts
     ValenceXCV internal vault;
@@ -26,6 +31,7 @@ contract ValenceXCVTest is Test {
     address strategist = address(2);
     address user1 = address(3);
     address user2 = address(4);
+    address operator = address(5);
 
     // vault config
     uint256 initialSharePrice = 10 ** 18; // 1:1 initial rate
@@ -74,12 +80,25 @@ contract ValenceXCVTest is Test {
     }
 
     function testSetUpVault() public view {
+        // initial vault state
+        assertEq(vault.totalSupply(), 0);
+        assertEq(vault.balanceOf(user1), 0);
+        assertEq(vault.balanceOf(user2), 0);
+        assertEq(vault.balanceOf(address(vault)), 0);
+        assertEq(vault.balanceOf(address(depositAccount)), 0);
+        assertEq(vault.sharePrice(), initialSharePrice);
         assertEq(vault.owner(), owner);
         assertEq(vault.strategist(), strategist);
         assertEq(vault.depositAccount(), address(depositAccount));
         assertEq(vault.name(), "ValenceXCV");
         assertEq(vault.symbol(), "vXCV");
-        assertEq(vault.sharePrice(), initialSharePrice);
+
+        // underlying token balances
+        assertEq(underlyingToken.balanceOf(address(depositAccount)), 0);
+        assertEq(underlyingToken.balanceOf(user1), startUserBalance);
+        assertEq(underlyingToken.balanceOf(user2), startUserBalance);
+        assertEq(underlyingToken.balanceOf(operator), 0);
+        assertEq(underlyingToken.balanceOf(address(vault)), 0);
     }
 
     function testSetSharePriceUnauthorized() public {
@@ -106,14 +125,7 @@ contract ValenceXCVTest is Test {
         assertEq(2 * price_0, price_1);
     }
 
-    function testDeposit() public {
-        assertEq(vault.totalSupply(), 0);
-        assertEq(underlyingToken.balanceOf(address(depositAccount)), 0);
-        assertEq(underlyingToken.balanceOf(user1), startUserBalance);
-        assertEq(underlyingToken.balanceOf(address(vault)), 0);
-        assertEq(vault.balanceOf(user1), 0);
-        assertEq(vault.sharePrice(), initialSharePrice);
-
+    function testDeposit4626() public {
         uint256 userDepositAmount = startUserBalance / 2;
 
         uint256 expectedShares = (userDepositAmount * ONE_SHARE) /
@@ -137,5 +149,91 @@ contract ValenceXCVTest is Test {
             underlyingToken.balanceOf(address(user1)),
             startUserBalance - userDepositAmount
         );
+    }
+
+    function testDeposit7540NotControllerNotOperator() public {
+        // user1 tries to deposit on user2 behalf without approval
+        vm.prank(user1);
+        vm.expectRevert(ValenceXCV.NotControllerOrOperator.selector);
+        vault.deposit(startUserBalance, user1, user2);
+    }
+
+    function testDeposit7540Operator() public {
+        // first approve the operator
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit OperatorSet(user1, operator, false);
+        vault.setOperator(operator, false);
+        vm.stopPrank();
+
+        uint256 userDepositAmount = startUserBalance / 2;
+
+        uint256 expectedShares = (userDepositAmount * ONE_SHARE) /
+            initialSharePrice;
+
+        vm.prank(operator);
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit Deposit(operator, user1, userDepositAmount, expectedShares);
+        uint256 shares = vault.deposit(userDepositAmount, user1, operator);
+        vm.stopPrank();
+
+        assertNotEq(shares, 0);
+        assertEq(vault.balanceOf(user1), shares);
+        assertEq(vault.totalSupply(), shares);
+        assertEq(
+            underlyingToken.balanceOf(address(depositAccount)),
+            userDepositAmount
+        );
+        assertEq(underlyingToken.balanceOf(address(vault)), 0);
+        assertEq(
+            underlyingToken.balanceOf(address(user1)),
+            startUserBalance - userDepositAmount
+        );
+    }
+
+    function testDeposit7540Controller() public {
+        uint256 userDepositAmount = startUserBalance / 2;
+
+        uint256 expectedShares = (userDepositAmount * ONE_SHARE) /
+            initialSharePrice;
+
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit Deposit(user1, user1, userDepositAmount, expectedShares);
+        uint256 shares = vault.deposit(userDepositAmount, user1, user1);
+        vm.stopPrank();
+
+        assertNotEq(shares, 0);
+        assertEq(vault.balanceOf(user1), shares);
+        assertEq(vault.totalSupply(), shares);
+        assertEq(
+            underlyingToken.balanceOf(address(depositAccount)),
+            userDepositAmount
+        );
+        assertEq(underlyingToken.balanceOf(address(vault)), 0);
+        assertEq(
+            underlyingToken.balanceOf(address(user1)),
+            startUserBalance - userDepositAmount
+        );
+    }
+
+    function testSetOperator() public {
+        assertFalse(vault.isOperator(user1, operator));
+
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit OperatorSet(user1, operator, true);
+        vault.setOperator(operator, true);
+        vm.stopPrank();
+
+        assertTrue(vault.isOperator(user1, operator));
+
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit OperatorSet(user1, operator, false);
+        vault.setOperator(operator, false);
+        vm.stopPrank();
+
+        assertFalse(vault.isOperator(user1, operator));
     }
 }

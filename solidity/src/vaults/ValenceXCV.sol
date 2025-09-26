@@ -8,11 +8,17 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC7540Operator} from "../vaults/interfaces/IERC7540Operator.sol";
 
 // TODO: look into any ERC-4626 defaults and think if anyhthing else needs
 // to be overridden
 
-contract ValenceXCV is Initializable, ERC4626Upgradeable, OwnableUpgradeable {
+contract ValenceXCV is
+    Initializable,
+    ERC4626Upgradeable,
+    IERC7540Operator,
+    OwnableUpgradeable
+{
     using Math for uint256;
 
     uint256 internal ONE_SHARE;
@@ -26,9 +32,15 @@ contract ValenceXCV is Initializable, ERC4626Upgradeable, OwnableUpgradeable {
     // Valence account for holding the deposited funds
     address public depositAccount;
 
+    // ERC7540 operator store. each controller can approve a set of operators
+    // to perform actions on their behalf.
+    mapping(address controller => mapping(address operator => bool))
+        public operators;
+
     error InvalidSharePrice();
 
     error OnlyStrategistAllowed();
+    error NotControllerOrOperator();
 
     error DepositAccountNotSet();
     error StrategistNotSet();
@@ -77,6 +89,27 @@ contract ValenceXCV is Initializable, ERC4626Upgradeable, OwnableUpgradeable {
     }
 
     // ========================================================================
+    // ========================= ERC-7540 OPERATOR ============================
+    // ========================================================================
+    function isOperator(
+        address controller,
+        address operator
+    ) external view returns (bool) {
+        return operators[controller][operator];
+    }
+
+    function setOperator(
+        address operator,
+        bool approved
+    ) external returns (bool) {
+        // set the operator status
+        operators[msg.sender][operator] = approved;
+        emit OperatorSet(msg.sender, operator, approved);
+        // return true to indicate success
+        return true;
+    }
+
+    // ========================================================================
     // ============================ DEPOSIT LANE ==============================
     // ========================================================================
     function setSharePrice(uint256 newSharePrice) external onlyStrategist {
@@ -114,7 +147,13 @@ contract ValenceXCV is Initializable, ERC4626Upgradeable, OwnableUpgradeable {
         // zero deposits are not allowed
         require(assets != 0, ZeroDepositAmount());
 
-        // TODO: do operator checks
+        // assert that the caller is either the controller or an approved operator
+        require(
+            controller == msg.sender || operators[controller][msg.sender],
+            NotControllerOrOperator()
+        );
+
+        // TODO: staleness checks
 
         // calculate the shares to be minted based on provided assets
         // and the current share price
@@ -129,7 +168,7 @@ contract ValenceXCV is Initializable, ERC4626Upgradeable, OwnableUpgradeable {
         uint256 assets,
         uint256 shares
     ) internal override {
-        // Transfer assets to the deposit account (external contract)
+        // escrow the deposited assets to the deposit account (external contract)
         SafeERC20.safeTransferFrom(
             IERC20(asset()),
             receiver,

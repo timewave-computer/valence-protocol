@@ -3,6 +3,6 @@ pragma solidity ^0.8.28;
 
 // TODO
 
-interface IERC7540Redeem {
+interface ERC7540Redeem {
 
 }
