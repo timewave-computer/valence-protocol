@@ -9,22 +9,16 @@ import {OwnableUpgradeable} from "@openzeppelin-contracts-upgradeable/access/Own
 import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC7540Operator} from "../vaults/interfaces/IERC7540Operator.sol";
+import {IValenceVaultStrategist} from "../vaults/interfaces/IValenceVaultStrategist.sol";
 
 contract ValenceXCV is
     Initializable,
     ERC4626Upgradeable,
     IERC7540Operator,
-    OwnableUpgradeable
+    OwnableUpgradeable,
+    IValenceVaultStrategist
 {
     using Math for uint256;
-
-    /// @dev Emitted on successful share price update by the strategist.
-    /// @param sharePrice newly posted share price
-    /// @param updateTimestamp block.time of the update
-    event SharePriceUpdated(
-        uint256 indexed sharePrice,
-        uint256 indexed updateTimestamp
-    );
 
     error InvalidSharePrice();
     error OnlyStrategistAllowed();
