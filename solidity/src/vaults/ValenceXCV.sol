@@ -25,6 +25,11 @@ contract ValenceXCV is
 
     // current share price
     uint256 public sharePrice;
+    // timestamp of when the share price was last updated
+    uint256 public lastUpdateTimestamp;
+    // maximum age of the share price before it is considered stale,
+    // in seconds
+    uint256 public sharePriceMaxAge;
 
     // authorized strategist address
     address public strategist;
@@ -45,12 +50,25 @@ contract ValenceXCV is
     error DepositAccountNotSet();
     error StrategistNotSet();
     error ZeroDepositAmount();
+    error StaleSharePrice();
 
-    event SharePriceUpdated(uint256 indexed sharePrice);
+    error InvalidSharePriceMaxAge();
+
+    event SharePriceUpdated(
+        uint256 indexed sharePrice,
+        uint256 indexed updateTimestamp
+    );
 
     modifier onlyStrategist() {
         if (msg.sender != strategist) {
             revert OnlyStrategistAllowed();
+        }
+        _;
+    }
+
+    modifier whenSharePriceNotStale() {
+        if (block.timestamp - lastUpdateTimestamp > sharePriceMaxAge) {
+            revert StaleSharePrice();
         }
         _;
     }
@@ -66,7 +84,8 @@ contract ValenceXCV is
         address depositAccountAddress,
         string memory vaultTokenName,
         string memory vaultTokenSymbol,
-        uint256 startSharePrice
+        uint256 startSharePrice,
+        uint256 maxSharePriceAge
     ) external initializer {
         // initialize the vault share token
         __ERC20_init(vaultTokenName, vaultTokenSymbol);
@@ -77,6 +96,10 @@ contract ValenceXCV is
 
         if (startSharePrice == 0) revert InvalidSharePrice();
         sharePrice = startSharePrice;
+        lastUpdateTimestamp = block.timestamp;
+
+        if (maxSharePriceAge == 0) revert InvalidSharePriceMaxAge();
+        sharePriceMaxAge = maxSharePriceAge;
 
         if (depositAccountAddress == address(0)) revert DepositAccountNotSet();
         depositAccount = depositAccountAddress;
@@ -117,8 +140,9 @@ contract ValenceXCV is
         if (newSharePrice == 0) revert InvalidSharePrice();
 
         sharePrice = newSharePrice;
+        lastUpdateTimestamp = block.timestamp;
 
-        emit SharePriceUpdated(newSharePrice);
+        emit SharePriceUpdated(newSharePrice, lastUpdateTimestamp);
     }
 
     function _convertToShares(
@@ -143,7 +167,7 @@ contract ValenceXCV is
         uint256 assets,
         address receiver,
         address controller
-    ) public returns (uint256 shares) {
+    ) public whenSharePriceNotStale returns (uint256 shares) {
         // zero deposits are not allowed
         require(assets != 0, ZeroDepositAmount());
 
@@ -152,8 +176,6 @@ contract ValenceXCV is
             controller == msg.sender || operators[controller][msg.sender],
             NotControllerOrOperator()
         );
-
-        // TODO: staleness checks
 
         // calculate the shares to be minted based on provided assets
         // and the current share price
