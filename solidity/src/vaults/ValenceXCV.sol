@@ -28,6 +28,7 @@ contract ValenceXCV is
     error ZeroDepositAmount();
     error StaleSharePrice();
     error InvalidSharePriceMaxAge();
+    error SharePriceChangeDeltaTooLarge();
 
     /// @dev The precision factor for one share, equivalent to 10^decimals().
     uint256 internal ONE_SHARE;
@@ -38,6 +39,8 @@ contract ValenceXCV is
     uint256 public lastUpdateTimestamp;
     /// The maximum age of the share price in seconds before it is considered stale.
     uint256 public sharePriceMaxAge;
+    /// Max allowed price change in a single share price update, in bips (1/100th of 1%)
+    uint256 public maxPriceChange;
 
     /// The address of the authorized strategist who can update the share price.
     address public strategist;
@@ -98,7 +101,8 @@ contract ValenceXCV is
         string memory vaultTokenName,
         string memory vaultTokenSymbol,
         uint256 startSharePrice,
-        uint256 maxSharePriceAge
+        uint256 maxSharePriceAge,
+        uint256 maxPriceChangeBips
     ) external initializer {
         // initialize the vault share token
         __ERC20_init(vaultTokenName, vaultTokenSymbol);
@@ -110,6 +114,7 @@ contract ValenceXCV is
         if (startSharePrice == 0) revert InvalidSharePrice();
         sharePrice = startSharePrice;
         lastUpdateTimestamp = block.timestamp;
+        maxPriceChange = maxPriceChangeBips;
 
         if (maxSharePriceAge == 0) revert InvalidSharePriceMaxAge();
         sharePriceMaxAge = maxSharePriceAge;
@@ -162,6 +167,18 @@ contract ValenceXCV is
     function setSharePrice(uint256 newSharePrice) external onlyStrategist {
         // setting share price to 0 would allow for infinite mint
         if (newSharePrice == 0) revert InvalidSharePrice();
+
+        uint256 oldSharePrice = sharePrice;
+        // get the absolute difference between the new and old share prices
+        uint256 delta = newSharePrice > oldSharePrice
+            ? newSharePrice - oldSharePrice
+            : oldSharePrice - newSharePrice;
+
+        // verify that the delta is within our tolerance
+        // maxPriceChange is expressed in bips, so we multiply the delta by 10000
+        if ((delta * 10000) / oldSharePrice > maxPriceChange) {
+            revert SharePriceChangeDeltaTooLarge();
+        }
 
         sharePrice = newSharePrice;
         lastUpdateTimestamp = block.timestamp;

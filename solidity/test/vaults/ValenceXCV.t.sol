@@ -46,6 +46,7 @@ contract ValenceXCVTest is Test {
 
     uint8 UNDERLYING_PRECISION_DECIMALS = 18;
     uint256 ONE_SHARE = 10 ** UNDERLYING_PRECISION_DECIMALS;
+    uint256 MAX_PRICE_CHANGE = 500; // 5% max price change
 
     function setUp() public {
         vm.startPrank(owner);
@@ -69,7 +70,8 @@ contract ValenceXCVTest is Test {
             "ValenceXCV",
             "vXCV",
             initialSharePrice,
-            oneHourSecs
+            oneHourSecs,
+            MAX_PRICE_CHANGE
         );
 
         underlyingToken.mint(user1, startUserBalance);
@@ -121,20 +123,41 @@ contract ValenceXCVTest is Test {
 
     function testSetSharePrice() public {
         uint256 price_0 = vault.sharePrice();
+        uint256 small_change = price_0 + (price_0 * 2) / 100;
         uint256 update_timestamp_0 = vault.lastUpdateTimestamp();
 
         vm.warp(update_timestamp_0 + 1);
         vm.prank(strategist);
         vm.expectEmit(true, true, true, true, address(vault));
-        emit SharePriceUpdated(2 * price_0, update_timestamp_0 + 1);
-        vault.setSharePrice(2 * price_0);
+        emit SharePriceUpdated(small_change, update_timestamp_0 + 1);
+        vault.setSharePrice(small_change);
 
         uint256 price_1 = vault.sharePrice();
         uint256 update_timestamp_1 = vault.lastUpdateTimestamp();
 
         assertEq(update_timestamp_1, update_timestamp_0 + 1);
         assertNotEq(price_0, price_1);
-        assertEq(2 * price_0, price_1);
+        assertEq(small_change, price_1);
+    }
+
+    function testSetSharePriceRevertOnPriceIncreaseTooLarge() public {
+        uint256 price_0 = vault.sharePrice();
+        // 6% increase, while max is 5%
+        uint256 large_increase = price_0 + (price_0 * 6) / 100;
+
+        vm.prank(strategist);
+        vm.expectRevert(ValenceXCV.SharePriceChangeDeltaTooLarge.selector);
+        vault.setSharePrice(large_increase);
+    }
+
+    function testSetSharePriceRevertOnPriceDecreaseTooLarge() public {
+        uint256 price_0 = vault.sharePrice();
+        // 6% decrease, while max is 5%
+        uint256 large_decrease = price_0 - (price_0 * 6) / 100;
+
+        vm.prank(strategist);
+        vm.expectRevert(ValenceXCV.SharePriceChangeDeltaTooLarge.selector);
+        vault.setSharePrice(large_decrease);
     }
 
     function testDeposit4626() public {
@@ -175,8 +198,9 @@ contract ValenceXCVTest is Test {
 
         // update the share price
         uint256 currentSharePrice = vault.sharePrice();
+        uint256 small_change = (currentSharePrice * 2) / 100;
         vm.prank(strategist);
-        vault.setSharePrice(2 * currentSharePrice);
+        vault.setSharePrice(currentSharePrice + small_change);
         vm.stopPrank();
 
         uint256 userDepositAmount = startUserBalance / 2;
