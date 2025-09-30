@@ -10,9 +10,6 @@ import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Ini
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC7540Operator} from "../vaults/interfaces/IERC7540Operator.sol";
 
-// TODO: look into any ERC-4626 defaults and think if anyhthing else needs
-// to be overridden
-
 contract ValenceXCV is
     Initializable,
     ERC4626Upgradeable,
@@ -20,6 +17,25 @@ contract ValenceXCV is
     OwnableUpgradeable
 {
     using Math for uint256;
+
+    /**
+     * @dev Emitted on successful share price update by the strategist.
+     * @param sharePrice newly posted share price
+     * @param updateTimestamp block.time of the update
+     */
+    event SharePriceUpdated(
+        uint256 indexed sharePrice,
+        uint256 indexed updateTimestamp
+    );
+
+    error InvalidSharePrice();
+    error OnlyStrategistAllowed();
+    error NotControllerOrOperator();
+    error DepositAccountNotSet();
+    error StrategistNotSet();
+    error ZeroDepositAmount();
+    error StaleSharePrice();
+    error InvalidSharePriceMaxAge();
 
     uint256 internal ONE_SHARE;
 
@@ -42,20 +58,7 @@ contract ValenceXCV is
     mapping(address controller => mapping(address operator => bool))
         public operators;
 
-    error InvalidSharePrice();
-    error OnlyStrategistAllowed();
-    error NotControllerOrOperator();
-    error DepositAccountNotSet();
-    error StrategistNotSet();
-    error ZeroDepositAmount();
-    error StaleSharePrice();
-    error InvalidSharePriceMaxAge();
-
-    event SharePriceUpdated(
-        uint256 indexed sharePrice,
-        uint256 indexed updateTimestamp
-    );
-
+    /// @dev Restricts function access to strategist
     modifier onlyStrategist() {
         if (msg.sender != strategist) {
             revert OnlyStrategistAllowed();
@@ -63,14 +66,17 @@ contract ValenceXCV is
         _;
     }
 
+    /// @dev Restricts function access to the controller or any operators
+    /// approved by the controller
+    /// @param controller address of the target position owner
     modifier onlyControllerOrOperator(address controller) {
-        // assert that the caller is either the controller or an approved operator
         if (controller != msg.sender && !operators[controller][msg.sender]) {
             revert NotControllerOrOperator();
         }
         _;
     }
 
+    /// @dev Restricts function to cases where the share price is up to date
     modifier onlyWhenSharePriceNotStale() {
         if (block.timestamp - lastUpdateTimestamp > sharePriceMaxAge) {
             revert StaleSharePrice();
@@ -119,6 +125,10 @@ contract ValenceXCV is
     // ========================================================================
     // ========================= ERC-7540 OPERATOR ============================
     // ========================================================================
+
+    /// @dev Checks whether a given address is an approved operator
+    /// @param controller Request owner address that should approve the operators
+    /// @param operator Operator address to check the approval status of
     function isOperator(
         address controller,
         address operator
