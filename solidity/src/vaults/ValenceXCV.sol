@@ -67,6 +67,8 @@ contract ValenceXCV is
         _;
     }
 
+    // TODO: think whether this should instead be a hard pause (in state) that
+    // would require owner intervention
     /// @dev Restricts function to cases where the share price is up to date
     modifier onlyWhenSharePriceNotStale() {
         if (block.timestamp - lastUpdateTimestamp > sharePriceMaxAge) {
