@@ -66,6 +66,14 @@ contract ValenceXCV is
         _;
     }
 
+    modifier onlyControllerOrOperator(address controller) {
+        // assert that the caller is either the controller or an approved operator
+        if (controller != msg.sender && !operators[controller][msg.sender]) {
+            revert NotControllerOrOperator();
+        }
+        _;
+    }
+
     modifier whenSharePriceNotStale() {
         if (block.timestamp - lastUpdateTimestamp > sharePriceMaxAge) {
             revert StaleSharePrice();
@@ -154,6 +162,10 @@ contract ValenceXCV is
 
     // ERC-4626 deposit implementation that calls into the ERC-7540 deposit
     // with the addition of controller
+    // TODO: consider flagging this with `whenSharePriceNotStale` modifier,
+    // even though it will get checked in the other call. mostly just to be
+    // more explicit and to be extra sure that these checks happen in case the
+    // flow changes in the future
     function deposit(
         uint256 assets,
         address receiver
@@ -167,15 +179,16 @@ contract ValenceXCV is
         uint256 assets,
         address receiver,
         address controller
-    ) public whenSharePriceNotStale returns (uint256 shares) {
+    )
+        public
+        whenSharePriceNotStale
+        onlyControllerOrOperator(controller)
+        returns (uint256 shares)
+    {
         // zero deposits are not allowed
-        require(assets != 0, ZeroDepositAmount());
-
-        // assert that the caller is either the controller or an approved operator
-        require(
-            controller == msg.sender || operators[controller][msg.sender],
-            NotControllerOrOperator()
-        );
+        if (assets == 0) {
+            revert ZeroDepositAmount();
+        }
 
         // calculate the shares to be minted based on provided assets
         // and the current share price

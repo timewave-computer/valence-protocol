@@ -20,6 +20,10 @@ contract ValenceXCVTest is Test {
         address indexed operator,
         bool approved
     );
+    event SharePriceUpdated(
+        uint256 indexed sharePrice,
+        uint256 indexed updateTimestamp
+    );
 
     // contracts
     ValenceXCV internal vault;
@@ -35,6 +39,7 @@ contract ValenceXCVTest is Test {
 
     // vault config
     uint256 initialSharePrice = 10 ** 18; // 1:1 initial rate
+    uint256 oneHourSecs = 1 hours;
 
     // start user balance
     uint256 startUserBalance = 1000 * 10 ** 18;
@@ -63,7 +68,8 @@ contract ValenceXCVTest is Test {
             address(depositAccount),
             "ValenceXCV",
             "vXCV",
-            initialSharePrice
+            initialSharePrice,
+            oneHourSecs
         );
 
         underlyingToken.mint(user1, startUserBalance);
@@ -115,12 +121,18 @@ contract ValenceXCVTest is Test {
 
     function testSetSharePrice() public {
         uint256 price_0 = vault.sharePrice();
+        uint256 update_timestamp_0 = vault.lastUpdateTimestamp();
 
+        vm.warp(update_timestamp_0 + 1);
         vm.prank(strategist);
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit SharePriceUpdated(2 * price_0, update_timestamp_0 + 1);
         vault.setSharePrice(2 * price_0);
 
         uint256 price_1 = vault.sharePrice();
+        uint256 update_timestamp_1 = vault.lastUpdateTimestamp();
 
+        assertEq(update_timestamp_1, update_timestamp_0 + 1);
         assertNotEq(price_0, price_1);
         assertEq(2 * price_0, price_1);
     }
@@ -149,6 +161,37 @@ contract ValenceXCVTest is Test {
             underlyingToken.balanceOf(address(user1)),
             startUserBalance - userDepositAmount
         );
+    }
+
+    function testDepositStalenessChecks() public {
+        // expire the share price
+        vm.warp(block.timestamp + 2 days);
+
+        // attempt a deposit and assert that it reverts
+        vm.expectRevert(ValenceXCV.StaleSharePrice.selector);
+        vm.prank(user1);
+        vault.deposit(startUserBalance, user1);
+        vm.stopPrank();
+
+        // update the share price
+        uint256 currentSharePrice = vault.sharePrice();
+        vm.prank(strategist);
+        vault.setSharePrice(2 * currentSharePrice);
+        vm.stopPrank();
+
+        uint256 userDepositAmount = startUserBalance / 2;
+
+        uint256 expectedShares = (userDepositAmount * ONE_SHARE) /
+            vault.sharePrice();
+
+        // perform a deposit with the new rate
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit Deposit(user1, user1, userDepositAmount, expectedShares);
+        uint256 shares = vault.deposit(userDepositAmount, user1);
+        vm.stopPrank();
+
+        assertNotEq(shares, 0);
     }
 
     function testDeposit7540NotControllerNotOperator() public {
