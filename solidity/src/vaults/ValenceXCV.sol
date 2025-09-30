@@ -43,15 +43,12 @@ contract ValenceXCV is
         public operators;
 
     error InvalidSharePrice();
-
     error OnlyStrategistAllowed();
     error NotControllerOrOperator();
-
     error DepositAccountNotSet();
     error StrategistNotSet();
     error ZeroDepositAmount();
     error StaleSharePrice();
-
     error InvalidSharePriceMaxAge();
 
     event SharePriceUpdated(
@@ -74,7 +71,7 @@ contract ValenceXCV is
         _;
     }
 
-    modifier whenSharePriceNotStale() {
+    modifier onlyWhenSharePriceNotStale() {
         if (block.timestamp - lastUpdateTimestamp > sharePriceMaxAge) {
             revert StaleSharePrice();
         }
@@ -181,7 +178,7 @@ contract ValenceXCV is
         address controller
     )
         public
-        whenSharePriceNotStale
+        onlyWhenSharePriceNotStale
         onlyControllerOrOperator(controller)
         returns (uint256 shares)
     {
