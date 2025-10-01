@@ -10,13 +10,15 @@ import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Ini
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC7540Operator} from "../vaults/interfaces/IERC7540Operator.sol";
 import {IValenceVaultStrategist} from "../vaults/interfaces/IValenceVaultStrategist.sol";
+import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract ValenceXCV is
     Initializable,
     ERC4626Upgradeable,
     IERC7540Operator,
     OwnableUpgradeable,
-    IValenceVaultStrategist
+    IValenceVaultStrategist,
+    UUPSUpgradeable
 {
     using Math for uint256;
 
@@ -79,8 +81,11 @@ contract ValenceXCV is
         _;
     }
 
+    /// @dev Constructor that disables initializers
+    /// @notice Required for UUPS proxy pattern
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
-        // _disableInitializers();
+        _disableInitializers();
     }
 
     /// Initializes the vault.
@@ -109,6 +114,8 @@ contract ValenceXCV is
         __ERC4626_init(IERC20(underlying));
         // set up ownership
         __Ownable_init(_owner);
+        // proxy
+        __UUPSUpgradeable_init();
 
         if (startSharePrice == 0) revert InvalidSharePrice();
         sharePrice = startSharePrice;
@@ -126,6 +133,13 @@ contract ValenceXCV is
 
         // set the share precision based on the underlying token decimals
         ONE_SHARE = 10 ** decimals();
+    }
+
+    /// @dev Function that authorizes contract upgrades - required by UUPSUpgradeable
+    /// @param newImplementation address of the new implementation
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
+        // Upgrade logic comes here
+        // No additional logic required beyond owner check in modifier
     }
 
     // ========================================================================

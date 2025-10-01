@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/src/Test.sol";
 import {ValenceXCV} from "../../src/vaults/ValenceXCV.sol";
 import {BaseAccount} from "../../src/accounts/BaseAccount.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 // run with: forge test --match-path test/vaults/ValenceXCV.t.sol -vvv
 
@@ -43,10 +44,10 @@ contract ValenceXCVTest is Test {
         underlyingToken = new MockERC20("Test Token", "TST", UNDERLYING_PRECISION_DECIMALS);
         depositAccount = new BaseAccount(owner, new address[](0));
 
-        vault = new ValenceXCV();
+        ValenceXCV vaultImpl = new ValenceXCV();
 
-        // initialize the vault
-        vault.initialize(
+        bytes memory initData = abi.encodeWithSelector(
+            ValenceXCV.initialize.selector,
             owner,
             strategist,
             address(underlyingToken),
@@ -57,6 +58,17 @@ contract ValenceXCVTest is Test {
             oneHourSecs,
             MAX_PRICE_CHANGE
         );
+
+        // Create proxy via create2 and initialize in one step
+        bytes memory proxyCreationCode =
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(address(vaultImpl), initData));
+
+        address proxyAddress;
+        assembly {
+            proxyAddress := create2(0, add(proxyCreationCode, 0x20), mload(proxyCreationCode), 0)
+        }
+
+        vault = ValenceXCV(payable(proxyAddress));
 
         underlyingToken.mint(user1, startUserBalance);
         underlyingToken.mint(user2, startUserBalance);
