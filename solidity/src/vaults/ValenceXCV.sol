@@ -49,8 +49,7 @@ contract ValenceXCV is
     address public depositAccount;
 
     /// Mapping of controllers to their approved operators.
-    mapping(address controller => mapping(address operator => bool))
-        public operators;
+    mapping(address controller => mapping(address operator => bool)) public operators;
 
     /// @dev Restricts function access to strategist
     modifier onlyStrategist() {
@@ -137,10 +136,7 @@ contract ValenceXCV is
     /// @param controller The address of the controller
     /// @param operator The address of the operator to check
     /// @return A boolean indicating whether the operator is approved
-    function isOperator(
-        address controller,
-        address operator
-    ) external view returns (bool) {
+    function isOperator(address controller, address operator) external view returns (bool) {
         return operators[controller][operator];
     }
 
@@ -148,10 +144,7 @@ contract ValenceXCV is
     /// @param operator The address of the operator
     /// @param approved A boolean indicating whether to approve or revoke the operator
     /// @return A boolean indicating the success of the operation (always true)
-    function setOperator(
-        address operator,
-        bool approved
-    ) external returns (bool) {
+    function setOperator(address operator, bool approved) external returns (bool) {
         // set the operator status
         operators[msg.sender][operator] = approved;
         emit OperatorSet(msg.sender, operator, approved);
@@ -170,9 +163,7 @@ contract ValenceXCV is
 
         uint256 oldSharePrice = sharePrice;
         // get the absolute difference between the new and old share prices
-        uint256 delta = newSharePrice > oldSharePrice
-            ? newSharePrice - oldSharePrice
-            : oldSharePrice - newSharePrice;
+        uint256 delta = newSharePrice > oldSharePrice ? newSharePrice - oldSharePrice : oldSharePrice - newSharePrice;
 
         // verify that the delta is within our tolerance
         // maxPriceChange is expressed in bips, so we multiply the delta by 10000
@@ -190,10 +181,7 @@ contract ValenceXCV is
     /// @param assets The amount of assets to convert
     /// @param rounding The rounding direction
     /// @return The corresponding amount of shares
-    function _convertToShares(
-        uint256 assets,
-        Math.Rounding rounding
-    ) internal view override returns (uint256) {
+    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view override returns (uint256) {
         return assets.mulDiv(ONE_SHARE, sharePrice, rounding);
     }
 
@@ -203,10 +191,7 @@ contract ValenceXCV is
     /// @param assets The amount of assets to deposit
     /// @param receiver The address that will receive the shares
     /// @return shares The amount of shares minted
-    function deposit(
-        uint256 assets,
-        address receiver
-    ) public override returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
         return deposit(assets, receiver, msg.sender);
     }
 
@@ -216,11 +201,7 @@ contract ValenceXCV is
     /// @param receiver The address that will receive the shares
     /// @param controller The address of the controller on whose behalf the deposit is made
     /// @return shares The amount of shares minted
-    function deposit(
-        uint256 assets,
-        address receiver,
-        address controller
-    )
+    function deposit(uint256 assets, address receiver, address controller)
         public
         onlyWhenSharePriceNotStale
         onlyControllerOrOperator(controller)
@@ -245,19 +226,9 @@ contract ValenceXCV is
     /// @param receiver The address that will receive the shares
     /// @param assets The amount of assets to deposit
     /// @param shares The amount of shares to mint
-    function _deposit(
-        address caller,
-        address receiver,
-        uint256 assets,
-        uint256 shares
-    ) internal override {
+    function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
         // escrow the deposited assets to the deposit account (external contract)
-        SafeERC20.safeTransferFrom(
-            IERC20(asset()),
-            receiver,
-            depositAccount,
-            assets
-        );
+        SafeERC20.safeTransferFrom(IERC20(asset()), receiver, depositAccount, assets);
         _mint(receiver, shares);
 
         emit Deposit(caller, receiver, assets, shares);
