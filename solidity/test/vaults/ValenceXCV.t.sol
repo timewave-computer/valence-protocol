@@ -202,21 +202,23 @@ contract ValenceXCVTest is Test {
     }
 
     function testDeposit7540Operator() public {
+        assertFalse(vault.isOperator(user1, operator));
         // first approve the operator
         vm.prank(user1);
         vm.expectEmit(true, true, true, true, address(vault));
-        emit OperatorSet(user1, operator, false);
-        vault.setOperator(operator, false);
+        emit OperatorSet(user1, operator, true);
+        vault.setOperator(operator, true);
         vm.stopPrank();
+
+        assertTrue(vault.isOperator(user1, operator));
 
         uint256 userDepositAmount = startUserBalance / 2;
 
         uint256 expectedShares = (userDepositAmount * ONE_SHARE) / initialSharePrice;
-
         vm.prank(operator);
         vm.expectEmit(true, true, true, true, address(vault));
         emit Deposit(operator, user1, userDepositAmount, expectedShares);
-        uint256 shares = vault.deposit(userDepositAmount, user1, operator);
+        uint256 shares = vault.deposit(userDepositAmount, user1, user1);
         vm.stopPrank();
 
         assertNotEq(shares, 0);

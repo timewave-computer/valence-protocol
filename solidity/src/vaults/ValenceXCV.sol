@@ -101,7 +101,7 @@ contract ValenceXCV is
         string memory vaultTokenSymbol,
         uint256 startSharePrice,
         uint256 maxSharePriceAge,
-        uint256 maxPriceChangeBips
+        uint256 maxPriceChangeBps
     ) external initializer {
         // initialize the vault share token
         __ERC20_init(vaultTokenName, vaultTokenSymbol);
@@ -113,7 +113,7 @@ contract ValenceXCV is
         if (startSharePrice == 0) revert InvalidSharePrice();
         sharePrice = startSharePrice;
         lastUpdateTimestamp = block.timestamp;
-        maxPriceChange = maxPriceChangeBips;
+        maxPriceChange = maxPriceChangeBps;
 
         if (maxSharePriceAge == 0) revert InvalidSharePriceMaxAge();
         sharePriceMaxAge = maxSharePriceAge;
@@ -216,7 +216,7 @@ contract ValenceXCV is
         // and the current share price
         shares = convertToShares(assets);
 
-        _deposit(controller, receiver, assets, shares);
+        _deposit(msg.sender, receiver, assets, shares);
     }
 
     /// Internal deposit logic. Transfers assets to the deposit account and mints shares.
