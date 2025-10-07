@@ -64,4 +64,4 @@ As we can see this is less flexible than the CosmWasm version due to the nature 
 function sendProcessorMessage(string calldata label, bytes calldata _message) 
 ```
 
-We simply need to specify what label we want to execute and the encoded `ProcessorMessage` that will be forwarded to the Processor. This perform all the checks against our AuthorizationData, and if they all pass, the message will be forwarded to the processor, executed, and a callback will be received on the Authorization contract.
+We simply need to specify what label we want to execute and the encoded `ProcessorMessage` that will be forwarded to the Processor. This performs all the checks against our AuthorizationData, and if they all pass, the message will be forwarded to the processor, executed, and a callback will be received on the Authorization contract.
