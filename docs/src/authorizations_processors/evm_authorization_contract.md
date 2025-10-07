@@ -35,7 +35,7 @@ This will allow processing the messages that the newly deployed authorization co
     )
 ```
 
-This method allows adding multiple authorizations at the same time using arrays, to optimize the gas consumption. The most important part here is the `AuthorizationData`, which is defined as following:
+This method allows adding multiple authorizations at the same time using arrays, to optimize the gas consumption. The most important part here is the `AuthorizationData`, which is defined as follows:
 
 ```solidity
     /**
