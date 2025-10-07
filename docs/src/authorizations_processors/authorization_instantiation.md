@@ -21,3 +21,5 @@ Once deployed, authorizations can be created and executed on the main domain. To
 - `storeCallbacks`: whether to persist processor callbacks on‑chain (otherwise only events are emitted)
 
 EVM does not use sub‑owners; instead, the owner can add or remove admin addresses that are permitted to perform privileged updates. Cross‑domain routing is handled via Hyperlane mailboxes (set during Processor deployment), not at Authorization instantiation time.
+
+For more information on how to deploy and interact with the EVM authorization contract, check the [EVM Authorization contract section](./evm_authorization_contract.md).
