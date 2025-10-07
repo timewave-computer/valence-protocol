@@ -1,6 +1,6 @@
 # EVM Authorization Contract
 
-If a general message passing protocol like Hyperlane wants to be avoided to not require the deployment of additional infrastructure, we also provide an Solidity version of the Authorization contract with similar functionality than the CosmWasm version.
+If a general message passing protocol like Hyperlane wants to be avoided to not require the deployment of additional infrastructure, we also provide a Solidity version of the Authorization contract with similar functionality than the CosmWasm version.
 
 These are the steps to set up our EVM program using the EVM Authorization contract instead of Hyperlane:
 
