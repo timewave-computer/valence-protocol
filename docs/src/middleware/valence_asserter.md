@@ -21,7 +21,7 @@ Each function call that the configured program wishes to execute only if a certa
 be placed in a message batch and prepended with an assertion message.
 This way, when the message batch is being processed, any assertions that do not evaluate to true (return an `Err`) will
 prevent later messages from executing as expected. If the batch is *atomic*, the whole batch will abort.
-If the batch is *non-atomic*, various [authorization](./../authorizations_processors/authorization_contract.md) configuration
+If the batch is *non-atomic*, various [authorization](./../authorizations_processors/cosmwasm_authorization_contract.md) configuration
 options will dictate the further behavior.
 
 ## High-level flow

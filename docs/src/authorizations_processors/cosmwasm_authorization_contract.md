@@ -1,4 +1,4 @@
-# Authorization Contract
+# CosmWasm Authorization Contract
 
 The Authorization contract will be a single contract deployed on the main domain and that will define the authorizations of the top-level application, which can include libraries in different domains (chains). For each domain, there will be one Processor in charge of executing the functions on the libraries. The Authorization contract will connect to all of the Processor contracts using a connector (e.g. Polytone Note, Hyperlane Mailbox…) and will route the message batches to be executed to the right domain. At the same time, for each external domain, we will have a proxy contract (e.g. Polytone Proxy, Hyperlane Mailbox...) in the main domain which will receive the callbacks sent from the processor on the external domain with the `ExecutionResult` of the `MessageBatch`.
 
