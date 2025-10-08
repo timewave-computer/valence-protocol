@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Deployment - Valence Protocol Documentation</title>
+        <title>EVM - Valence Protocol Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -180,22 +180,70 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="deployment"><a class="header" href="#deployment">Deployment</a></h1>
-<p>This section contains a detailed explanation of how to deploy programs on different environments.</p>
-<p><strong>Environments</strong></p>
-<ul>
-<li><a href="./local.html">Local</a></li>
-</ul>
+                        <h1 id="evm-authorization-contract"><a class="header" href="#evm-authorization-contract">EVM Authorization Contract</a></h1>
+<p>If a general message passing protocol like Hyperlane wants to be avoided to not require the deployment of additional infrastructure, we also provide a Solidity version of the Authorization contract with similar functionality than the CosmWasm version.</p>
+<p>These are the steps to set up our EVM program using the EVM Authorization contract instead of Hyperlane:</p>
+<ol>
+<li>Deploy <code>Authorization.sol</code> providing the program owner, the lite processor address (previously deployed) and a flag specifying if we want to store the callbacks in the contract state or just emit them as events (less gas consumption):</li>
+</ol>
+<pre><code class="language-solidity">constructor(address _owner, address _processor, bool _storeCallbacks) Ownable(_owner)
+</code></pre>
+<ol start="2">
+<li>Once it's deployed, we need to set the authorization contract as an authorized address on the processor.</li>
+</ol>
+<pre><code class="language-solidity">function addAuthorizedAddress(address _address)
+</code></pre>
+<p>This will allow processing the messages that the newly deployed authorization contract will forward to the processor.</p>
+<ol start="3">
+<li>Now we can start adding our authorizations:</li>
+</ol>
+<pre><code class="language-solidity"> /**
+     * @notice Adds standard authorizations for a specific label
+     * @dev Can only be called by the owner
+     * @param _labels Array of labels for the authorizations
+     * @param _users Array of arrays of user addresses associated with each label
+     * @param _authorizationData Array of arrays of authorization data associated with each label
+     */
+    function addStandardAuthorizations(
+        string[] memory _labels,
+        address[][] memory _users,
+        AuthorizationData[][] memory _authorizationData
+    )
+</code></pre>
+<p>This method allows adding multiple authorizations at the same time using arrays, to optimize the gas consumption. The most important part here is the <code>AuthorizationData</code>, which is defined as follows:</p>
+<pre><code class="language-solidity">    /**
+     * @notice Structure representing the data for the authorization label
+     * @dev This structure contains the contract address and the function signature hash
+     * @param contractAddress The address of the contract that is authorized to be called
+     * @param useFunctionSelector Boolean indicating if the function selector should be used instead of callHash
+     * @param functionSelector The function selector of the function that is authorized to be called
+     * @param callHash The function signature hash of the function that is authorized to be called
+     */
+    struct AuthorizationData {
+        address contractAddress;
+        bool useFunctionSelector;
+        bytes4 functionSelector;
+        bytes32 callHash;
+    }
+</code></pre>
+<p>As explained above, we have two ways of defining our authorization: using the function selector or a callHash. If we use a function selector, the authorized address is allowed to execute that specific function with <strong>ANY</strong> arguments. For example, if the function is <code>transfer(uint256 amount)</code> the address can specify any amount value when calling the authorization. On the other hand, if we want to restrict the call to a specific value, we provide the call hash so that only those specific call bytes can be executed. For example, we compute the <code>keccak256</code> hash of the encoded call data (e.g., <code>abi.encodeWithSignature("transfer(uint256)", 1000)</code>) and provide that as the <code>callHash</code>. Then the authorized address can <strong>ONLY</strong> call this authorization with that specific value.</p>
+<p>As we can see this is less flexible than the CosmWasm version due to the nature of the Solidity language vs Rust but tends to be enough for most of the programs. If more flexibility is required, the option of using a message passing protocol with our encoding/decoding mechanisms or using the ZK Coprocessor is also available.</p>
+<ol start="4">
+<li>Now that everything is set up, we can execute our authorization like this:</li>
+</ol>
+<pre><code class="language-solidity">function sendProcessorMessage(string calldata label, bytes calldata _message) 
+</code></pre>
+<p>We simply need to specify what label we want to execute and the encoded <code>ProcessorMessage</code> that will be forwarded to the Processor. This performs all the checks against our AuthorizationData, and if they all pass, the message will be forwarded to the processor, executed, and a callback will be received on the Authorization contract.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../security.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../authorizations_processors/authorization_user_actions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../deployment/local.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../authorizations_processors/processor_contract.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -205,11 +253,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../security.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../authorizations_processors/authorization_user_actions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../deployment/local.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../authorizations_processors/processor_contract.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -182,9 +182,6 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<blockquote>
-<p>🚧 Valence Protocol architecture and developer documentation is still evolving rapidly. Portions of the toolchain have stabilized to build cross-chain vaults, and extending vaults with multi-party agreements. Send us a message on <a href="https://x.com/valencezone">X</a> if you'd like to get started!</p>
-</blockquote>
 <p><strong>Valence</strong> is a unified development environment that enables building <em>trust-minimized cross-chain DeFi applications</em>, called <strong>Valence Programs</strong>.</p>
 <p>Valence Programs are:</p>
 <ul>
@@ -212,7 +209,6 @@ Valence currently supports CosmWasm and EVM. SVM support coming soon. The rest o
 <li><a href="components/../accounts/_overview.html">Accounts</a></li>
 <li><a href="components/./libraries_and_functions.html">Libraries and Functions</a></li>
 <li><a href="components/./programs_and_authorizations.html">Programs and Authorizations</a></li>
-<li><a href="components/./middleware.html">Middleware</a></li>
 </ul>
 </li>
 <li>
@@ -486,25 +482,6 @@ graph LR
 	P --&gt; |Function 2| S2[Library 2]
 	P --&gt; |Function N| S3[Library N]
 </pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="wip-middleware"><a class="header" href="#wip-middleware">WIP: Middleware</a></h1>
-<p>The Valence Middleware is a set of components that provide a unified interface for the Valence Type system.</p>
-<p>At its core, middleware is made up from the following components.</p>
-<h2 id="design-goals"><a class="header" href="#design-goals">Design goals</a></h2>
-<p>TODO: describe modifiable middleware, design goals and philosophy behind it</p>
-<p>These means are achieved with three key components:</p>
-<ul>
-<li>brokers</li>
-<li>type registries</li>
-<li>Valence types</li>
-</ul>
-<h2 id="middleware-brokers"><a class="header" href="#middleware-brokers">Middleware Brokers</a></h2>
-<p>Middleware brokers are responsible for managing the lifecycle of middleware instances and their associated types.</p>
-<h2 id="middleware-type-registries"><a class="header" href="#middleware-type-registries">Middleware Type Registries</a></h2>
-<p>Middleware Type Registries are responsible for unifying a set of foreign types to be used in Valence Programs.</p>
-<h2 id="valence-types"><a class="header" href="#valence-types">Valence Types</a></h2>
-<p>Valence Types are the canonical representations of various external domain implementations of some types.</p>
-<h2 id="valence-asserter"><a class="header" href="#valence-asserter">Valence Asserter</a></h2>
-<p>Valence Asserter enables Valence Programs to assert specific predicates during runtime. This is useful for programs that wish to enable conditional execution of a given function as long as some predicate evaluates to <code>true</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="introduction-to-valence-zk"><a class="header" href="#introduction-to-valence-zk">Introduction to Valence ZK</a></h1>
 <p>The Valence Protocol provides Zero-Knowledge proofs and a dedicated ZK Coprocessor system to enhance its capabilities, particularly in areas requiring complex computation, privacy, and verifiable off-chain operations. This ZK integration allows Valence to bridge the gap between the rich, flexible environment of off-chain processing and the trust-minimized, verifiable nature of blockchain execution.</p>
 <p>At a high level, ZK proofs enable one party (the prover, in this case, the ZK Coprocessor) to prove to another party (the verifier, typically on-chain smart contracts) that a certain statement is true, without revealing any information beyond the validity of the statement itself. In Valence, this means that computationally intensive or private tasks can be executed off-chain by a "guest program" running on the ZK Coprocessor. This guest program produces a result along with a cryptographic proof attesting to the correctness of that result according to the program's logic.</p>
@@ -1214,6 +1191,7 @@ Chain1 Chain2 Chain3
 <li><code>storeCallbacks</code>: whether to persist processor callbacks on‑chain (otherwise only events are emitted)</li>
 </ul>
 <p>EVM does not use sub‑owners; instead, the owner can add or remove admin addresses that are permitted to perform privileged updates. Cross‑domain routing is handled via Hyperlane mailboxes (set during Processor deployment), not at Authorization instantiation time.</p>
+<p>For more information on how to deploy and interact with the EVM authorization contract, check the <a href="authorizations_processors/./evm_authorization_contract.html">EVM Authorization contract section</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="owner-functions"><a class="header" href="#owner-functions">Owner Functions</a></h1>
 <p>This page lists owner/admin actions. Items are grouped by execution environment when behavior differs.</p>
 <h2 id="cosmwasm-1"><a class="header" href="#cosmwasm-1">CosmWasm</a></h2>
@@ -1376,6 +1354,60 @@ Here is an example flowchart of how a user interacts with the Authorization cont
 <ul>
 <li><code>sendProcessorMessage(string label, bytes message)</code>: users submit an ABI‑encoded <code>ProcessorMessage</code> (as defined in <code>IProcessorMessageTypes</code>) with the target label. The contract verifies the sender against the label’s allowlist and validates the messages against the subroutine’s function set (contract address + function selector or call hash). For SendMsgs/InsertMsgs, the Authorization injects the current <code>executionId</code> before forwarding to the Processor. There is no tokenization on EVM; authorization is address/function constrained.</li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="evm-authorization-contract"><a class="header" href="#evm-authorization-contract">EVM Authorization Contract</a></h1>
+<p>If a general message passing protocol like Hyperlane wants to be avoided to not require the deployment of additional infrastructure, we also provide a Solidity version of the Authorization contract with similar functionality than the CosmWasm version.</p>
+<p>These are the steps to set up our EVM program using the EVM Authorization contract instead of Hyperlane:</p>
+<ol>
+<li>Deploy <code>Authorization.sol</code> providing the program owner, the lite processor address (previously deployed) and a flag specifying if we want to store the callbacks in the contract state or just emit them as events (less gas consumption):</li>
+</ol>
+<pre><code class="language-solidity">constructor(address _owner, address _processor, bool _storeCallbacks) Ownable(_owner)
+</code></pre>
+<ol start="2">
+<li>Once it's deployed, we need to set the authorization contract as an authorized address on the processor.</li>
+</ol>
+<pre><code class="language-solidity">function addAuthorizedAddress(address _address)
+</code></pre>
+<p>This will allow processing the messages that the newly deployed authorization contract will forward to the processor.</p>
+<ol start="3">
+<li>Now we can start adding our authorizations:</li>
+</ol>
+<pre><code class="language-solidity"> /**
+     * @notice Adds standard authorizations for a specific label
+     * @dev Can only be called by the owner
+     * @param _labels Array of labels for the authorizations
+     * @param _users Array of arrays of user addresses associated with each label
+     * @param _authorizationData Array of arrays of authorization data associated with each label
+     */
+    function addStandardAuthorizations(
+        string[] memory _labels,
+        address[][] memory _users,
+        AuthorizationData[][] memory _authorizationData
+    )
+</code></pre>
+<p>This method allows adding multiple authorizations at the same time using arrays, to optimize the gas consumption. The most important part here is the <code>AuthorizationData</code>, which is defined as follows:</p>
+<pre><code class="language-solidity">    /**
+     * @notice Structure representing the data for the authorization label
+     * @dev This structure contains the contract address and the function signature hash
+     * @param contractAddress The address of the contract that is authorized to be called
+     * @param useFunctionSelector Boolean indicating if the function selector should be used instead of callHash
+     * @param functionSelector The function selector of the function that is authorized to be called
+     * @param callHash The function signature hash of the function that is authorized to be called
+     */
+    struct AuthorizationData {
+        address contractAddress;
+        bool useFunctionSelector;
+        bytes4 functionSelector;
+        bytes32 callHash;
+    }
+</code></pre>
+<p>As explained above, we have two ways of defining our authorization: using the function selector or a callHash. If we use a function selector, the authorized address is allowed to execute that specific function with <strong>ANY</strong> arguments. For example, if the function is <code>transfer(uint256 amount)</code> the address can specify any amount value when calling the authorization. On the other hand, if we want to restrict the call to a specific value, we provide the call hash so that only those specific call bytes can be executed. For example, we compute the <code>keccak256</code> hash of the encoded call data (e.g., <code>abi.encodeWithSignature("transfer(uint256)", 1000)</code>) and provide that as the <code>callHash</code>. Then the authorized address can <strong>ONLY</strong> call this authorization with that specific value.</p>
+<p>As we can see this is less flexible than the CosmWasm version due to the nature of the Solidity language vs Rust but tends to be enough for most of the programs. If more flexibility is required, the option of using a message passing protocol with our encoding/decoding mechanisms or using the ZK Coprocessor is also available.</p>
+<ol start="4">
+<li>Now that everything is set up, we can execute our authorization like this:</li>
+</ol>
+<pre><code class="language-solidity">function sendProcessorMessage(string calldata label, bytes calldata _message) 
+</code></pre>
+<p>We simply need to specify what label we want to execute and the encoded <code>ProcessorMessage</code> that will be forwarded to the Processor. This performs all the checks against our AuthorizationData, and if they all pass, the message will be forwarded to the processor, executed, and a callback will be received on the Authorization contract.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="processor-contract"><a class="header" href="#processor-contract">Processor Contract</a></h1>
 <p>The Processor contract exists on each domain within a Valence Program and handles execution of message batches received from the Authorization contract. There are currently two main processor implementations with different capabilities and execution models.</p>
 <p>The Full Processor (CosmWasm) provides comprehensive message processing with sophisticated queue management. It uses a priority queue system with High and Medium priority FIFO queues where High priority is processed first. The processor uses tick-based execution with a permissionless <code>tick()</code> function that processes queued messages. It includes advanced retry logic with function-level and batch-level retry configurations, callback confirmation support where non-atomic functions can require callback confirmations, comprehensive state management with Active/Paused states, Polytone integration for Cosmos cross-chain operations, and support for both atomic and non-atomic execution models with different retry behaviors.</p>
@@ -5033,7 +5065,7 @@ For osmosis gamm pool, the implementation may look like this:</p>
     }
 }
 <span class="boring">}</span></code></pre></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-types-1"><a class="header" href="#valence-types-1">Valence Types</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-types"><a class="header" href="#valence-types">Valence Types</a></h1>
 <p><strong>Valence Types</strong> are a set of canonical type wrappers to be used inside
 Valence Programs.</p>
 <p>Primary operational domain of Valence Protocol will need to consume, interpret,
@@ -5076,7 +5108,7 @@ if and only if there is an enabled Valence Type representing the same underlying
 <li>XYK pool</li>
 <li>Balance response</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-asserter-1"><a class="header" href="#valence-asserter-1">Valence Asserter</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="valence-asserter"><a class="header" href="#valence-asserter">Valence Asserter</a></h1>
 <p><strong>Valence Asserters</strong> provide the means to assert boolean conditions about <a href="middleware/./valence_types.html">Valence Types</a>.</p>
 <p>Each Valence Type variant may provide different assertion queries. To offer a unified API, Valence Asserter
 remains agnostic to the underlying type being queried and provides a common gateway to all available types.</p>
@@ -6661,66 +6693,6 @@ contract_execute(
 <p>This concludes the walkthrough. You have now initialized the program and used it to provide and withdraw liquidity on Osmosis from Neutron!</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="security"><a class="header" href="#security">Security</a></h1>
 <p>Valence Programs have been independently audited. Please find audit reports <a href="https://github.com/timewave-computer/valence-protocol/tree/main/audits/">here</a>.</p>
-<p>If you believe you've found a security-related issue with Valence Programs, please disclose responsibly by contacting the Timewave team at <a href="mailto:security@timewave.computer">security@timewave.computer</a>.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="deployment"><a class="header" href="#deployment">Deployment</a></h1>
-<p>This section contains a detailed explanation of how to deploy programs on different environments.</p>
-<p><strong>Environments</strong></p>
-<ul>
-<li><a href="deployment/./local.html">Local</a></li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="local-interchain-deployment"><a class="header" href="#local-interchain-deployment">Local interchain deployment</a></h1>
-<p>In order to test a program locally, we use the local interchaintest suite to spin up chains.</p>
-<h2 id="1-installing-local-interchain"><a class="header" href="#1-installing-local-interchain">1. Installing local-interchain</a></h2>
-<p>Before you can run the tests, you need to install local interchain. This is a one-time operation. NOTE: your binary will link back to the location where you install, if you remove the folder, you need to run <code>make install</code> again.</p>
-<pre><code class="language-bash">git clone https://github.com/strangelove-ventures/interchaintest &amp;&amp; cd interchaintest/local-interchain &amp;&amp; make install
-</code></pre>
-<h2 id="2-running-chains-locally"><a class="header" href="#2-running-chains-locally">2. Running chains locally</a></h2>
-<p>Run one of the set-up configs we have in the <code>e2e/chains</code> folder. For example, to run the <code>neutron.json</code> config, run the following command from the <code>e2e</code> folder:</p>
-<pre><code class="language-bash">cd e2e
-local-ic start neutron --api-port 42069
-</code></pre>
-<p>This will start a local environment with a Gaia chain and a Neutron (using ICS) chain. The <code>--api-port</code> will expose the API on port 42069, we are using this port in our local-ic-utils crate so let's use the same to reuse some of the utils there.</p>
-<p>This process also writes the API endpoints of each chain to <code>e2e/chains/configs/logs.json</code>. The setup script will use this file to determine which RPCs to use.</p>
-<h2 id="3-optimize-contracts"><a class="header" href="#3-optimize-contracts">3. Optimize Contracts</a></h2>
-<p>From the root directory, use CosmWasm optimizer to optimize contracts. The output will be written to an <code>artifacts</code> folder in the project root.</p>
-<pre><code class="language-bash">just optimize
-</code></pre>
-<p>Or</p>
-<pre><code class="language-bash">./devtools/optimize.sh
-</code></pre>
-<h2 id="4-generate-manager-config"><a class="header" href="#4-generate-manager-config">4. Generate manager config</a></h2>
-<p>Before deploying a program, some initial setup is required. The below script will deploy all required contracts to the chain, instantiate a registry contract, and set up polytone bridges.</p>
-<pre><code class="language-bash">cargo run -p generate_local_ic_config
-</code></pre>
-<p>The script will write all related code IDs, addresses, and RPC endpoints at  <code>deployment/configs/local/config.toml</code>, to be used by the program manager.</p>
-<p>The default chain config that is used in this script is the <code>neutron.json</code> config, if in step 2 you started local-ic with a different chain config, please use the same config here.</p>
-<p>Example with <code>neutron_juno.json</code> chain config:</p>
-<pre><code class="language-bash">cargo run -p generate_local_ic_config -- -c neutron_juno.json
-</code></pre>
-<h2 id="5-build-program-config"><a class="header" href="#5-build-program-config">5. Build program config</a></h2>
-<p>Before deploying a program, we need to build the program config.</p>
-<p>This script will take the program you build using the Program Builder in <code>my_program.rs</code> and output the program config in a JSON format in <code>output_program/program.json</code>.</p>
-<pre><code class="language-bash">cargo run -p build_program
-</code></pre>
-<ul>
-<li>This script is a helper to generate a program config in JSON format using our program builder in rust, a program config in JSON format can be generated in any other method.</li>
-</ul>
-<h2 id="6-deploy-a-program"><a class="header" href="#6-deploy-a-program">6. Deploy a program</a></h2>
-<p>To deploy a program, you can use the <code>deploy_program</code> script.</p>
-<p>To run this script you need a manager config and a program config:</p>
-<ul>
-<li>Manager config is generated by <code>generate_local_ic_config</code> script for local environment at <code>deployment/configs/local/config.toml</code></li>
-<li>Program config can be generated using the <code>build_program</code> script or any other method at <code>deployment/output_program/program.json</code></li>
-</ul>
-<pre><code class="language-bash">cargo run -p deploy_program
-</code></pre>
-<p>By default it will look for the program config generated by the <code>build_program</code> script in <code>deployment/output_program/program.json</code>. You can pass a different path to the config with:</p>
-<pre><code class="language-bash">cargo run -p deploy_program -- -p path/to/program_config.json
-</code></pre>
-<h2 id="7-program-instantiated"><a class="header" href="#7-program-instantiated">7. Program Instantiated</a></h2>
-<p>After a program was instantiated successfully, you will see a success message in the console and the program config file path that was generated.</p>
-<p>The name of the file will end with the program id, for example: <code>program_1.json</code>.</p>
-<p>You will be able to find this file under the <code>deployment/results</code> folder.</p>
 
                     </main>
 
