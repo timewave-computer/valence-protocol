@@ -1,7 +1,5 @@
 # Introduction
 
-> 🚧 Valence Protocol architecture and developer documentation is still evolving rapidly. Portions of the toolchain have stabilized to build cross-chain vaults, and extending vaults with multi-party agreements. Send us a message on [X](https://x.com/valencezone) if you'd like to get started!
-
 **Valence** is a unified development environment that enables building *trust-minimized cross-chain DeFi applications*, called **Valence Programs**.
 
 Valence Programs are:
